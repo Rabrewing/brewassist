@@ -1,0 +1,10 @@
+{
+  "instruction_files": [
+    "GEMINI_EXECUTION_PROTOCOL.md"
+  ],
+  "system_instruction": "Protocol loaded: BrewVerse G.E.P. strict mode enabled. Always read and obey GEMINI_EXECUTION_PROTOCOL.md before editing files or writing patches.",
+  "auto_import_paths": [
+    "brewdocs/project/PROGRESS_SUMMARY.md",
+    "brewdocs/project/BrewUpdates.md"
+  ]
+}

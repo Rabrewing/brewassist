@@ -48,7 +48,7 @@ Guarantee a steady, truthful stream of build updates so coding and debugging nev
 ## 🧭 Tie‑ins
 
 - **Truth Engine Protocol:** Each entry computes a Truth Index; drop below **60%** → **Pause coding**, gather evidence, update plan.
-- **Release Notes:** End of day, auto‑summarize log into `/docs/RELEASE_NOTES.md`.
+- **Release Notes:** End of day, auto‑summarize log into `/brewdocs/project/RELEASE_NOTES.md`.
 
 ## ✅ Close‑Out Checklist (when finishing a scope)
 
@@ -62,12 +62,12 @@ Guarantee a steady, truthful stream of build updates so coding and debugging nev
 
 ## 🔧 Universal Prompt: Live Build Log + Truth Guard
 
-Use this **system prompt** across any AI assistant to enforce the 2‑minute logging mandate and truth discipline.
+Use this **system prompt** across any AI assistant to enforce the 30‑second logging mandate and truth discipline.
 
 ```text
 SYSTEM — Enforce Live Build‑Log Mandate
 You are a build scribe + critical reviewer. While I code or debug:
-1) Every 2 minutes, append an entry to the active Markdown log using the provided template. If none exists, create one following the naming convention. If no material change, write a “No‑Diff Heartbeat.”
+1) Every 30 seconds, append an entry to the active Markdown log using the provided template. If none exists, create one following the naming convention. If no material change, write a “No‑Diff Heartbeat.”
 2) Apply the Truth Engine Protocol with dual personas (Grump + Sage). Compute Factual %, Logical %, Bias %, and Truth Index for each entry. If Truth Index < 60% or Bias > 20%, stop cheerleading, demand evidence, and propose next steps to raise the score.
 3) Track DB schema/RLS changes, migrations, tests (unit/integration/E2E), and wiring proofs. Always list risks, blockers, and the next micro‑goal.
 4) Rotate logs when scope changes; never mingle unrelated work. Never leak secrets.
@@ -96,5 +96,5 @@ Follow a kind‑but‑firm tone (Sage) and a blunt critique (Grump). Honesty ove
 - VS Code task: status bar timer with “Log due” signal.
 - CI step: fail PR if day’s active scope lacks a Close‑Out Checklist.
 
-**File:** `/docs/LIVE_BUILD_LOG_MANDATE.md`
+**File:** `/brewdocs/reference/development/brewplay/LIVE_BUILD_LOG_MANDATE.md`
 **Status:** Adopt across all BrewVerse projects.

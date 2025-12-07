@@ -1,86 +1,67 @@
+// pages/api/fs-tree.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
+import { BREWASSIST_REPO_ROOT, isPathAllowed } from '../../lib/brewConfig';
 
-const ROOT = process.env.BREW_ROOT || '/home/brewexec';
-
-type Node = {
+type FileNode = {
   name: string;
-  path: string;
-  type: 'file' | 'dir';
-  children?: Node[];
+  path: string; // always repo-relative, e.g. "lib/brewassistChain.ts"
+  type: 'file' | 'directory';
 };
 
-// folders we NEVER want in the BrewAssist cockpit tree
-const IGNORE_DIRS = new Set([
-  'node_modules',
-  '.next',
-  '.git',
-  '__pycache__',
-  '.venv',
-  'venv',
-  'brewassist-venv',
-  'brewassist_venv',
-  'brewgold',
-  'brewgold-backup',
-  'brewlotto',
-  'brewpulse-insight',
-]);
+function normalizeRequestedPath(raw: string | string[] | undefined): string {
+  if (!raw) return '.'; // root
 
-const IGNORE_FILE_SUFFIXES = ['.pyc', '.log'];
+  const s = Array.isArray(raw) ? raw[0] : raw;
 
-function listDir(dir: string, depth = 0, maxDepth = 3): Node[] {
-  if (depth > maxDepth) return [];
+  // Strip leading slashes
+  let clean = s.replace(/^\/+/, '');
 
-  let entries: string[];
-  try {
-    entries = fs.readdirSync(dir);
-  } catch {
-    return [];
+  // If someone sent an absolute path under the repo, strip the repo root
+  const root = path.resolve(BREWASSIST_REPO_ROOT);
+  const candidate = path.resolve(s);
+  if (candidate.startsWith(root)) {
+    clean = path.relative(root, candidate);
   }
 
-  return entries
-    .filter((name) => !name.startsWith('.'))
-    .filter((name) => !IGNORE_DIRS.has(name))
-    .map((name) => {
-      const full = path.join(dir, name);
-
-      let stat: fs.Stats;
-      try {
-        stat = fs.statSync(full);
-      } catch {
-        // bad symlink or Windows path weirdness → skip
-        return null;
-      }
-
-      const relPath = path.relative(ROOT, full);
-
-      if (stat.isDirectory()) {
-        return {
-          name,
-          path: relPath,
-          type: 'dir' as const,
-          children: listDir(full, depth + 1, maxDepth),
-        };
-      }
-
-      // ignore noisy file types
-      if (IGNORE_FILE_SUFFIXES.some((suf) => name.endsWith(suf))) return null;
-
-      return {
-        name,
-        path: relPath,
-        type: 'file' as const,
-      };
-    })
-    .filter(Boolean) as Node[];
+  if (!clean || clean === '.') return '.';
+  return clean;
 }
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  try {
+    const relative = normalizeRequestedPath(req.query.path);
+    const fullPath = path.join(BREWASSIST_REPO_ROOT, relative);
 
-  const tree = listDir(ROOT, 0, 3);
-  res.status(200).json({ root: ROOT, tree });
+    if (!isPathAllowed(fullPath)) {
+      console.warn('[fs-tree] blocked path', { relative, fullPath });
+      return res.status(400).json({ error: 'Path not allowed' });
+    }
+
+    const entries = await fs.readdir(fullPath, { withFileTypes: true });
+
+    const nodes: FileNode[] = entries.map((entry) => {
+      const entryPath = path.join(relative, entry.name);
+      return {
+        name: entry.name,
+        path: entryPath,
+        type: entry.isDirectory() ? 'directory' : 'file',
+      };
+    });
+
+    res.status(200).json({
+      path: relative,
+      nodes,
+    });
+  } catch (err: any) {
+    console.error('[fs-tree] error', err);
+    res.status(500).json({
+      error: 'Failed to read directory',
+      message: err?.message,
+    });
+  }
 }

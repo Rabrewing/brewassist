@@ -36,7 +36,7 @@ This file defines:
 | Overlay Script           | Slash Command        | Purpose                                               | Status       |
 | ------------------------ | -------------------- | ----------------------------------------------------- | ------------ |
 | `brewassist.sh`          | `/assist`            | Unified AI entrypoint (Gemini → HRM → Grok → Mistral) | **Core**     |
-| `brewagent.sh`           | `/agent`             | Simulate agents ( @Zahav, @Pulse, @brewdocs/reference/brewplay/BREWGOLD_COMMANDMENTS.md, @pages/api/loop.ts)        | **Core**     |
+| `brewagent.sh`           | `/agent`             | Simulate agents ( @Zahav, @Pulse, @brewdocs/reference/brewplay/BrewDocs_File_Management.md, @pages/api/loop.ts)        | **Core**     |
 | `brewagent_mistral.sh`   | *(internal)*         | Mistral-backed agent wrapper for codegen_runner       | **Core**     |
 | `brewhrm.sh`             | `/hrm`               | Strategic planning / onboarding narration             | **Core**     |
 | `brewllm.sh`             | `/llm`               | Primary LLM output (TinyLLaMA / Gemini / Grok)        | **Core**     |
@@ -129,7 +129,7 @@ For more detail, run `/help`.
 /assist      🎯 Unified AI entrypoint (Gemini → HRM → Grok → Mistral)
 /hrm         🧭 Strategic onboarding & planning narrator
 /llm         🧠 Generic LLM output (TinyLLaMA / Gemini / Grok)
-/agent       👥 Simulate agents ( @Zahav, @Pulse, @brewdocs/reference/brewplay/BREWGOLD_COMMANDMENTS.md, @pages/api/loop.ts)
+/agent       👥 Simulate agents ( @Zahav, @Pulse, @brewdocs/reference/brewplay/BREWDOCS_FILE_MANAGEMENT_INSTRUCTIONS.md, @pages/api/loop.ts)
 /loop        🔁 Generic commentary loop
 /loop_mistral 🧠 Mistral GGUF loop (local fallback)
 /commit      📦 Git commit with narrated message

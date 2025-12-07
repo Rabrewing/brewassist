@@ -1,56 +1,52 @@
-// lib/brewConfig.ts
-// Central place to read BrewExec env config (project, tier, models).
+// brewassist/lib/brewConfig.ts
+
+import path from "path";
+
+// Root of the BrewAssist repo (top-level directory)
+export const BREWASSIST_REPO_ROOT =
+  process.env.BREWASSIST_REPO_ROOT || process.cwd();
+
+// Allowed roots for filesystem operations
+export const BREWASSIST_ALLOWED_ROOTS = [BREWASSIST_REPO_ROOT];
+
+export function isPathAllowed(targetPath: string): boolean {
+  const normalized = path.resolve(targetPath);
+  return BREWASSIST_ALLOWED_ROOTS.some((root) =>
+    normalized.startsWith(path.resolve(root))
+  );
+}
 
 export type BrewEnv = {
+  repoRoot: string;
+  environment: string;
+  allowed: { repoRoot: string };
   activeProject: string;
-  tier: string;
   emoji: string;
+  tier: string;
   primaryModel: string;
   fallbackModel: string;
   localModel: string;
 };
 
-/**
- * getBrewEnv()
- * Reads values from NEXT_PUBLIC_* (browser) with server-side fallback.
- */
+// Safe defaults so UI cannot break when missing env vars
 export function getBrewEnv(): BrewEnv {
-  const activeProject =
-    process.env.NEXT_PUBLIC_BREW_ACTIVE_PROJECT ||
-    process.env.BREW_ACTIVE_PROJECT ||
-    'brewexec';
-
-  const tier =
-    process.env.NEXT_PUBLIC_BREWPULSE_TIER ||
-    process.env.BREWPULSE_TIER ||
-    'shimmer';
-
-  const emoji =
-    process.env.NEXT_PUBLIC_BREWPULSE_EMOJI ||
-    process.env.BREWPULSE_EMOJI ||
-    '✨';
-
-  const primaryModel =
-    process.env.NEXT_PUBLIC_BREW_MODEL_PRIMARY ||
-    process.env.BREW_MODEL_PRIMARY ||
-    'gemini';
-
-  const fallbackModel =
-    process.env.NEXT_PUBLIC_BREW_MODEL_FALLBACK ||
-    process.env.BREW_MODEL_FALLBACK ||
-    'mistral';
-
-  const localModel =
-    process.env.NEXT_PUBLIC_BREW_MODEL_LOCAL ||
-    process.env.BREW_MODEL_LOCAL ||
-    'tinyllama';
+  const repoRoot = BREWASSIST_REPO_ROOT;
 
   return {
-    activeProject,
-    tier,
-    emoji,
-    primaryModel,
-    fallbackModel,
-    localModel,
+    repoRoot,
+    environment: process.env.NODE_ENV ?? "development",
+    allowed: { repoRoot },
+
+    activeProject:
+      process.env.BREWASSIST_ACTIVE_PROJECT ||
+      process.env.BREWASSIST_PROJECT_NAME ||
+      "brewassist",
+
+    emoji: process.env.BREWASSIST_TIER_EMOJI || "⚡",
+    tier: process.env.BREWASSIST_TIER_NAME || "RB Mode",
+
+    primaryModel: process.env.BREWASSIST_PRIMARY_MODEL || "openai",
+    fallbackModel: process.env.BREWASSIST_FALLBACK_MODEL || "none",
+    localModel: process.env.BREWASSIST_LOCAL_MODEL || "tinyllama",
   };
 }

@@ -1,3 +1,14 @@
+## [2025-12-02] S4.5 – Cockpit Layout Stabilization
+
+- Restored three-column grid layout for BrewAssist DevOps Cockpit
+  (`.cockpit-left`, `.cockpit-center`, `.cockpit-right`).
+- Moved old layout rules into modular CSS files:
+  `cockpit-layout.css`, `cockpit-tree.css`, and wired them via `globals.css`.
+- Stabilized `WorkspaceSidebarRight` so the Project Tree and AI Sandbox
+  share the right column in a predictable flex layout.
+- Cleaned up legacy `.cockpit-*` and `.workspace-*` styles to prevent
+  conflicts and full-screen collapses.
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

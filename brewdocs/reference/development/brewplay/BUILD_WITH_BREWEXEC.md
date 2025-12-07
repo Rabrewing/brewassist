@@ -16,7 +16,7 @@ A practical, repeatable workflow we’ll use together for every BrewVerse app (B
 
 **Outputs:**
 
-- **Project Charter.md** (stored in repo `/docs/charter.md`)
+- **Project Charter.md** (stored in repo `/brewdocs/project/charter.md`)
 - **Definition of Ready (DoR)** and **Definition of Done (DoD)**
 - Roles & tools (GitHub, Supabase, CI, environments)
 
@@ -43,10 +43,10 @@ A practical, repeatable workflow we’ll use together for every BrewVerse app (B
 
 **Deliverables (templates):**
 
-- `/docs/ARCHITECTURE.md`
-- `/docs/DATA_MODEL.md` (tables, indexes, constraints, ENUMs)
-- `/docs/SECURITY_MODEL.md` (roles, RLS matrix)
-- `/docs/CONTRACTS.md` (schemas, JSON examples)
+- `/brewdocs/reference/architecture/ARCHITECTURE.md`
+- `/brewdocs/reference/specifications/DATA_MODEL.md` (tables, indexes, constraints, ENUMs)
+- `/brewdocs/reference/specifications/SECURITY_MODEL.md` (roles, RLS matrix)
+- `/brewdocs/reference/specifications/CONTRACTS.md` (schemas, JSON examples)
 
 **Design Gate—must answer:**
 
@@ -63,14 +63,14 @@ A practical, repeatable workflow we’ll use together for every BrewVerse app (B
 
 **Tasks:**
 
-- Repo init with standard dirs: `/app`, `/components`, `/lib`, `/api`, `/db`, `/docs`, `/tests`
+- Repo init with standard dirs: `/app`, `/components`, `/lib`, `/api`, `/db`, `/brewdocs`, `/tests`
 - Environment strategy: `.env.local`, `.env.dev`, `.env.prod` with example file `.env.example`
 - CI init (GitHub Actions): lint, typecheck, test, build
 - Secret management policy (e.g., 1Password/GitHub Secrets)
 
 **Artifacts:**
 
-- `/docs/ENVIRONMENTS.md`
+- `/brewdocs/reference/development/ENVIRONMENTS.md`
 - `.github/workflows/ci.yml` (lint + tests + build)
 
 ---
@@ -94,7 +94,7 @@ A practical, repeatable workflow we’ll use together for every BrewVerse app (B
 
 **Deliverables:**
 
-- `/docs/DB_CHANGELOG.md` (every migration summarized)
+- `/brewdocs/project/DB_CHANGELOG.md` (every migration summarized)
 
 ---
 
@@ -124,7 +124,7 @@ create policy "owner_can_modify_own_app"
 
 **RBAC:**
 
-- Map UI features to roles (matrix table in `/docs/SECURITY_MODEL.md`)
+- Map UI features to roles (matrix table in `/brewdocs/reference/specifications/SECURITY_MODEL.md`)
 - Admin override endpoints audited to `security_audit_logs`
 
 **OAuth:**
@@ -135,9 +135,9 @@ create policy "owner_can_modify_own_app"
 
 **Deliverables:**
 
-- `/docs/RLS_MATRIX.md`
-- `/docs/RBAC_MATRIX.md`
-- `/docs/AUTH_FLOWS.md`
+- `/brewdocs/reference/specifications/RLS_MATRIX.md`
+- `/brewdocs/reference/specifications/RBAC_MATRIX.md`
+- `/brewdocs/reference/specifications/AUTH_FLOWS.md`
 
 **Security Gate—must show:**
 
@@ -152,7 +152,7 @@ create policy "owner_can_modify_own_app"
 
 **Tasks:**
 
-- Define API routes + OpenAPI spec (`/docs/openapi.yaml`)
+- Define API routes + OpenAPI spec (`/brewdocs/reference/specifications/openapi.yaml`)
 - Implement server handlers with input validation (Zod/Yup)
 - Client SDK generated from OpenAPI (typed)
 - Event contracts (webhooks, audit events)
@@ -160,7 +160,7 @@ create policy "owner_can_modify_own_app"
 **Artifacts:**
 
 - `/lib/api/client.ts` (generated)
-- `/docs/EVENTS.md` (event types, payloads)
+- `/brewdocs/reference/specifications/EVENTS.md` (event types, payloads)
 
 **Wiring Gate:**
 
@@ -185,7 +185,7 @@ create policy "owner_can_modify_own_app"
 
 - [ ] Tests passing (unit + integration + e2e where applicable)
 - [ ] Security checks (RLS/RBAC) validated
-- [ ] Docs updated (API, ERD, user guide)
+- Docs updated (API, ERD, user guide in /brewdocs/reference/specifications)
 
 ---
 
@@ -214,7 +214,7 @@ create policy "owner_can_modify_own_app"
 **Artifacts:**
 
 - `/tests/` organized by layer
-- `/docs/TEST_PLAN.md`
+- `/brewdocs/tests/TEST_PLAN.md`
 
 ---
 
@@ -277,7 +277,7 @@ Closes #123 — brief description
 
 **Runbooks:**
 
-- `/docs/RUNBOOKS/*.md` (outages, hotfix, rollback)
+- `/brewdocs/reference/development/RUNBOOKS/*.md` (outages, hotfix, rollback)
 
 ---
 
@@ -285,7 +285,7 @@ Closes #123 — brief description
 
 **Artifacts:**
 
-- Release notes (`/docs/RELEASE_NOTES.md`)
+- Release notes (`/brewdocs/project/RELEASE_NOTES.md`)
 - Migration diff + RLS diff
 - Demo script + acceptance checklist
 
@@ -371,7 +371,7 @@ create policy "owner_update"
 
 # Quick Start (Day 1 Checklist)
 
-1. Create `/docs/charter.md`, `/docs/ARCHITECTURE.md` drafts
+1. Create `/brewdocs/project/charter.md`, `/brewdocs/reference/architecture/ARCHITECTURE.md` drafts
 2. Confirm roles & RLS matrix outline
 3. Scaffold repo + CI
 4. Author initial migrations + seed

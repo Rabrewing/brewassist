@@ -1,0 +1,446 @@
+/* styles/cockpit-layout.css */
+
+/* ===== ROOT SHELL: HEADER + BODY + FOOTER ===== */
+
+.cockpit-shell, .brew-shell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
+  color: #e5e7eb;
+}
+
+/* ===== HEADER ===== */
+
+.cockpit-header, .brew-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.75rem;
+  border-bottom: 1px solid rgba(30, 64, 175, 0.6);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.9);
+  background: radial-gradient(circle at top left, #020617 0, #020617 40%, #020617 100%);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.cockpit-header-left, .brew-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cockpit-brand-wordmark {
+  font-family: var(--font-heading);
+  font-size: 1.4rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #00E4CF; /* Updated BrewTeal color */
+}
+
+.cockpit-brand-wordmark:hover {
+  animation: pulse-white 1.5s infinite ease-in-out;
+}
+
+.cockpit-brand-sub {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.9);
+  font-weight: 600;
+}
+
+.cockpit-header-right, .brew-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* ===== MAIN BODY: 3-COLUMN LAYOUT ===== */
+
+.cockpit-body {
+  flex: 1 1 auto;
+  min-height: 0;           /* allow children to use flex scroll */
+  display: flex;
+}
+
+/* LEFT SIDEBAR (MCP TOOLS) */
+
+.workspace-sidebar-left {
+  flex: 0 0 260px;
+  max-width: 260px;
+  min-width: 220px;
+  border-right: 1px solid rgba(30, 64, 175, 0.6);
+  box-shadow: 4px 0 18px rgba(15, 23, 42, 0.9);
+  background: radial-gradient(circle at top left, #020617 0, #020617 45%, #020617 100%);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.workspace-sidebar-left::-webkit-scrollbar {
+  width: 6px;
+}
+
+.workspace-sidebar-left::-webkit-scrollbar-thumb {
+  background: linear-gradient(#facc15aa, #22d3eeaa);
+  border-radius: 6px;
+}
+
+/* CENTER COLUMN (COCKPIT) */
+
+.cockpit-center {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Center scroll zone (canonical) */
+.cockpit-center-scroll,
+.workspace-scroll-zone {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Fixed input + buttons at bottom of center */
+.input-command-zone {
+  flex: 0 0 auto;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(10, 15, 30, 0.75);
+  backdrop-filter: blur(6px);
+}
+
+/* Bubble wrapper prep (no visuals yet) */
+.assist-bubbles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* RIGHT SIDEBAR (TREE + SANDBOX) */
+
+.workspace-sidebar-right {
+  flex: 0 0 320px;
+  max-width: 340px;
+  min-width: 260px;
+  border-left: 1px solid rgba(30, 64, 175, 0.6);
+  box-shadow: -4px 0 18px rgba(15, 23, 42, 0.9);
+  background: radial-gradient(circle at top, #020617 0, #020617 40%, #020617 100%);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto; /* Changed from hidden */
+  position: relative;
+}
+
+.workspace-sidebar-right-inner {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ===== FOOTER ===== */
+
+.cockpit-footer, .brew-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 1.75rem 0.55rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-top: 1px solid rgba(30, 64, 175, 0.6);
+  background: radial-gradient(
+    circle at bottom,
+    rgba(250, 204, 21, 0.08),
+    rgba(34, 211, 238, 0.06),
+    #020617 65%
+  );
+  color: rgba(148, 163, 184, 0.9);
+  backdrop-filter: blur(4px);
+}
+
+.cockpit-footer-left {
+  white-space: nowrap;
+}
+
+.cockpit-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.cockpit-footer-link {
+  color: rgba(248, 250, 252, 0.9);
+  text-decoration: none;
+  transition: color 0.12s ease-out;
+}
+
+.cockpit-footer-link:hover {
+  color: #facc15; /* BrewGold highlight */
+}
+
+.cockpit-footer-sep {
+  color: rgba(75, 85, 99, 0.9);
+}
+
+/* ===== RESPONSIVE SAFETY ===== */
+
+ @media (max-width: 1200px) {
+  .workspace-sidebar-left {
+    flex-basis: 230px;
+    max-width: 230px;
+  }
+  .workspace-sidebar-right {
+    flex-basis: 280px;
+    max-width: 280px;
+  }
+}
+
+ @media (max-width: 1024px) {
+  .workspace-sidebar-right {
+    display: none; /* temporary: hide right pane on small screens */
+  }
+}
+
+.cockpit-input-row {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem 1rem;
+  border-top: 1px solid rgba(30, 64, 175, 0.6);
+  background: radial-gradient(circle at bottom, #020617 0, #020617 40%, #000 100%);
+}
+
+.cockpit-input-row input,
+.cockpit-input-row textarea {
+  flex: 1 1 auto;
+  min-height: 2.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  background: rgba(15, 23, 42, 0.85);
+  color: #e5e7eb;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+
+.cockpit-input-row button {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  background: linear-gradient(90deg, #facc15, #22d3ee);
+  color: #020617;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Mode tabs row */
+.cockpit-mode-row {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 1rem; /* Increased gap */
+  padding: 0.75rem 1.5rem 1rem; /* Adjusted padding */
+  justify-content: center; /* Center the tabs */
+}
+
+.mode-tab {
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 0.35rem 1rem; /* Adjusted padding */
+  border-radius: 999px;
+  border: 1px solid rgba(30, 64, 175, 0.8);
+  background: radial-gradient(circle at top, #020617 0, #020617 55%, #000 100%);
+  color: rgba(148, 163, 184, 0.9);
+  white-space: nowrap; /* Prevent wrapping */
+}
+
+.mode-tab--active {
+  border-color: #facc15;
+  color: #facc15;
+}
+
+/* Collapsed states */
+.workspace-sidebar-left.is-collapsed {
+  flex-basis: 52px;
+  max-width: 52px;
+  min-width: 52px;
+  overflow: hidden;
+}
+
+.workspace-sidebar-right.is-collapsed {
+  flex-basis: 52px;
+  max-width: 52px;
+  min-width: 52px;
+  overflow: hidden;
+}
+
+/* Toggle buttons */
+.sidebar-left-toggle,
+.sidebar-right-toggle {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 48px;
+  border: 1px solid rgba(250, 204, 21, 0.7);
+  background: radial-gradient(circle at left, #020617 0, #020617 60%, #000 100%);
+  color: #facc15;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.sidebar-left-toggle {
+  right: -11px;
+}
+
+.sidebar-right-toggle {
+  left: -11px;
+}
+
+/* default: hide scrollbars, show on hover (WebKit) */
+.workspace-sidebar-left,
+.cockpit-center-scroll,
+.workspace-scroll-zone,
+.project-tree-scroll,
+.sandbox-region {
+  scrollbar-width: thin;           /* Firefox: keep it minimal */
+  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+}
+
+.workspace-sidebar-left::-webkit-scrollbar,
+.cockpit-center-scroll::-webkit-scrollbar,
+.workspace-scroll-zone::-webkit-scrollbar,
+.project-tree-scroll::-webkit-scrollbar,
+.sandbox-region::-webkit-scrollbar {
+  width: 0;
+}
+
+.workspace-sidebar-left:hover::-webkit-scrollbar,
+.cockpit-center-scroll:hover::-webkit-scrollbar,
+.workspace-scroll-zone:hover::-webkit-scrollbar,
+.project-tree-scroll:hover::-webkit-scrollbar,
+.sandbox-region:hover::-webkit-scrollbar {
+  width: 6px;
+}
+
+.workspace-sidebar-left::-webkit-scrollbar-thumb,
+.cockpit-center-scroll::-webkit-scrollbar-thumb,
+.workspace-scroll-zone::-webkit-scrollbar-thumb,
+.project-tree-scroll::-webkit-scrollbar-thumb,
+.sandbox-region::-webkit-scrollbar-thumb {
+  background: linear-gradient(#facc15aa, #22d3eeaa);
+  border-radius: 999px;
+}
+
+.project-tree-scroll {
+  flex: 1 1 55%; /* Give it more space */
+  min-height: 0;
+  overflow-y: auto;
+}
+ 
+.sandbox-region {
+  flex: 0 1 45%; /* Allow it to shrink, but prefer its content size */
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 1px solid rgba(30, 64, 175, 0.55);
+}
+
+/* Header navigation */
+.cockpit-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+}
+
+.cockpit-nav-link {
+  border: none;
+  background: transparent;
+  color: rgba(248, 250, 252, 0.8);
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.cockpit-nav-link:hover {
+  background: rgba(15, 23, 42, 0.9);
+  color: #ffffff;
+  transform: translateY(-2px); /* Subtle lift effect */
+  box-shadow: 0 4px 12px rgba(34, 211, 238, 0.4); /* BrewTeal glow */
+}
+
+/* Mode pill in header */
+.cockpit-mode-pill {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.8);
+  background: radial-gradient(circle at top left, rgba(0, 199, 183, 0.35), transparent);
+}
+
+/* Sign-in button */
+.cockpit-signin-btn {
+  border-radius: 999px;
+  border: none;
+  padding: 0.4rem 0.95rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: radial-gradient(circle at top left, #ffd700, #facc15);
+  color: #020617;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(250, 204, 21, 0.45);
+}
+
+@keyframes pulse-white {
+  0% {
+    text-shadow: 0 0 4px rgba(255, 255, 255, 0.7);
+  }
+  50% {
+    text-shadow: 0 0 10px rgba(255, 255, 255, 1), 0 0 20px rgba(255, 255, 255, 0.8);
+  }
+  100% {
+    text-shadow: 0 0 4px rgba(255, 255, 255, 0.7);
+  }
+}
+
+.project-header {
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.9);
+  padding: 0.5rem 1rem 0.25rem; /* Existing padding */
+  padding-top: 0.75rem; /* Added top padding */
+}
+
+.sidebar-left-toggle.collapsed-shape {
+  border-radius: 999px 0 0 999px; /* Rounded on the left */
+}
+
+.sidebar-left-toggle.expanded-shape {
+  border-radius: 0 999px 999px 0; /* Rounded on the right */
+}

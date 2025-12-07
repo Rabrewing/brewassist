@@ -1,0 +1,183 @@
+/* styles/cockpit-tree.css */
+
+.project-tree-scroll {
+  padding: 0.75rem 0; /* Add vertical padding */
+  position: relative; /* Added for absolute positioning of guides */
+}
+
+.tree-root {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-family: var(--font-body); /* BrewGold Typography */
+  font-size: 0.85rem;
+  color: rgba(248, 250, 252, 0.8);
+}
+
+.tree-item {
+  position: relative;
+  line-height: 1.5;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  padding-right: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.tree-item:hover {
+    border-color: #FFD700;
+    color: #00C7B7;
+    background: rgba(15,23,42,0.7);
+}
+
+.tree-item.directory > .tree-name {
+  font-weight: 600;
+  color: #facc15; /* BrewGold for directories */
+}
+
+.tree-indicator {
+  display: inline-block;
+  width: 1.25rem; /* Space for indicator */
+  text-align: center;
+  user-select: none;
+  cursor: pointer;
+  color: #22d3ee; /* BrewTeal for indicators */
+  transition: transform 0.15s ease;
+}
+
+.tree-item.directory > .tree-indicator {
+  /* Custom indicator for directories */
+  font-size: 0.7em; /* Adjust size */
+}
+
+/* Electrified blue connector lines */
+.tree-root .tree-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: rgba(34, 211, 238, 0.4); /* BrewTeal vertical line */
+  transform: translateX(calc(0.625rem + (var(--level, 0) * 0.75rem))); /* Changed 1.25rem to 0.75rem */
+  z-index: 0;
+}
+
+.tree-root .tree-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 1.25rem; /* Half line-height */
+  width: 0.625rem; /* Horizontal line length */
+  height: 1px;
+  background-color: rgba(34, 211, 238, 0.4); /* BrewTeal horizontal line */
+  transform: translateX(calc(0.625rem + (var(--level, 0) * 0.75rem))); /* Changed 1.25rem to 0.75rem */
+  z-index: 0;
+}
+
+/* Hide lines for root level items */
+.tree-item-level-0::before,
+.tree-item-level-0::after {
+  display: none;
+}
+
+/* Adjust padding-left for levels to make space for lines */
+.tree-item {
+  --level: attr(data-level number, 0); /* Custom property for level */
+  padding-left: calc(1.25rem + (var(--level) * 0.75rem)); /* Changed 1.25rem to 0.75rem */
+}
+
+.tree-item-level-0 {
+  padding-left: 0.5rem; /* Base padding for root items */
+}
+
+.tree-children {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Custom indicator for expanded/collapsed directories */
+.tree-item.directory .tree-indicator {
+  position: relative;
+  width: 1.25rem;
+  height: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin-right: 0.25rem;
+}
+
+.tree-item.directory .tree-indicator::before,
+.tree-item.directory .tree-indicator::after {
+  content: '';
+  position: absolute;
+  background-color: #22d3ee; /* BrewTeal */
+  transition: transform 0.15s ease;
+}
+
+.tree-item.directory .tree-indicator::before {
+  width: 8px;
+  height: 2px;
+}
+
+.tree-item.directory .tree-indicator::after {
+  width: 2px;
+  height: 8px;
+}
+
+.tree-item.directory .tree-indicator.expanded::after {
+  transform: scaleY(0); /* Hide vertical bar when expanded */
+}
+
+/* Hover effect for indicator */
+.tree-indicator:hover {
+  transform: scale(1.2);
+}
+
+/* File icon (placeholder for now, can be replaced with SVG later) */
+.tree-item.file .tree-name::before {
+  content: '📄'; /* File emoji */
+  margin-right: 0.5rem;
+  font-size: 0.8em;
+  vertical-align: middle;
+}
+
+.tree-item.directory .tree-name::before {
+  content: '📁'; /* Folder emoji */
+  margin-right: 0.5rem;
+  font-size: 0.8em;
+  vertical-align: middle;
+}
+
+.tree-indicator-placeholder {
+  display: inline-block;
+  width: 1.25rem; /* Same width as tree-indicator for alignment */
+  margin-right: 0.25rem;
+}
+
+@keyframes pulseGlow {
+  from { border-left-color: rgba(34,211,238,0.35); }
+  to   { border-left-color: rgba(34,211,238,0.85); }
+}
+
+.project-tree-guides {
+  border-left: 1px solid rgba(34,211,238,0.5);
+  animation: pulseGlow 2.4s ease-in-out infinite alternate;
+  height: 100%; /* Ensure it spans the full height of the tree scroll zone */
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px; /* Only the border is visible */
+  z-index: 0;
+}
+
+.tree-item-active {
+    border-color: #FFD700;
+    background: radial-gradient(circle at left,
+       rgba(0,199,183,0.22),
+       transparent 60%);
+    color: #00C7B7;
+}
