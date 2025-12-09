@@ -1,3 +1,108 @@
+## December 8th, 2025 - S4.8f NIMs Adaptive Researcher + Auto-Model Discovery Implemented
+
+**Summary:**
+Implemented S4.8f, introducing adaptive model discovery and multi-fallback researcher routing for NVIDIA NIMs. This ensures BrewAssist gracefully handles NIMs model availability, preventing `404` errors and falling back to other providers when necessary. Comprehensive acceptance tests have been added and passed.
+
+**Actions Taken:**
+1.  **Created Spec Document:** Documented S4.8f in `brewdocs/brewassist/s4/S4.8f_NIMS_Auto_Model_Discovery.md`.
+2.  **Modified `lib/model-router.ts`:** Updated `BrewRouteConfig` and `MODEL_ROUTES` to support NIMs `modelEnvKeys` and modified `resolveRoute` to incorporate `NIMS_ENABLED` and `pickNimsModel` logic.
+3.  **Modified `lib/brewassist-engine.ts`:**
+    *   Implemented `probeNimsModel()` for 1-token health checks.
+    *   Implemented `pickNimsModel()` for auto-discovering accessible NIMs models.
+    *   Implemented `callNimsProvider()` to encapsulate NIMs API call logic.
+    *   Integrated NIMs research routing and multi-fallback logic into `runBrewAssistEngine()`.
+4.  **Updated Test Suite:**
+    *   Installed `jest`, `@types/jest`, `ts-jest`.
+    *   Added `test` script to `package.json`.
+    *   Configured Jest with `jest.config.cjs`.
+    *   Refactored existing API tests to match current API structure.
+    *   Added 4 new acceptance tests for S4.8f covering NIMs enabled/disabled, preferred/fallback model selection, and graceful fallback to primary LLM.
+
+**Outcome:**
+BrewAssist now intelligently routes research queries to NVIDIA NIMs, dynamically selecting an available model based on environment variables and health checks. If no NIMs model is available or enabled, it gracefully falls back to the primary LLM provider. All related acceptance tests have passed, confirming robust and resilient NIMs integration.
+
+---
+
+## December 9th, 2025 - S4.8g Mistral Routing & Verification Implemented
+
+**Summary:**
+Implemented S4.8g, introducing dynamic routing and robust fallback mechanisms for Mistral, ensuring BrewAssist intelligently prioritizes preferred providers and gracefully handles failures. All acceptance tests for Mistral routing and fallback have passed.
+
+**Actions Taken:**
+1.  **Converted `MODEL_PROVIDERS` to `getModelProviders()` function:** Modified `lib/model-router.ts` to dynamically read `process.env` for provider configurations, resolving environment variable propagation issues in tests.
+2.  **Converted `MODEL_ROUTES` to `getModelRoutes()` function:** Modified `lib/model-router.ts` to dynamically generate route configurations based on the role and current provider settings.
+3.  **Updated `resolveRoute` function:** Modified `lib/model-router.ts` to use `getModelProviders()` and `getModelRoutes()`, and to correctly prioritize `preferredProvider` and return the appropriate `routeType`.
+4.  **Refined `runBrewAssistEngine` fallback logic:** Implemented a robust `for` loop structure in `lib/brewassist-engine.ts` to iterate through fallback providers, returning immediately upon the first successful response and correctly assigning `routeType: "fallback"`.
+5.  **Enhanced Test Suite:**
+    *   Created `createMockFetch` helper in `__tests__/api/brewassist.test.ts` for flexible and granular mocking of `global.fetch`.
+    *   Updated all Mistral-related tests (Test 5, 6, 7) to use `createMockFetch` and adjusted assertions for `routeType: "preferred"`.
+    *   Re-enabled and updated NIMs-related tests (Test 1, 2, 3, 4) to use `createMockFetch` and correctly pass environment variable keys to `pickNimsModel`.
+
+**Outcome:**
+BrewAssist now features a highly resilient and intelligent model routing system. Preferred providers like Mistral are correctly prioritized, and the system gracefully falls back to alternative providers upon failure, ensuring continuous operation. All acceptance tests for S4.8g, including NIMs integration, have passed, validating the robustness of the multi-model AI chain.
+
+---
+
+## December 8th, 2025 - NIMs Integration Debugging & Resolution
+
+**Summary:**
+Successfully debugged and resolved persistent `404 Not Found` errors during NVIDIA NIMs integration. The root cause was identified as an inaccessible model for the user's API key tier, rather than a code or environment variable issue within BrewAssist. The resolution involved identifying an accessible model and ensuring correct environment variable configuration.
+
+**Actions Taken:**
+1.  **Identified Root Cause:** Through direct `curl` testing, it was determined that the `meta/llama-3.1-nemotron-70b-instruct` model was not accessible with the provided NVIDIA API key, leading to `404` errors directly from the NVIDIA API.
+2.  **Hardened OpenAI URL Construction:** Patched `lib/brewassist-engine.ts` to normalize `OPENAI_BASE_URL` construction, resolving previous `404` errors for the primary LLM provider.
+3.  **Hardened NIMs URL Construction:** Patched `lib/brewassist-engine.ts` to normalize `NIMS_BASE_URL` construction, ensuring correct API endpoint formatting.
+4.  **Environment Variable Alignment:** Guided user to correct `NIM_API_KEY` to `NIMS_API_KEY` and `NIM_API_BASE_URL` to `NIMS_BASE_URL` in `.env.local`, and to set `LLM_PRIMARY_MODEL=gpt-4.1-mini` and `HRM_PRIMARY_MODEL=gpt-4.1`.
+5.  **Case Study Documented:** Created `brewdocs/case_studies/20251208_NIMs_Integration_Debug_Case_Study.md` to document the entire debugging process.
+
+**Outcome:**
+OpenAI is now fully functional as the primary LLM provider. The BrewAssist application's integration code for NIMs is confirmed to be correct. The NIMs `404` error is now understood to be an external configuration issue related to model access, which can be resolved by selecting an accessible model (e.g., `nemotron-3-8b-instruct`) in `.env.local`. BrewAssist is ready to utilize NIMs as a research model once this external configuration is updated.
+
+---
+
+## December 7th, 2025 - Model Chain Reinstatement, BrewTruth Integration, and Action Menu
+
+**Summary:**
+Implemented a multi-model BrewAssist chain with clear roles (Gemini Flash, ChatGPT Mini/Main, Mistral, NIMs Researcher, TinyLLM), integrated BrewTruth grading into the engine, and added an interactive Action Menu to the UI.
+
+**Actions Taken:**
+1.  **S4.8d - Model Chain Reinstatement:**
+    *   Created `lib/model-router.ts` to define `BrewModelRole`, `BrewModelConfig`, and `MODEL_ROLES` for dynamic model selection.
+    *   Updated `lib/brewassist-engine.ts` to use the model router, dynamically selecting models based on mode and explicit flags (`useResearchModel`, `modelRole`). Removed hardcoded model selection logic.
+    *   Updated `lib/brewConfig.ts` to include `primaryProvider` and `defaultRole` environment variables.
+    *   Updated `pages/api/brewassist.ts` to accept `modelRole` and `useResearchModel` from the request body and pass them to the engine.
+2.  **S4.8e - BrewTruth Integration:**
+    *   Created `lib/brewtruth.ts` with the `BrewTruthReport` interface and `runBrewTruthGrader` function (stubbed for now).
+    *   Injected BrewTruth grading into `lib/brewassist-engine.ts` after the model response, returning a `truthReport` and `modelRoleUsed`.
+    *   Updated `pages/api/brewassist.ts` to return the `truthReport` and `modelRoleUsed` in the API response.
+3.  **ActionMenu Component Integration:**
+    *   Created `components/ActionMenu.tsx` to provide quick actions like file upload, deep reasoning, and NIMs research.
+    *   Added corresponding CSS styles for the `ActionMenu` to `styles/cockpit-layout.css`.
+    *   Integrated the `ActionMenu` into `components/BrewCockpitCenter.tsx`, including state management for `nextUseDeepReasoning` and `nextUseResearchModel`, and wiring these flags into the `handleSend` payload.
+
+**Outcome:**
+BrewAssist now leverages a sophisticated multi-model architecture, enabling intelligent routing of tasks to specialized LLMs. The integration of BrewTruth provides a foundational layer for response quality assessment. The new Action Menu enhances user interaction by offering quick access to advanced functionalities, making the cockpit more powerful and intuitive.
+
+---
+
+## December 7th, 2025 - UI/UX Refinements, Persona Anchoring, and Auto-Scroll
+
+**Summary:**
+Implemented further UI/UX refinements for chat bubbles, anchored BrewAssist's persona to the BrewVerse and user identity, and introduced intelligent auto-scrolling for the chat log.
+
+**Actions Taken:**
+1.  **BrewGold Bubble Styling Adjustment:** Reverted chat bubbles to an outlined style with transparent backgrounds, using BrewGold/BrewTeal colors for borders and text, and applying a readable sans-serif font (`Inter`) for content. This scales back brightness while maintaining visual distinction.
+2.  **Persona Anchoring (S4.9b):** Updated `lib/brewassist-engine.ts` to include `BREW_OWNER_NAME` and `BREW_OWNER_ALIASES`, ensuring BrewAssist consistently recognizes the user and operates within the BrewVerse context.
+3.  **Auto-Scroll Implementation (S4.9c):**
+    *   Created `lib/hooks/useAutoScroll.ts` to provide intelligent auto-scrolling functionality for the chat log.
+    *   Integrated `useAutoScroll` into `components/BrewCockpitCenter.tsx`, replacing the previous `setTimeout`-based scrolling logic.
+4.  **Readability Enhancements (S4.8e):** Updated `styles/cockpit-fonts.css` to remove cursive fonts (`Great Vibes`) and establish `Inter` as the primary sans-serif font for body text and `Montserrat` for headings, significantly improving overall readability across the application.
+
+**Outcome:**
+The BrewAssist UI now offers a more refined and readable chat experience with appropriately styled bubbles and reliable auto-scrolling. The assistant's persona is firmly established, preventing out-of-context responses and enhancing user interaction.
+
+---
+
 ## December 6th, 2025 - Project Tree & Header Refinements
 
 **Summary:**
@@ -84,11 +189,11 @@ an is being followed sequentially.
 tsx` and `pages/api/brewassist.ts`, but `lib/brewtruth.ts` did not export it. `runBrewTruth` was also impo
 rted but not exported.                                                                                    
 *   **Fixing:**                                                                                           
-    *   Defined `BrewTruthRequest`, `BrewTruthResult` (as the replacement for `BrewTruthResponse`), and a 
+    *   Defined `BrewTruthRequest`, `BrewTruthReport` (as the replacement for `BrewTruthResponse`), and a 
 placeholder `runBrewTruth` function in `lib/brewtruth.ts`.                                                
-    *   Corrected the import in `pages/api/brewassist.ts` to use `BrewTruthResult`.                       
+    *   Corrected the import in `pages/api/brewassist.ts` to use `BrewTruthReport`.                       
     *   Corrected the `truth` type in `components/BrewCockpitCenter.tsx` from `BrewTruthDecision` to `Brew
-TruthResult`.                                                                                             
+TruthReport`.                                                                                             
 *   **Verification Attempts & Outcomes:**                                                                 
     *   **`pnpm build` (Attempt 1 after BrewTruth fixes)**: **[FAILED]**                                  
         *   **New Error:** `Type error: Duplicate identifier 'BrewTruthDecision'.` in `components/BrewCoc
@@ -106,7 +211,7 @@ pe).
 ny' can't be used to index type 'Record<BrewMode, BrewModeProfile>'.` for `data.mode` in `components/BrewC
 ockpitCenter.tsx`.                                                                                        
         *   **Fixing:**                                                                                   
-            *   Corrected `BrewTruthResponse` to `BrewTruthResult` in `BrewAssistResult` type definition i
+            *   Corrected `BrewTruthResponse` to `BrewTruthReport` in `BrewAssistResult` type definition i
 n `lib/brewassistChain.ts`.                                                                               
             *   Defined `BrewAssistApiResponse` interface in `pages/api/brewassist.ts` to accurately type 
 the API response.                                                                                         
@@ -125,7 +230,7 @@ in `components/WorkspaceSidebarRight.tsx`. (This shifted to the next item in Cha
     *   **`pnpm build` (Attempt 6)**: **[FAILED]**                                                        
         *   **New Error:** `Type error: Module '"@/lib/brewtruth"' has no exported member 'BrewTruthRespon
 se'.` in `components/WorkspaceSidebarRight.tsx`.                                                          
-        *   **Fixing:** Changed the import of `BrewTruthResponse` to `BrewTruthResult` in `components/Work
+        *   **Fixing:** Changed the import of `BrewTruthResponse` to `BrewTruthReport` in `components/Work
 spaceSidebarRight.tsx`.                                                                                   
     *   **`pnpm build` (Attempt 7)**: **[FAILED]**                                                        
         *   **New Error:** `Type error: Cannot find name 'BrewTruthResponse'.` in `components/WorkspaceSid
@@ -138,9 +243,11 @@ eter of type 'SetStateAction<BrewLastTask | null>'.` in `components/WorkspaceSid
         *   **Fixing:** Changed `useState<null | BrewLastTask>(null)` to `useState<null | BrewLastState>(n
 ull)` in `components/WorkspaceSidebarRight.tsx` and added an import for `BrewLastState`.                  
     *   **`pnpm build` (Attempt 9)**: **[FAILED]**                                                        
-        *   **New Error:** `Type error: Property 'ok' does not exist on type 'BrewTruthResult'.` in `compo
+                *   **New Error:** `Type error: Property 'ok' does not exist on type 'BrewTruthReport'.` in `c
+        ompo
 nents/WorkspaceSidebarRight.tsx`.                                                                         
-        *   **Fixing:** Added `ok?: boolean;` to the `BrewTruthResult` interface in `lib/brewtruth.ts`.   
+                *   **Fixing:** Added `ok?: boolean;` to the `BrewTruthReport` interface in `lib/brewtruth.ts`
+        .   
     *   **`pnpm build` (Attempt 10)**: **[FAILED]**                                                       
         *   **New Error:** `Type error: Property 'status' does not exist on type 'BrewLastState'.` in `com
 ponents/WorkspaceSidebarRight.tsx`. This is the current error.                                            
@@ -159,13 +266,13 @@ to use this helper. `BrewLastState` should remain unchanged. **[FIX IMPLEMENTED]
                                                                                                           
 **ChatG's Instructions Received (Lint Errors):**                                                          
 `pnpm lint` is failing on two BrewTruth-related symbols:                                                  
-*   `lib/brewassistChain.ts`: `'BrewTruthResult' is not defined no-undef`                                 
+*   `lib/brewassistChain.ts`: `'BrewTruthReport' is not defined no-undef`                                 
 *   `pages/api/brewassist.ts`: `'BrewTruthResponse' is not defined no-undef`                              
 The fix is to:                                                                                            
 1.  In `pages/api/brewassist.ts`: Remove all references to `BrewTruthResponse` and convert any needed ones
- to `BrewTruthResult`.                                                                                    
-2.  In `lib/brewassistChain.ts`: Ensure that `BrewTruthResult` is only used as a type, and imported as `im
-port type { BrewTruthResult } from "@/lib/brewtruth";`.                                                   
+ to `BrewTruthReport`.                                                                                    
+2.  In `lib/brewassistChain.ts`: Ensure that `BrewTruthReport` is only used as a type, and imported as `im
+port type { BrewTruthReport } from "@/lib/brewtruth";`.                                                   
 **[FIX IMPLEMENTED]**                                                                                     
                                                                                                           
 **Current Error:**                                                                                        

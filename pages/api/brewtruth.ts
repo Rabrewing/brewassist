@@ -1,7 +1,7 @@
 // pages/api/brewtruth.ts
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { runBrewTruth, type BrewTruthRequest } from '@/lib/brewtruth';
+import { runBrewTruthGrader, type BrewTruthRequest } from '@/lib/brewtruth';
 import { readBrewLast } from '@/lib/brewLastServer';
 // ^ Gemini: reuse whatever S3 created that reads .brewlast.json
 
@@ -24,10 +24,11 @@ export default async function handler(
       });
     }
 
-    const result = await runBrewTruth({
-      statement: body.statement,
-      contextHint: body.contextHint,
-      mode: body.mode,
+    const result = await runBrewTruthGrader({
+      mode: body.mode || 'llm', // Default to 'llm' if not provided
+      messages: [{ role: 'user', content: body.statement }],
+      response: body.statement, // Using statement as response for grading context
+      modelRole: body.mode || 'llm', // Default to 'llm' if not provided
     });
 
     return res.status(200).json(result);

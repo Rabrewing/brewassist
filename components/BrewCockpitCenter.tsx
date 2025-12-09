@@ -1,88 +1,149 @@
 // components/BrewCockpitCenter.tsx
+
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import type { BrewAssistMode } from "@/lib/brewassist-engine";
+import { ActionMenu } from "./ActionMenu";
 
-type BrewAssistMode = 'hrm' | 'llm' | 'agent' | 'loop';
+type UiMessageRole = "user" | "assistant" | "system";
 
-type LogEntry = {
+interface UiMessage {
   id: string;
-  role: "system" | "user" | "assistant";
+  role: UiMessageRole;
   content: string;
-};
+}
 
-const INITIAL_LOG: LogEntry[] = [
-  {
-    id: "system-1",
-    role: "system",
-    content:
-      "[SYSTEM] Ready for /hrm, /llm, /agent, or sandbox runs. " +
-      "This area will show BrewAssist narration and task status as we wire in the rest of the chain.",
-  },
-];
+const defaultSystemLine =
+  "BrewAssist is online. Select HRM, LLM, Agent, or Loop, then send a prompt to begin.";
+
+function makeId() {
+  return `${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
+}
 
 export const BrewCockpitCenter: React.FC = () => {
+  const [mode, setMode] = useState<BrewAssistMode>("llm");
   const [input, setInput] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [log, setLog] = useState<LogEntry[]>(INITIAL_LOG);
-  const [activeMode, setActiveMode] = useState<BrewAssistMode>('llm');
+  const [messages, setMessages] = useState<UiMessage[]>([
+    {
+      id: makeId(),
+      role: "system",
+      content: defaultSystemLine,
+    },
+  ]);
+  const [isThinking, setIsThinking] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [nextUseDeepReasoning, setNextUseDeepReasoning] = useState(false);
+  const [nextUseResearchModel, setNextUseResearchModel] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const appendToLog = (entry: Omit<LogEntry, "id">) => {
-    setLog((prev) => [...prev, { ...entry, id: `${entry.role}-${Date.now()}` }]);
-  };
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    const el = scrollRef.current;
+    el.scrollTop = el.scrollHeight;
+  }, [messages]);
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     const trimmed = input.trim();
-    if (!trimmed) return;
+    if (!trimmed || isThinking) return;
 
-    // Log the user message in the workspace log
-    appendToLog({
+    setLastError(null);
+
+    const userMsg: UiMessage = {
+      id: makeId(),
       role: "user",
       content: trimmed,
-    });
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
-    setIsSending(true);
+    setIsThinking(true);
 
     try {
+      const payload = {
+        input: trimmed,
+        mode,
+        skillLevel: "intermediate", // temp, will be wired from /init later
+        useDeepReasoning: nextUseDeepReasoning,
+        useResearchModel: nextUseResearchModel,
+      };
+
       const res = await fetch("/api/brewassist", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: trimmed,
-          mode: activeMode, // "hrm" | "llm" | "agent" | "loop"
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        appendToLog({
-          role: "system",
-          content: `[ERROR] Assist API returned ${res.status}`,
-        });
+        const text = await res.text().catch(() => "");
+        console.error("BrewAssist API error:", res.status, text);
+        const errLine =
+          "BrewAssist encountered an error while processing this request. Check the logs or try again.";
+        setLastError(errLine);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: makeId(),
+            role: "system",
+            content: errLine,
+          },
+        ]);
         return;
       }
 
-      const data: { reply?: string } = await res.json();
+      const data: any = await res.json().catch(() => ({}));
 
-      appendToLog({
+      // Try multiple shapes for safety
+      const fromMessage = data?.message;
+      const fromArray = Array.isArray(data?.messages)
+        ? data.messages[0]
+        : null;
+
+      const content =
+        data?.content ??
+        data?.text ??
+        fromMessage?.content ??
+        fromArray?.content ??
+        "";
+
+      const assistantText =
+        typeof content === "string" && content.trim().length > 0
+          ? content.trim()
+          : "BrewAssist responded, but no content was returned from the engine.";
+
+      const assistantMsg: UiMessage = {
+        id: makeId(),
         role: "assistant",
-        content: data.reply ?? "(no reply from BrewAssist)",
-      });
+        content: assistantText,
+      };
+
+      setMessages((prev) => [...prev, assistantMsg]);
     } catch (err) {
-      console.error("[BrewAssist] send error", err);
-      appendToLog({
-        role: "system",
-        content: "[ERROR] Assist API threw an exception (see console)",
-      });
+      console.error("BrewAssist fetch error:", err);
+      const errLine =
+        "BrewAssist hit a network issue or the server restarted. Please try again.";
+      setLastError(errLine);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          role: "system",
+          content: errLine,
+        },
+      ]);
+    } finally {
+      setIsThinking(false);
+      // reset one-shot flags
+      setNextUseDeepReasoning(false);
+      setNextUseResearchModel(false);
     }
-    finally {
-      setIsSending(false);
-    }
-  };
+  }, [input, mode, isThinking, nextUseDeepReasoning, nextUseResearchModel]);
 
   const handleKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (
-    e,
+    e
   ) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -90,74 +151,90 @@ export const BrewCockpitCenter: React.FC = () => {
     }
   };
 
+  const renderBubble = (msg: UiMessage) => {
+    const isUser = msg.role === "user";
+    const isAssistant = msg.role === "assistant";
+    const isSystem = msg.role === "system";
+
+    let lineClass = "log-system"; // Renamed from bubbleClass to lineClass for clarity
+    if (isUser) lineClass = "log-user";
+    if (isAssistant) lineClass = "log-assistant";
+
+    return (
+      <div key={msg.id} className={`log-line ${lineClass}`}>
+        <div className="cosmic-bubble">{msg.content}</div>
+      </div>
+    );
+  };
+
   return (
-    <section className="cockpit-center">
+    <div className="cockpit-center">
       <div className="cockpit-center-scroll">
-        <div className="cockpit-main-inner">
-          <div className="cockpit-workspace-card">
-            <div className="cockpit-message-log">
-              {log.map((entry) => (
-                <div
-                  key={entry.id}
-                  className={`log-line log-${entry.role}`}
-                >
-                  {entry.content}
-                </div>
-              ))}
+        {/* Message log */}
+        <div className="cockpit-message-log" ref={scrollRef}>
+          {messages.map(renderBubble)}
+
+          {isThinking && (
+            <div className="log-line log-assistant">
+              <div className="cosmic-bubble">
+                <span className="brewassist-thinking-dot" /> BrewAssist is
+                thinking…
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
+      {/* Input row */}
       <div className="cockpit-input-row">
+        <ActionMenu
+          onUploadFile={(files) => {
+            // TODO: implement file upload → BrewAssist
+            console.log("Uploaded files", files);
+          }}
+          onSelectDeepReasoning={() => setNextUseDeepReasoning(true)}
+          onSelectNimsResearch={() => setNextUseResearchModel(true)}
+        />
         <textarea
-          placeholder="Type /hrm, /llm, /agent or plain text..."
+          className="workspace-input"
+          placeholder="Ask BrewAssist to help with a task…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
         />
+
         <button
-          type="button"
-          onClick={handleSend}
-          disabled={isSending}
+          className="workspace-send-button"
+          onClick={() => void handleSend()}
+          disabled={!input.trim() || isThinking}
         >
-          {isSending ? "Sending..." : "Send"}
+          Send
         </button>
       </div>
 
+      {/* Mode tabs */}
       <div className="cockpit-mode-row">
-        <button
-          type="button"
-          className={`mode-tab ${activeMode === 'hrm' ? 'mode-tab--active' : ''}`}
-          onClick={() => setActiveMode('hrm')}
-        >
-          HRM
-        </button>
-
-        <button
-          type="button"
-          className={`mode-tab ${activeMode === 'llm' ? 'mode-tab--active' : ''}`}
-          onClick={() => setActiveMode('llm')}
-        >
-          LLM
-        </button>
-
-        <button
-          type="button"
-          className={`mode-tab ${activeMode === 'agent' ? 'mode-tab--active' : ''}`}
-          onClick={() => setActiveMode('agent')}
-        >
-          Agent
-        </button>
-
-        <button
-          type="button"
-          className={`mode-tab ${activeMode === 'loop' ? 'mode-tab--active' : ''}`}
-          onClick={() => setActiveMode('loop')}
-        >
-          Loop
-        </button>
+        {(["hrm", "llm", "agent", "loop"] as BrewAssistMode[]).map(
+          (m) => (
+            <button
+              key={m}
+              className={`mode-tab ${
+                mode === m ? "mode-tab--active" : ""
+              }`}
+              onClick={() => setMode(m)}
+            >
+              {m.toUpperCase()}
+            </button>
+          )
+        )}
       </div>
-    </section>
+
+      {/* Optional error hint */}
+      {lastError && (
+        <div className="cockpit-error-hint">
+          {lastError}
+        </div>
+      )}
+    </div>
   );
 };

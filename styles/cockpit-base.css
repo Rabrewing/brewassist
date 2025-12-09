@@ -2,6 +2,13 @@
   --font-logo: "Great Vibes", cursive;
   --font-heading: "Montserrat", sans-serif;
   --font-body: "Inter", sans-serif;
+
+  --brew-gold: #ffd700;
+  --brew-gold-soft: #facc15;
+  --brew-teal: #00c7b7;
+  --brew-bg-deep: #020617;
+  --brew-text-main: #e5e7eb;
+  --brew-text-soft: #cbd5f5;
 }
 
 /* styles/cockpit-base.css */

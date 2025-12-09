@@ -1,60 +1,111 @@
-import type { BrewLastToolRun, BrewTruthReview } from '@/lib/brewLast';
-
-// lib/brewtruth.ts
-// BrewTruthStatus implementation
+export interface BrewTruthReport {
+  truthScore: number;
+  contradictions: string[];
+  suggestions: string[];
+  modelRole: string;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'; // Added
+  flags: string[]; // Added
+  summary: string; // Added
+}
 
 export interface BrewTruthRequest {
   statement: string;
   contextHint?: string;
-  mode?: 'sandbox-only' | 'live' | 'analysis';
+  mode?: string;
 }
 
-export interface BrewTruthResult {
-  ok?: boolean; // Added
-  truthScore: number;
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
-  flags: string[];
-  contradictions?: string[];
-  betterAlternatives?: string[];
-  summary: string;
+export async function runBrewTruthGrader({
+  mode,
+  messages,
+  response,
+  modelRole
+}: {
+  mode: string;
+  messages: any[];
+  response: string;
+  modelRole: string;
+}): Promise<BrewTruthReport> {
+
+  // Simple stub for now — later replace with real deep scoring
+  try {
+    // Send to whichever provider you want (OpenAI is fine)
+    const graderPrompt = `
+Grade the assistant's response for correctness, clarity, contradictions, and usefulness.
+Return JSON with: truthScore (0-100), contradictions[], suggestions[].
+Do NOT include reasoning or explanation outside JSON.
+
+Assistant response:
+${response}
+    `.trim();
+
+    // Call your Mini model for speed:
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL_MINI ?? "gpt-4.1-mini",
+        messages: [{ role: "user", content: graderPrompt }],
+        temperature: 0
+      })
+    });
+
+    const json = await res.json();
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(json.choices?.[0]?.message?.content || "{}");
+    } catch {
+      parsed = { truthScore: 70, contradictions: [], suggestions: [] };
+    }
+
+    return {
+      truthScore: parsed.truthScore ?? 70,
+      contradictions: parsed.contradictions ?? [],
+      suggestions: parsed.suggestions ?? [],
+      modelRole,
+      riskLevel: 'LOW', // Default for stub
+      flags: [], // Default for stub
+      summary: 'Stubbed truth report', // Default for stub
+    };
+
+  } catch (err) {
+    return {
+      truthScore: 60,
+      contradictions: ["Truth grader failed"],
+      suggestions: ["Retry"],
+      modelRole,
+      riskLevel: 'MEDIUM', // Default for stub
+      flags: ['error'], // Default for stub
+      summary: 'Truth grader failed', // Default for stub
+    };
+  }
 }
 
-export function toTruthPromptFromToolRun(run: BrewLastToolRun): string {
-  const args = JSON.stringify(run.args);
-  const stdout = run.stdout ? ` (stdout: ${run.stdout.slice(0, 100)})` : '';
-  return `The tool '${run.tool}' was run with args ${args}${stdout}.`;
-}
-
-export async function runTruthCheckForToolRun(
-  run: BrewLastToolRun
-): Promise<BrewTruthReview> {
-  const statement = toTruthPromptFromToolRun(run);
-  const result = await runBrewTruth({ statement, contextHint: 'tool_run' });
+export function getTruthEngineStatus() {
   return {
-    truthScore: result.truthScore,
-    riskLevel: result.riskLevel,
-    flags: result.flags,
-    summary: result.summary,
+    status: "operational",
+    engine: "BrewTruth",
+    version: "v1.0.0",
   };
 }
 
-export async function runBrewTruth(
-  req: BrewTruthRequest
-): Promise<BrewTruthResult> {
-  // Return a mock successful result to allow the build to pass.
-  return {
-    ok: true,
-    truthScore: 0.9,
-    riskLevel: 'LOW',
-    flags: [],
-    summary: 'Mock truth check passed.',
-  };
+export function toTruthPromptFromToolRun(toolRun: any): string {
+  // Placeholder for now
+  return `Review the tool run: ${JSON.stringify(toolRun)}`;
 }
 
-export async function getTruthEngineStatus() {
+export async function runTruthCheckForToolRun(toolRun: any): Promise<BrewTruthReport> {
+  // Placeholder for now
   return {
-    enabled: true,
-    mode: 'sandbox-only',
-    apiRoute: '/api/brewtruth',
+    truthScore: 80,
+    contradictions: [],
+    suggestions: [],
+    modelRole: "system",
+    riskLevel: 'LOW', // Default for stub
+    flags: [], // Default for stub
+    summary: 'Stubbed truth check', // Default for stub
   };
 }

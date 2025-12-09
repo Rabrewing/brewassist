@@ -1,36 +1,62 @@
-// pages/api/brewassist.ts
-import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { runBrewAssistEngine } from '@/lib/brewassist-engine';
+import { BrewModelRole } from '@/lib/model-router';
+import { BrewTruthReport } from '@/lib/brewtruth';
 
-type BrewAssistRequestBody = {
-  message: string;
-  mode?: "hrm" | "llm" | "agent" | "loop";
-};
+type BrewAssistApiResponse =
+  | {
+      ok: true;
+      message: { role: 'assistant'; content: string };
+      text: string;
+      provider: string;
+      model: string;
+      routeType: 'primary' | 'fallback' | 'research' | 'preferred';
+      truthReport: BrewTruthReport | null;
+    }
+  | {
+      ok: false;
+      error: string;
+      details?: string;
+    };
 
-type BrewAssistResponseBody = {
-  reply: string;
-};
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<BrewAssistResponseBody | { error: string }>
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<BrewAssistApiResponse>) {
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  const body = req.body as BrewAssistRequestBody | undefined;
+  try {
+    const { input, mode = 'llm', useResearchModel = false, preferredProvider } = req.body ?? {}; // Added preferredProvider
 
-  // 🔒 Strict, but predictable: we know exactly when 400 happens.
-  if (!body || typeof body.message !== "string" || !body.message.trim()) {
-    return res.status(400).json({ error: "Missing `message` in request body" });
+    if (!input) {
+      return res.status(400).json({ ok: false, error: "Missing `input` in request body." });
+    }
+
+    const engineResult = await runBrewAssistEngine({
+      input,
+      mode,
+      useResearchModel,
+      preferredProvider, // Pass preferredProvider
+      systemPrompt: "You are BrewAssist, a helpful AI assistant.", // Example system prompt
+    });
+
+    res.status(200).json({
+      ok: true,
+      message: {
+        role: 'assistant',
+        content: engineResult.content,
+      },
+      text: engineResult.content,
+      provider: engineResult.provider,
+      model: engineResult.model,
+      routeType: engineResult.routeType,
+      truthReport: engineResult.truthReport ?? null,
+    });
+  } catch (error: any) {
+    console.error('BrewAssist API Error:', error);
+    res.status(500).json({
+      ok: false,
+      error: 'BrewAssist internal failure.',
+      details: error?.message ?? String(error),
+    });
   }
-
-  const mode = body.mode ?? "llm";
-
-  // ⚠️ TEMP STUB — Phase 1
-  // Later we replace this with the real chain again.
-  const reply = `BrewAssist (stub, mode: ${mode}) heard: ${body.message}`;
-
-  return res.status(200).json({ reply });
 }

@@ -1,5 +1,5 @@
 import type { BrewMode } from './brewModes';
-import type { BrewTruthResult } from './brewtruth';
+import type { BrewTruthReport } from './brewtruth';
 
 // lib/openaiEngine.ts
 
@@ -20,7 +20,7 @@ export type OpenAIResult = {
   emoji: '🟦';
   raw?: any;
   mode?: BrewMode;
-  truth?: BrewTruthResult;
+  truth?: BrewTruthReport;
   autoProceeded?: boolean;
 };
 
@@ -28,7 +28,7 @@ export async function callOpenAI(
   prompt: string,
   options?: {
     mode?: BrewMode;
-    truth?: BrewTruthResult;
+    truth?: BrewTruthReport;
     autoProceeded?: boolean;
   }
 ): Promise<OpenAIResult> {

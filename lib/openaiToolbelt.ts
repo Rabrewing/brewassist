@@ -1,5 +1,5 @@
 import type { BrewMode } from './brewModes';
-import type { BrewTruthResult } from './brewtruth';
+import type { BrewTruthReport } from './brewtruth';
 
 // lib/openaiToolbelt.ts
 /**
@@ -143,7 +143,7 @@ export type ToolbeltRunResult = {
   usedTools: boolean;
   raw?: any;
   mode?: BrewMode;
-  truth?: BrewTruthResult;
+  truth?: BrewTruthReport;
   autoProceeded?: boolean;
 };
 
@@ -236,7 +236,7 @@ export async function runWithToolbelt(
   prompt: string,
   options?: {
     mode?: BrewMode;
-    truth?: BrewTruthResult;
+    truth?: BrewTruthReport;
     autoProceeded?: boolean;
     userId?: string;
   }

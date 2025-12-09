@@ -1,6 +1,17 @@
 // brewassist/lib/brewConfig.ts
 
 import path from "path";
+import { BrewAssistPersona } from "./brewassist-engine";
+
+export const DEFAULT_PERSONA: BrewAssistPersona = {
+  name: "BrewAssist",
+  version: "S4.8c",
+  role: "devops_copilot",
+  tone: "direct_supportive",
+  audience: "dev_or_vibe_coder",
+  ownerName: "Randy Brewington",
+  orgName: "Brewington Exec Group Inc.",
+};
 
 // Root of the BrewAssist repo (top-level directory)
 export const BREWASSIST_REPO_ROOT =
@@ -16,6 +27,8 @@ export function isPathAllowed(targetPath: string): boolean {
   );
 }
 
+import { BrewModelRole } from "./model-router"; // Import BrewModelRole
+
 export type BrewEnv = {
   repoRoot: string;
   environment: string;
@@ -23,9 +36,8 @@ export type BrewEnv = {
   activeProject: string;
   emoji: string;
   tier: string;
-  primaryModel: string;
-  fallbackModel: string;
-  localModel: string;
+  primaryProvider: "gemini" | "openai"; // New field
+  defaultRole: BrewModelRole; // New field
 };
 
 // Safe defaults so UI cannot break when missing env vars
@@ -45,8 +57,7 @@ export function getBrewEnv(): BrewEnv {
     emoji: process.env.BREWASSIST_TIER_EMOJI || "⚡",
     tier: process.env.BREWASSIST_TIER_NAME || "RB Mode",
 
-    primaryModel: process.env.BREWASSIST_PRIMARY_MODEL || "openai",
-    fallbackModel: process.env.BREWASSIST_FALLBACK_MODEL || "none",
-    localModel: process.env.BREWASSIST_LOCAL_MODEL || "tinyllama",
+    primaryProvider: (process.env.BREWASSIST_PRIMARY_PROVIDER as "gemini" | "openai") || "gemini", // Default to gemini
+    defaultRole: (process.env.BREWASSIST_DEFAULT_ROLE as BrewModelRole) || "mini", // Default to mini
   };
 }

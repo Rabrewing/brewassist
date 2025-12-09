@@ -10,7 +10,7 @@ import { runWithToolbelt } from './openaiToolbelt';
 import { callOpenAI } from './openaiEngine';
 import { runGeminiCli } from './geminiCli';
 import type { BrewMode } from './brewModes';
-import type { BrewTruthResult } from './brewtruth';
+import type { BrewTruthReport } from './brewtruth';
 
 export type BrewAssistResult = {
   output: string;
@@ -18,7 +18,7 @@ export type BrewAssistResult = {
   emoji: string;
   raw?: any;
   mode?: BrewMode;
-  truth?: BrewTruthResult;
+  truth?: BrewTruthReport;
   autoProceeded?: boolean;
 };
 
@@ -32,7 +32,7 @@ export async function runBrewAssistChain(
   prompt: unknown,
   options?: {
     mode?: BrewMode;
-    truth?: BrewTruthResult;
+    truth?: BrewTruthReport;
     autoProceeded?: boolean;
   }
 ): Promise<BrewAssistResult> {

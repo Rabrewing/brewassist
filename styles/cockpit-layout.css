@@ -444,3 +444,239 @@
 .sidebar-left-toggle.expanded-shape {
   border-radius: 0 999px 999px 0; /* Rounded on the right */
 }
+
+/* ===== THINKING BANNER ===== */
+
+.cockpit-thinking-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.9rem;
+  margin: 0.25rem 0 0.5rem;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle at left,
+    rgba(15, 23, 42, 0.98) 0,
+    rgba(15, 23, 42, 0.95) 60%,
+    rgba(0, 0, 0, 0.95) 100%
+  );
+  border: 1px solid rgba(0, 229, 212, 0.55); /* BrewTeal edge */
+  box-shadow: 0 0 12px rgba(0, 229, 212, 0.45);
+  font-size: 0.8rem;
+  color: #e5e7eb;
+}
+
+.thinking-spinner {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  border: 2px solid rgba(148, 163, 184, 0.7);
+  border-top-color: #00e5d4; /* BrewTeal */
+  animation: cockpit-spin 0.75s linear infinite;
+}
+
+ @keyframes cockpit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* ===========================================================
+   BUBBLE COLOR SYSTEM — BREWGOLD, BREWTEAL, SYSTEM SILVER
+   =========================================================== */
+
+/* Base cosmic bubble container */
+.cosmic-bubble {
+  padding: 0.55rem 0.9rem;
+  border-radius: 12px;
+  max-width: 82%;
+  line-height: 1.35;
+  font-size: 0.95rem;
+  backdrop-filter: blur(4px);
+  font-family: var(--brew-font-sans); /* Use readable sans-serif font */
+}
+
+/* User (you) — BrewTeal, right side */
+.log-user .cosmic-bubble {
+  border-color: #00e5d4; /* BrewTeal outline */
+  color: #00e5d4; /* BrewTeal text */
+  box-shadow: 0 0 10px rgba(0, 229, 212, 0.35),
+              inset 0 0 8px rgba(0, 229, 212, 0.15);
+  background: transparent; /* Outlined */
+}
+
+/* BrewAssist — BrewGold, left side */
+.log-assistant .cosmic-bubble {
+  border-color: #FFD700; /* BrewGold outline */
+  color: #FFD700; /* BrewGold text */
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.60),
+              inset 0 0 8px rgba(255, 215, 0, 0.25);
+  background: transparent; /* Outlined */
+  animation: brewassist-shimmer 2.4s linear infinite; /* Keep shimmer */
+}
+
+/* System messages — subtle slate strip */
+.log-system .cosmic-bubble {
+  border-color: rgba(180, 190, 205, 0.65);
+  color: rgba(210, 220, 230, 0.95);
+  background: transparent; /* Outlined */
+  box-shadow: 0 0 8px rgba(160,170,185,0.30);
+}
+
+/* ===========================================================
+   ANIMATIONS — BREWGOLD SHIMMER & HRM ARCHITECT PULSE
+   =========================================================== */
+
+/* Subtle gold shimmer for BrewAssist messages */
+ @keyframes brewassist-shimmer {
+  0% {
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.40);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.40);
+  }
+}
+
+/* HRM Architect pulse — slow, authoritative */
+ @keyframes brewarchitect-pulse {
+  0% {
+    box-shadow: 0 0 16px rgba(224,179,0,0.40);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(224,179,0,0.60);
+  }
+  100% {
+    box-shadow: 0 0 16px rgba(224,179,0,0.40);
+  }
+}
+
+/* Add a bit more separation between rows */
+.log-line + .log-line {
+  margin-top: 0.15rem;
+}
+/* ===========================================================
+   BUBBLE ALIGNMENT SYSTEM
+   =========================================================== */
+
+.cockpit-message-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem 0.75rem;
+  overflow-y: auto;
+}
+
+/* Base line for each message row */
+.log-line {
+  display: flex;
+  width: 100%;
+}
+
+/* USER (RB) — RIGHT SIDE */
+.log-user {
+  justify-content: flex-end;
+}
+
+/* BREWASSIST / ASSISTANT MODES — LEFT SIDE */
+.log-llm,
+.log-agent,
+.log-loop,
+.log-hrm,
+.log-brewassist,
+.log-sandbox,
+.log-assistant {
+  justify-content: flex-start;
+}
+
+/* SYSTEM — CENTERED */
+.log-system {
+  justify-content: center;
+}
+
+/* ActionMenu CSS */
+.action-menu-root {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-right: 0.25rem;
+}
+
+.action-menu-trigger {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: radial-gradient(circle at top, #020617 0, #020617 60%, #000 100%);
+  color: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out,
+    transform 0.1s ease-out;
+}
+
+.action-menu-trigger:hover {
+  border-color: #facc15; /* BrewGold */
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.35);
+  transform: translateY(-1px);
+}
+
+.action-menu-trigger-icon {
+  line-height: 1;
+}
+
+.action-menu-popover {
+  position: absolute;
+  bottom: 40px;
+  left: 0;
+  min-width: 260px;
+  padding: 0.4rem 0.4rem 0.45rem;
+  border-radius: 0.75rem;
+  background: radial-gradient(circle at top, #020617 0, #020617 50%, #000 100%);
+  border: 1px solid rgba(30, 64, 175, 0.6);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.95);
+  z-index: 40;
+}
+
+.action-menu-item {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.6rem;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  margin-bottom: 0.15rem;
+  transition: background 0.12s ease-out, box-shadow 0.12s ease-out,
+    transform 0.08s ease-out;
+}
+
+.action-menu-item:last-child {
+  margin-bottom: 0;
+}
+
+.action-menu-item:hover {
+  background: radial-gradient(circle at left, rgba(250, 204, 21, 0.12) 0, transparent 55%);
+  box-shadow: 0 0 12px rgba(15, 23, 42, 0.9);
+  transform: translateY(-0.5px);
+}
+
+.action-menu-item-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.action-menu-item-sub {
+  font-size: 0.7rem;
+  color: rgba(148, 163, 184, 0.95);
+}
