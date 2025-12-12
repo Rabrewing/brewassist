@@ -1,94 +1,95 @@
+// BrewTruth grading tier – how "trustworthy / production-ready" a reply is.
+export type BrewTruthTier =
+  | "gold"        // Safe to trust in most cases
+  | "silver"      // Good, but may need quick review
+  | "bronze"      // Usable draft, needs editing
+  | "red";        // High risk / likely wrong / incomplete
+
+// Dimensions we care about for Tier-2.
+export type BrewTruthDimension =
+  | "factuality"
+  | "relevance"
+  | "clarity"
+  | "safety"
+  | "structure";
+
+// One dimension’s score.
+export interface BrewTruthScore {
+  dim: BrewTruthDimension;
+  score: number;      // 0–1 (or 0–100, see note below)
+  notes?: string;     // short human explanation
+}
+
+// Flags for quick UI badges and logs.
+export type BrewTruthFlagType =
+  | "low_confidence"
+  | "speculative"
+  | "missing_context"
+  | "possible_hallucination"
+  | "safety_concern"
+  | "partial_answer"
+  | "tool_failure"
+  | "fallback_used";
+
+// Lightweight trace of which model / provider answered.
+export interface BrewTruthModelTrace {
+  provider: "openai" | "gemini" | "mistral" | "nims" | "tinyllm" | "unknown" | "system";
+  model: string;              // e.g. "gpt-4.1-mini", "gemini-2.5-flash"
+  routeType: "primary" | "fallback" | "research" | "preferred" | "unknown" | "system-block";
+  latencyMs?: number;
+}
+
+// The main BrewTruth object we expose everywhere.
 export interface BrewTruthReport {
-  truthScore: number;
-  contradictions: string[];
-  suggestions: string[];
-  modelRole: string;
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'; // Added
-  flags: string[]; // Added
-  summary: string; // Added
+  tier: BrewTruthTier;
+  overallScore: number;        // 0–1 (Tier-2) or 0–100 (if you prefer)
+  scores: BrewTruthScore[];    // one per dim
+  flags: BrewTruthFlagType[];
+  summary: string;             // 1–2 sentence recap, UI-ready
+  modelTrace: BrewTruthModelTrace;
+  evaluatedAt: string;         // ISO timestamp
+  version: string;             // e.g. "bt-2.0"
 }
 
-export interface BrewTruthRequest {
-  statement: string;
-  contextHint?: string;
-  mode?: string;
+export interface BrewTruthInput {
+  prompt: string;          // what user asked
+  response: string;        // what BrewAssist answered
+  mode?: 'llm' | 'hrm' | 'agent' | 'loop';         // "llm" | "hrm" | "agent" | "loop"
+  providerTrace?: BrewTruthModelTrace; // optional input if engine already knows
 }
 
-export async function runBrewTruthGrader({
-  mode,
-  messages,
-  response,
-  modelRole
-}: {
-  mode: string;
-  messages: any[];
-  response: string;
-  modelRole: string;
-}): Promise<BrewTruthReport> {
-
-  // Simple stub for now — later replace with real deep scoring
-  try {
-    // Send to whichever provider you want (OpenAI is fine)
-    const graderPrompt = `
-Grade the assistant's response for correctness, clarity, contradictions, and usefulness.
-Return JSON with: truthScore (0-100), contradictions[], suggestions[].
-Do NOT include reasoning or explanation outside JSON.
-
-Assistant response:
-${response}
-    `.trim();
-
-    // Call your Mini model for speed:
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL_MINI ?? "gpt-4.1-mini",
-        messages: [{ role: "user", content: graderPrompt }],
-        temperature: 0
-      })
-    });
-
-    const json = await res.json();
-
-    let parsed = null;
-    try {
-      parsed = JSON.parse(json.choices?.[0]?.message?.content || "{}");
-    } catch {
-      parsed = { truthScore: 70, contradictions: [], suggestions: [] };
-    }
-
-    return {
-      truthScore: parsed.truthScore ?? 70,
-      contradictions: parsed.contradictions ?? [],
-      suggestions: parsed.suggestions ?? [],
-      modelRole,
-      riskLevel: 'LOW', // Default for stub
-      flags: [], // Default for stub
-      summary: 'Stubbed truth report', // Default for stub
-    };
-
-  } catch (err) {
-    return {
-      truthScore: 60,
-      contradictions: ["Truth grader failed"],
-      suggestions: ["Retry"],
-      modelRole,
-      riskLevel: 'MEDIUM', // Default for stub
-      flags: ['error'], // Default for stub
-      summary: 'Truth grader failed', // Default for stub
-    };
-  }
+export async function runBrewTruth(
+  input: BrewTruthInput
+): Promise<BrewTruthReport> {
+  // implementation uses OpenAI (or other) internally
+  // For now, return a stubbed report
+  return {
+    tier: 'silver',
+    overallScore: 0.8,
+    scores: [
+      { dim: 'factuality', score: 0.8, notes: 'Stubbed' },
+      { dim: 'relevance', score: 0.9, notes: 'Stubbed' },
+      { dim: 'clarity', score: 0.85, notes: 'Stubbed' },
+      { dim: 'safety', score: 0.95, notes: 'Stubbed' },
+      { dim: 'structure', score: 0.7, notes: 'Stubbed' },
+    ],
+    flags: [],
+    summary: 'This is a stubbed BrewTruth report.',
+    modelTrace: input.providerTrace || {
+      provider: 'unknown',
+      model: 'unknown',
+      routeType: 'unknown',
+    },
+    evaluatedAt: new Date().toISOString(),
+    version: '2',
+  };
 }
 
 export function getTruthEngineStatus() {
   return {
     status: "operational",
     engine: "BrewTruth",
-    version: "v1.0.0",
+    version: "v2.0.0", // Updated version
   };
 }
 
@@ -100,12 +101,23 @@ export function toTruthPromptFromToolRun(toolRun: any): string {
 export async function runTruthCheckForToolRun(toolRun: any): Promise<BrewTruthReport> {
   // Placeholder for now
   return {
-    truthScore: 80,
-    contradictions: [],
-    suggestions: [],
-    modelRole: "system",
-    riskLevel: 'LOW', // Default for stub
-    flags: [], // Default for stub
-    summary: 'Stubbed truth check', // Default for stub
+    tier: 'silver',
+    overallScore: 0.8,
+    scores: [
+      { dim: 'factuality', score: 0.8, notes: 'Stubbed' },
+      { dim: 'relevance', score: 0.9, notes: 'Stubbed' },
+      { dim: 'clarity', score: 0.85, notes: 'Stubbed' },
+      { dim: 'safety', score: 0.95, notes: 'Stubbed' },
+      { dim: 'structure', score: 0.7, notes: 'Stubbed' },
+    ],
+    flags: [],
+    summary: 'Stubbed truth check',
+    modelTrace: {
+      provider: 'unknown',
+      model: 'unknown',
+      routeType: 'unknown',
+    },
+    evaluatedAt: new Date().toISOString(),
+    version: 'bt-2.0-stub',
   };
 }

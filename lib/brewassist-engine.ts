@@ -1,8 +1,10 @@
 import { DEFAULT_PERSONA } from "../lib/brewConfig";
 import { resolveRoute, BrewModelRole, BrewProviderId, getModelRoutes, getModelProviders, BrewRoute, BrewRouteType } from "../lib/model-router";
-import { runBrewTruthGrader, BrewTruthReport } from "./brewtruth";
+import { runBrewTruth, BrewTruthReport, BrewTruthModelTrace, BrewTruthTier, BrewTruthFlagType } from "./brewtruth";
+import { getPermissionForRisk } from './toolbeltGuard'; // Import toolbeltGuard
+import { computeToolbeltRules, ToolbeltBrewMode, ToolbeltTier, ToolbeltRulesSnapshot, ToolPermission } from './toolbeltConfig'; // Import ToolbeltConfig types
 
-export type BrewAssistMode = "hrm" | "llm" | "agent" | "loop";
+export type EngineBrewAssistMode = "hrm" | "llm" | "agent" | "loop"; // Renamed to avoid conflict
 
 export type BrewMessageRole =
   | "user"
@@ -19,9 +21,33 @@ export interface BrewMessage {
   content: string;
   createdAt: string;
   model?: string;
-  mode?: BrewAssistMode;
+  mode?: EngineBrewAssistMode; // Use EngineBrewAssistMode
   truthScore?: number;
 }
+
+// S4.9c: New types for BrewTruth attachment
+export type RiskLevel = "low" | "medium" | "high";
+
+function mapBrewTruthTierToRiskLevel(tier: BrewTruthTier): RiskLevel {
+  switch (tier) {
+    case "gold":
+    case "silver":
+    case "bronze":
+      return "low";
+    case "red":
+      return "high";
+    default:
+      return "medium"; // Default to medium for unknown or new tiers
+  }
+}
+
+export type BrewTruthAttachment = {
+  version: string;
+  truthScore: number;           // 0–1
+  riskLevel: RiskLevel;
+  flags: BrewTruthFlagType[];   // Use BrewTruthFlagType from brewtruth.ts
+  notes?: string;               // short summary for UI
+};
 
 export interface BrewAssistPersona {
   name: string;            // "BrewAssist"
@@ -35,7 +61,7 @@ export interface BrewAssistPersona {
 
 export interface BrewAssistSessionContext {
   persona: BrewAssistPersona;
-  mode: BrewAssistMode;
+  mode: EngineBrewAssistMode; // Use EngineBrewAssistMode
   skillLevel?: "vibe" | "intermediate" | "senior" | "enterprise";
   projectName?: string;
   repoSummary?: string;
@@ -44,14 +70,16 @@ export interface BrewAssistSessionContext {
 
 export interface RunBrewAssistOptions {
   input: string;
-  mode: BrewAssistMode;
+  mode: EngineBrewAssistMode; // Use EngineBrewAssistMode
+  tier: ToolbeltTier; // Add tier to options
   sessionContext?: BrewAssistSessionContext;
   modelRole?: BrewModelRole;         // optional override
   useResearchModel?: boolean;        // for explicit research calls
+  dangerousAction?: boolean; // S4.9d: Flag for actions that need confirmation
 }
 
 // Map tab mode → logical role
-export function modeToRole(mode: BrewAssistMode): BrewMessageRole {
+export function modeToRole(mode: EngineBrewAssistMode): BrewMessageRole { // Use EngineBrewAssistMode
   switch (mode) {
     case "hrm":
       return "hrm";
@@ -96,16 +124,33 @@ function buildSystemPrompt(ctx: BrewAssistSessionContext): string {
 interface BrewAssistEngineOptions {
   input: string;
   mode: BrewModelRole;
+  tier: ToolbeltTier; // Add tier to options
   useResearchModel?: boolean;
   systemPrompt?: string;
+  dangerousAction?: boolean; // S4.9d: Flag for actions that need confirmation
 }
 
-interface BrewAssistEngineResult {
-  content: string;
+export class ToolbeltBlockedError extends Error {
+  statusCode: number;
+  constructor(message: string, statusCode: number) {
+    super(message);
+    this.name = 'ToolbeltBlockedError';
+    this.statusCode = statusCode;
+  }
+}
+
+export interface BrewAssistEngineResult {
+  result: {
+    role: "assistant";
+    content: string;
+  };
   provider: BrewProviderId;
   model: string;
-  routeType: BrewRouteType; // Use the new BrewRouteType
-  truthReport?: BrewTruthReport;
+  routeType: BrewRouteType;
+  latencyMs: number; // NEW
+  modelRoleUsed: string; // NEW
+  truth?: BrewTruthAttachment | null; // Updated to BrewTruthAttachment
+  blockedByTruth?: boolean; // S4.9d: Add blockedByTruth to result
 }
 
 // --- S4.8f NIMs Auto-Discovery Logic ---
@@ -330,7 +375,41 @@ async function callProvider(
 export async function runBrewAssistEngine(
   opts: BrewAssistEngineOptions & { preferredProvider?: BrewProviderId } // Added preferredProvider to opts
 ): Promise<BrewAssistEngineResult> {
-  const { input, mode, useResearchModel, systemPrompt, preferredProvider } = opts; // Destructure preferredProvider
+  const { input, mode, tier, useResearchModel, systemPrompt, preferredProvider, dangerousAction } = opts; // Destructure tier and dangerousAction
+
+  // Compute effective rules based on current mode and tier
+  const effectiveRules = computeToolbeltRules(mode as ToolbeltBrewMode, tier);
+
+  // S4.9d: Implement Toolbelt Guard for dangerous actions
+  let blockedByToolbelt = false;
+  let toolbeltBlockReason: string | undefined;
+
+  if (dangerousAction) {
+    const permission = getPermissionForRisk(effectiveRules, 'write_single'); // Assuming dangerousAction implies single write for now
+    if (permission === 'blocked') {
+      blockedByToolbelt = true;
+      toolbeltBlockReason = `Action blocked by Toolbelt Tier ${tier} in ${mode} mode.`;
+    } else if (permission === 'admin_only') {
+      blockedByToolbelt = true;
+      toolbeltBlockReason = `Action requires Admin privileges in Toolbelt Tier ${tier} in ${mode} mode.`;
+    }
+    // 'needs_confirm' is handled by the UI, so no block here
+  }
+
+  if (blockedByToolbelt) {
+    return {
+      result: {
+        role: "assistant",
+        content: toolbeltBlockReason || "Action blocked by Toolbelt rules.",
+      },
+      provider: 'system', // Indicate system block
+      model: 'toolbelt-guard',
+      routeType: 'system-block',
+      latencyMs: 0,
+      modelRoleUsed: mode,
+      blockedByTruth: true, // Use this flag to indicate a block, even if not by truth
+    };
+  }
 
   const messages = [
     ...(systemPrompt
@@ -388,49 +467,84 @@ export async function runBrewAssistEngine(
     routesToTry.push(...getModelRoutes(mode));
   }
 
-  let lastError: unknown;
-  let providerUsed: BrewProviderId = 'openai'; // Default to avoid undefined
-  let modelUsed: string = 'unknown';
-  let routeType: BrewRouteType = 'primary';
-
-  for (let i = 0; i < routesToTry.length; i++) {
-    const route = routesToTry[i];
-    try {
-      let content: string;
-      if (route.routeType === 'research' && route.provider === 'nims') {
-        // Special call for NIMs
-        content = await callNimsProvider(route.model, messages);
-      } else {
-        content = await callProvider(route.provider, route.model, messages);
-      }
-
-      providerUsed = route.provider;
-      modelUsed = route.model;
-      routeType = i === 0 ? route.routeType : 'fallback'; // Mark as fallback if not the first attempt
-
-      // 🔎 BrewTruth grading hook (works for any provider, including NIMs)
-      let truthReport: BrewTruthReport | undefined;
-      if (process.env.ENABLE_BREWTRUTH === "true") {
-        try {
-          truthReport = await runBrewTruthGrader({
-            mode,
-            messages: [{ role: 'user', content: input }], // Pass user message for grading context
-            response: content,
-            modelRole: mode, // Use the original mode for truth grading context
-          });
-        } catch (err) {
-          console.warn('BrewTruth grading failed, continuing without truthReport', err);
+        let lastError: unknown;
+    let providerUsed: BrewProviderId = 'openai'; // Default to avoid undefined
+    let modelUsed: string = 'unknown';
+    let routeType: BrewRouteType = 'primary';
+    let latencyMs: number = 0;
+    const modelRoleUsed: string = mode; // Assuming mode is the modelRoleUsed
+  
+    for (let i = 0; i < routesToTry.length; i++) {
+      const route = routesToTry[i];
+      const startTime = Date.now(); // Capture start time
+      try {
+        let content: string;
+        if (route.routeType === 'research' && route.provider === 'nims') {
+          // Special call for NIMs
+          content = await callNimsProvider(route.model, messages);
+        } else {
+          content = await callProvider(route.provider, route.model, messages);
         }
-      }
+        latencyMs = Date.now() - startTime; // Calculate latency
+  
+        providerUsed = route.provider;
+        modelUsed = route.model;
+        routeType = i === 0 ? route.routeType : 'fallback'; // Mark as fallback if not the first attempt
+  
+        // 🔎 BrewTruth grading hook (works for any provider, including NIMs)
+        let truth: BrewTruthAttachment | null = null; // Initialize to null
+        console.log("BREWTRUTH_ENABLED:", process.env.BREWTRUTH_ENABLED); // Debug log
+        const BREWTRUTH_ENABLED = process.env.BREWTRUTH_ENABLED === "true";
+  
+        if (BREWTRUTH_ENABLED) {
+          console.log("BrewTruth grading block entered."); // Debug log
+          try {
+            const providerTrace: BrewTruthModelTrace = {
+              provider: providerUsed,
+              model: modelUsed,
+              routeType: routeType,
+              latencyMs: latencyMs, // Pass latency
+            };
+            const report = await runBrewTruth({
+              prompt: input,
+              response: content,
+              mode: mode,
+              providerTrace: providerTrace,
+            });
 
-      return {
-        content,
-        provider: providerUsed,
-        model: modelUsed,
-        routeType,
-        truthReport,
-      };
-    } catch (err) {
+            truth = {
+              version: report.version,
+              truthScore: report.overallScore,
+              riskLevel: mapBrewTruthTierToRiskLevel(report.tier),
+              flags: report.flags,
+              notes: report.summary,
+            };
+            // S4.9c Logging: Add a console log on the server when BrewTruth is present
+            console.log("BrewTruth verdict", {
+              truthScore: truth.truthScore,
+              riskLevel: truth.riskLevel,
+              flags: truth.flags,
+            });
+            // TODO(S4.9c): Log into BrewLast once that engine is online.
+          } catch (err) {
+            console.warn('[BrewTruth] Grading failed in engine:', err);
+            // Truth stays null; BrewAssist still returns normal answer.
+          }
+        }
+  
+        return {
+          result: {
+            role: "assistant",
+            content: content,
+          },
+          provider: providerUsed,
+          model: modelUsed,
+          routeType,
+          latencyMs,
+          modelRoleUsed: mode, // Use mode directly
+          truth,
+          blockedByTruth: false, // Not blocked by truth if we reached here
+        };    } catch (err) {
       lastError = err;
       console.error(
         `Provider ${route.provider} failed for role ${mode}, trying next fallback…`,
@@ -443,3 +557,14 @@ export async function runBrewAssistEngine(
   // If we get here, all providers failed
   throw lastError ?? new Error("All providers failed for BrewAssistEngine.");
 }
+
+// S4.9c: Simple Guardrail Hook for MCP / “dangerous-ish” actions
+export function shouldBlockActionFromTruth(
+  truth?: BrewTruthAttachment | null
+): boolean {
+  if (!truth) return false;
+  if (truth.riskLevel === "high") return true;
+  if (truth.truthScore < 0.4) return true;
+  return false;
+}
+

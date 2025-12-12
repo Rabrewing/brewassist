@@ -10,6 +10,25 @@
 @import "./cockpit-sandbox.css";
 @import "./cockpit-modal.css";
 
+:root {
+  --brew-bg: #020617;              /* main background - navy */
+  --brew-bg-elevated: #020617;     /* cards, bubbles - navy */
+  --brew-bg-panel: #020617;        /* side panels - navy */
+  --brew-border-soft: rgba(30, 64, 175, 0.6); /* subtle blue border */
+
+  --brew-gold: #ffd700;
+  --brew-teal: #00c7b7;
+  --brew-white: #e5e7eb; /* Adjusted for navy background */
+  --brew-muted: rgba(148, 163, 184, 0.9); /* Adjusted for navy background */
+
+  --brew-tab-bg: #020617;
+  --brew-tab-active-bg: #020617;
+  --brew-tab-active-border: #facc15;
+
+  --brew-shadow-gold: 0 0 18px rgba(250, 204, 21, 0.35);
+  --brew-shadow-teal: 0 0 18px rgba(34, 211, 238, 0.4);
+}
+
 html,
 body,
 #__next {

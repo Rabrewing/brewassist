@@ -13,10 +13,12 @@
     "openai": "^6.9.1",
     "playwright-core": "^1.53.2",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-markdown": "^9.0.0"
   },
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "BREWTRUTH_ENABLED=true next dev -p 3000",
+    "dev:comment": "NOTE: BREWTRUTH_ENABLED is set here as a temporary workaround because .env.local variables are not reliably picked up by the Next.js dev server in this specific setup. This ensures BrewTruth is active during development. For production, environment variables should be managed by the deployment platform.",
     "build": "next build",
     "start": "next start -p 3000",
     "test": "jest",
@@ -41,6 +43,7 @@
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
     "autoprefixer": "^10.4.22",
+    "dotenv": "^17.2.3",
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.0.3",
     "eslint-config-prettier": "^10.1.8",

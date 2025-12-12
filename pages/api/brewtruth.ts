@@ -1,7 +1,7 @@
 // pages/api/brewtruth.ts
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { runBrewTruthGrader, type BrewTruthRequest } from '@/lib/brewtruth';
+import { runBrewTruth, type BrewTruthInput } from '@/lib/brewtruth';
 import { readBrewLast } from '@/lib/brewLastServer';
 // ^ Gemini: reuse whatever S3 created that reads .brewlast.json
 
@@ -15,23 +15,23 @@ export default async function handler(
   }
 
   try {
-    const body = req.body as Partial<BrewTruthRequest>;
+    const body = req.body as Partial<BrewTruthInput>;
 
-    if (!body.statement) {
+    if (!body.prompt || !body.response) {
       return res.status(400).json({
         ok: false,
-        error: 'statement is required',
+        error: 'prompt and response are required',
       });
     }
 
-    const result = await runBrewTruthGrader({
-      mode: body.mode || 'llm', // Default to 'llm' if not provided
-      messages: [{ role: 'user', content: body.statement }],
-      response: body.statement, // Using statement as response for grading context
-      modelRole: body.mode || 'llm', // Default to 'llm' if not provided
+    const result = await runBrewTruth({
+      prompt: body.prompt,
+      response: body.response,
+      mode: body.mode,
+      providerTrace: body.providerTrace,
     });
 
-    return res.status(200).json(result);
+    return res.status(200).json({ truth: result });
   } catch (err: any) {
     console.error('brewtruth error:', err);
     return res.status(500).json({

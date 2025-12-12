@@ -103,7 +103,7 @@ describe("BrewAssist API (S4.8f - Model Routing & NIMs Auto-Discovery)", () => {
     expect(res._getStatusCode()).toBe(400);
     const data = JSON.parse(res._getData());
     expect(data.ok).toBe(false);
-    expect(data.error).toBe("Missing `input` in request body.");
+    expect(data.error).toBe("Missing input");
   });
 
   it("should return 405 for non-POST methods", async () => {

@@ -1,9 +1,4 @@
-export type BrewTruthReview = {
-  truthScore: number; // 0–1
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
-  flags: string[]; // any issues / warnings
-  summary: string; // short human description
-};
+import type { BrewTruthReport } from './brewtruth';
 
 export interface BrewLastTask {
   id: string;
@@ -26,7 +21,7 @@ export type BrewLastToolRun = {
   stderr?: string;
 
   // BrewTruth attachment
-  truthReview?: BrewTruthReview;
+  truthReview?: BrewTruthReport; // Changed from BrewTruthReview to BrewTruthReport
 
   // Sandbox context
   isSandbox?: boolean;

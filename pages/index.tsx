@@ -3,87 +3,90 @@ import Head from "next/head";
 import { WorkspaceSidebarLeft } from "../components/WorkspaceSidebarLeft";
 import { BrewCockpitCenter } from "../components/BrewCockpitCenter";
 import { WorkspaceSidebarRight } from "../components/WorkspaceSidebarRight";
+import { ToolbeltProvider } from '@/contexts/ToolbeltContext'; // Import ToolbeltProvider
 
 export default function Home() {
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState(false);
 
   return (
-    <div className="cockpit-shell">
-      <header className="cockpit-header">
-        <div className="cockpit-header-left">
-          <div className="cockpit-brand-wordmark">BREWASSIST</div>
-          <div className="cockpit-brand-sub">
-            DEVOPS COCKPIT · BREWASSIST ⚡
+    <ToolbeltProvider> {/* Wrap the entire cockpit with ToolbeltProvider */}
+      <div className="cockpit-shell">
+        <header className="cockpit-header">
+          <div className="cockpit-header-left">
+            <div className="cockpit-brand-wordmark">BREWASSIST</div>
+            <div className="cockpit-brand-sub">
+              DEVOPS COCKPIT · BREWASSIST ⚡
+            </div>
           </div>
-        </div>
-        <nav className="cockpit-header-nav">
-          <button className="cockpit-nav-link">Dashboard</button>
-          <button className="cockpit-nav-link">Sessions</button>
-          <button className="cockpit-nav-link">Docs</button>
-          <button className="cockpit-nav-link">Settings</button>
-        </nav>
-        <div className="cockpit-header-right">
-          <span className="cockpit-mode-pill">
-            Primary: Gemini • Fallback: Local
-          </span>
-          <button className="cockpit-signin-btn">Sign in</button>
-        </div>
-      </header>
+          <nav className="cockpit-header-nav">
+            <button className="cockpit-nav-link">Dashboard</button>
+            <button className="cockpit-nav-link">Sessions</button>
+            <button className="cockpit-nav-link">Docs</button>
+            <button className="cockpit-nav-link">Settings</button>
+          </nav>
+          <div className="cockpit-header-right">
+            <span className="cockpit-mode-pill">
+              Primary: Gemini • Fallback: Local
+            </span>
+            <button className="cockpit-signin-btn">Sign in</button>
+          </div>
+        </header>
 
-      <main className="cockpit-body">
-        {/* LEFT SIDEBAR */}
-        <aside
-          className={`workspace-sidebar-left ${
+        <main className="cockpit-body">
+          {/* LEFT SIDEBAR */}
+          <aside
+            className={`workspace-sidebar-left ${
             isLeftCollapsed ? "is-collapsed" : ""
-          }`}
-        >
-          <button
-            className={`sidebar-left-toggle ${isLeftCollapsed ? 'collapsed-shape' : 'expanded-shape'}`}
-            type="button"
-            onClick={() => setIsLeftCollapsed((v) => !v)}
+            }`}
           >
-            {isLeftCollapsed ? "‹" : "›"}
-          </button>
-          {!isLeftCollapsed && <WorkspaceSidebarLeft />}
-        </aside>
+            <button
+              className={`sidebar-left-toggle ${isLeftCollapsed ? 'collapsed-shape' : 'expanded-shape'}`}
+              type="button"
+              onClick={() => setIsLeftCollapsed((v) => !v)}
+            >
+              {isLeftCollapsed ? "‹" : "›"}
+            </button>
+            {!isLeftCollapsed && <WorkspaceSidebarLeft />}
+          </aside>
 
-        {/* CENTER */}
-        <section className="cockpit-center">
-          <BrewCockpitCenter />
-        </section>
+          {/* CENTER */}
+          <section className="cockpit-center">
+            <BrewCockpitCenter />
+          </section>
 
-        {/* RIGHT SIDEBAR */}
-        <aside
-          className={`workspace-sidebar-right ${
+          {/* RIGHT SIDEBAR */}
+          <aside
+            className={`workspace-sidebar-right ${
             isRightCollapsed ? "is-collapsed" : ""
-          }`}
-        >
-          <button
-            className="sidebar-right-toggle"
-            type="button"
-            onClick={() => setIsRightCollapsed((v) => !v)}
+            }`}
           >
-            {isRightCollapsed ? "‹" : "›"}
-          </button>
-          {!isRightCollapsed && <WorkspaceSidebarRight />}
-        </aside>
-      </main>
+            <button
+              className="sidebar-right-toggle"
+              type="button"
+              onClick={() => setIsRightCollapsed((v) => !v)}
+            >
+              {isRightCollapsed ? "‹" : "›"}
+            </button>
+            {!isRightCollapsed && <WorkspaceSidebarRight />}
+          </aside>
+        </main>
 
-      <footer className="cockpit-footer">
-        <div className="cockpit-footer-left">
-          © 2025 BREWINGTON EXEC GROUP INC.
-        </div>
-        <div className="cockpit-footer-right">
-          <a href="/terms" className="cockpit-footer-link">
-            Terms
-          </a>
-          <span className="cockpit-footer-sep">·</span>
-          <a href="/privacy" className="cockpit-footer-link">
-            Privacy
-          </a>
-        </div>
-      </footer>
-    </div>
+        <footer className="cockpit-footer">
+          <div className="cockpit-footer-left">
+            © 2025 BREWINGTON EXEC GROUP INC.
+          </div>
+          <div className="cockpit-footer-right">
+            <a href="/terms" className="cockpit-footer-link">
+              Terms
+            </a>
+            <span className="cockpit-footer-sep">·</span>
+            <a href="/privacy" className="cockpit-footer-link">
+              Privacy
+            </a>
+          </div>
+        </footer>
+      </div>
+    </ToolbeltProvider>
   );
 }

@@ -2,9 +2,9 @@
 
 export type BrewModelRole = 'llm' | 'hrm' | 'agent' | 'loop';
 
-export type BrewProviderId = 'gemini' | 'openai' | 'mistral' | 'nims' | 'tinyllm';
+export type BrewProviderId = 'gemini' | 'openai' | 'mistral' | 'nims' | 'tinyllm' | 'system';
 
-export type BrewRouteType = "primary" | "fallback" | "research" | "preferred";
+export type BrewRouteType = "primary" | "fallback" | "research" | "preferred" | "system-block";
 
 export interface BrewRoute {
   provider: BrewProviderId;
@@ -67,6 +67,11 @@ export function getModelProviders(): Record<BrewProviderId, ProviderConfigDetail
       baseUrl: process.env.TINYLLM_BASE_URL ?? "http://localhost:8000/chat/completions",
       apiKey: undefined, // No API key for local
       primaryModel: "tiny-llm-local",
+    },
+    system: { // Added system provider
+      enabled: true,
+      baseUrl: "system",
+      primaryModel: "toolbelt-guard",
     },
   };
 }

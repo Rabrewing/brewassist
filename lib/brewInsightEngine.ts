@@ -5,7 +5,7 @@
 import path from 'path';
 import fs from 'fs/promises';
 import { getRunDir, getSandboxRoot } from './brewSandbox';
-import { BrewTruthReview } from './brewLast'; // Assuming BrewTruthReview is defined here or similar
+import { BrewTruthReport } from './brewtruth';
 
 export type InsightSummary = {
   runId: string;
@@ -55,7 +55,7 @@ export async function buildInsights(runId: string): Promise<InsightSummary> {
 
   let scanResult: ScanResult = {};
   let diagnosticResult: DiagnosticResult = [];
-  let truthReview: BrewTruthReview | undefined;
+  let truthReview: BrewTruthReport | undefined;
 
   try {
     scanResult = JSON.parse(
@@ -88,8 +88,15 @@ export async function buildInsights(runId: string): Promise<InsightSummary> {
 
   const totalIssues =
     issuesBySeverity.ERROR + issuesBySeverity.WARNING + issuesBySeverity.NOTICE;
-  const riskLevel = truthReview?.riskLevel || 'UNKNOWN';
-  const truthScore = truthReview?.truthScore;
+  const riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN' =
+    truthReview?.tier === 'red'
+      ? 'HIGH'
+      : truthReview?.tier === 'bronze'
+      ? 'MEDIUM'
+      : truthReview?.tier === 'silver' || truthReview?.tier === 'gold'
+      ? 'LOW'
+      : 'UNKNOWN';
+  const truthScore = truthReview?.overallScore;
 
   const suggestedPriorities: string[] = [];
   if (issuesBySeverity.ERROR > 0)

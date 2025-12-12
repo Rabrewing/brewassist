@@ -278,6 +278,58 @@
   color: #facc15;
 }
 
+/* S4.9d: Tier Selector Styles */
+.brew-tier-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 1rem; /* Add some spacing from mode tabs */
+}
+
+.brew-tier-badge {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(250, 204, 21, 0.8); /* BrewGold border */
+  color: #facc15; /* BrewGold text */
+  background: radial-gradient(circle at top, #020617 0, #020617 55%, #000 100%);
+}
+
+.brew-tier-dropdown {
+  font-size: 0.7rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(30, 64, 175, 0.8);
+  background: radial-gradient(circle at top, #020617 0, #020617 55%, #000 100%);
+  color: rgba(148, 163, 184, 0.9);
+  cursor: pointer;
+  appearance: none; /* Remove default dropdown arrow */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='currentColor'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd' /%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1em;
+  padding-right: 1.75rem; /* Make space for the custom arrow */
+}
+
+.brew-tier-dropdown:focus {
+  outline: none;
+  border-color: #22d3ee; /* BrewTeal focus */
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.5);
+}
+
+.brew-tier-dropdown option {
+  background-color: #020617; /* Dark background for options */
+  color: #facc15; /* BrewGold text for options */
+  padding: 0.5rem 1rem;
+}
+
+.brew-tier-dropdown option:hover {
+  background-color: rgba(34, 211, 238, 0.2); /* BrewTeal hover background */
+  color: #22d3ee; /* BrewTeal text on hover */
+}
+
 /* Collapsed states */
 .workspace-sidebar-left.is-collapsed {
   flex-basis: 52px;
@@ -524,6 +576,33 @@
   box-shadow: 0 0 8px rgba(160,170,185,0.30);
 }
 
+/* S4.9c.1: Ensure markdown content keeps paragraphs & line breaks */
+.log-user .bubble-content,
+.log-assistant .bubble-content {
+  white-space: pre-wrap;   /* preserve \n and wrap nicely */
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+/* S4.9c.1: Optional: slightly smaller markdown headings in bubbles */
+.log-user .bubble-content h1,
+.log-assistant .bubble-content h1 {
+  font-size: 1.1rem;
+  margin-bottom: 0.4rem;
+}
+
+.log-user .bubble-content h2,
+.log-assistant .bubble-content h2 {
+  font-size: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.log-user .bubble-content ul,
+.log-assistant .bubble-content ul {
+  margin-left: 1rem;
+  padding-left: 0.9rem;
+}
+
 /* ===========================================================
    ANIMATIONS — BREWGOLD SHIMMER & HRM ARCHITECT PULSE
    =========================================================== */
@@ -621,15 +700,18 @@
     transform 0.1s ease-out;
 }
 
+
 .action-menu-trigger:hover {
   border-color: #facc15; /* BrewGold */
   box-shadow: 0 0 18px rgba(250, 204, 21, 0.35);
   transform: translateY(-1px);
 }
 
+
 .action-menu-trigger-icon {
   line-height: 1;
 }
+
 
 .action-menu-popover {
   position: absolute;
@@ -643,6 +725,78 @@
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.95);
   z-index: 40;
 }
+
+/* S4.9e: Brew Action Menu Redesign */
+.brew-action-menu {
+  position: absolute;
+  bottom: 40px; /* Anchor below the + button */
+  left: 0; /* Left-aligned with the chat box */
+  max-width: 320px;
+  background: var(--brew-bg-elevated); /* deep gray / #232323 */
+  border: 1px solid var(--brew-border-soft); /* subtle teal */
+  box-shadow: 0 0 18px rgba(0, 199, 183, 0.18); /* soft glow */
+  border-radius: 24px;
+  padding: 10px 8px;
+  z-index: 40; /* Ensure it's above other elements */
+}
+
+.brew-action-menu .action-menu-item {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent; /* Default transparent */
+  border: none;
+  border-radius: 18px; /* More rounded corners for items */
+  padding: 0 12px; /* Adjust padding */
+  margin-bottom: 4px; /* Space between items */
+  transition: background 0.15s ease-out, box-shadow 0.15s ease-out, border-color 0.15s ease-out;
+}
+
+.brew-action-menu .action-menu-item:last-child {
+  margin-bottom: 0;
+}
+
+.brew-action-menu .action-menu-item:hover {
+  background: rgba(0, 199, 183, 0.12); /* BrewTeal hover background */
+  box-shadow: none; /* Remove default shadow on hover */
+  border-left: 2px solid #00C7B7; /* Left border accent */
+  transform: none; /* Remove translateY effect */
+}
+
+.brew-action-menu .action-menu-item-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.brew-action-menu .action-menu-item-label {
+  color: var(--brew-white); /* LED white */
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+
+.brew-action-menu .action-menu-item-description {
+  color: var(--brew-muted); /* dim grey */
+  font-size: 0.72rem;
+}
+
+.brew-action-menu .action-menu-item-icon-wrapper {
+  width: 28px; /* Size of the circle */
+  height: 28px;
+  border-radius: 50%;
+  background-color: rgba(0, 199, 183, 0.2); /* Subtle BrewTeal circle */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0; /* Prevent shrinking */
+}
+
+.brew-action-menu .action-menu-item-icon {
+  font-size: 0.9rem; /* Icon size */
+  line-height: 1;
+}
+
 
 .action-menu-item {
   width: 100%;
@@ -660,9 +814,11 @@
     transform 0.08s ease-out;
 }
 
+
 .action-menu-item:last-child {
   margin-bottom: 0;
 }
+
 
 .action-menu-item:hover {
   background: radial-gradient(circle at left, rgba(250, 204, 21, 0.12) 0, transparent 55%);
@@ -670,13 +826,165 @@
   transform: translateY(-0.5px);
 }
 
+
 .action-menu-item-title {
   font-size: 0.8rem;
   font-weight: 600;
+  color: #e5e7eb; /* Changed to black */
+}
+
+
+/* S4.9c.1: Brew Input Area Layout Polish */
+.brew-input-area {
+  display: flex;
+  flex-direction: column; /* Stack toolbar and input vertically */
+  padding: 0.75rem 1.5rem 1rem; /* Match cockpit-input-row padding */
+  border-top: 1px solid rgba(30, 64, 175, 0.6);
+  background: radial-gradient(circle at bottom, #020617 0, #020617 40%, #000 100%);
+}
+
+.brew-input-area .cockpit-input-row {
+  padding: 0; /* Remove padding from inner input row */
+  border-top: none; /* Remove border from inner input row */
+}
+
+.brew-truth-chip {
+  align-self: center;
+  margin-bottom: 0;
+}
+
+/* S4.9c.2: Formatting Toolbar Styles */
+.cockpit-format-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.5rem 0.35rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.35rem;
+  background: rgba(15, 23, 42, 0.8); /* slate-900 style */
+  border: 1px solid rgba(148, 163, 184, 0.4); /* slate-400 */
+}
+
+.format-btn {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.9);
+  color: rgba(226, 232, 240, 0.9);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.format-btn:hover {
+  border-color: #00C7B7; /* BrewTeal highlight */
+  color: #FFD700;        /* BrewGold text pop */
+}
+
+/* S4.9c: BrewTruth Badge Styles */
+.truth-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  margin-top: 4px;
+  margin-left: 8px; /* Add some spacing from content */
+  display: inline-block;
+  opacity: 0.85;
+  color: #fff; /* White text for badges */
+  border: 1px solid transparent; /* Default transparent border */
+}
+
+.truth-badge--low {
+  border-color: #00c853; /* Green */
+  background-color: rgba(0, 200, 83, 0.2);
+}
+
+.truth-badge--medium {
+  border-color: #ffb300; /* Amber */
+  background-color: rgba(255, 179, 0, 0.2);
+}
+
+.truth-badge--high {
+  border-color: #ff5252; /* Red */
+  background-color: rgba(255, 82, 82, 0.2);
+}
+
+/* S4.9c: TruthChip alignment */
+.brew-message-meta {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.brew-truth-chip {
+  transform: translateY(1px); /* nudge closer */
+}
+
+/* S4.9c: Confirmation Modal Styles */
+.confirmation-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.confirmation-modal {
+  background: radial-gradient(circle at top left, #020617 0, #020617 60%, #000 100%);
+  border: 1px solid rgba(30, 64, 175, 0.6);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  max-width: 400px;
+  text-align: center;
+}
+
+.confirmation-modal-message {
+  color: #e5e7eb;
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.4;
+}
+
+.confirmation-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.confirmation-modal-button {
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease-out;
+}
+
+.confirmation-modal-button:hover {
+  transform: translateY(-1px);
+}
+
+.confirmation-modal-button--cancel {
+  background-color: rgba(148, 163, 184, 0.2);
   color: #e5e7eb;
 }
 
-.action-menu-item-sub {
-  font-size: 0.7rem;
-  color: rgba(148, 163, 184, 0.95);
+.confirmation-modal-button--cancel:hover {
+  background-color: rgba(148, 163, 184, 0.3);
+}
+
+.confirmation-modal-button--force {
+  background: linear-gradient(90deg, #ff5252, #f44336); /* Red gradient */
+  color: #fff;
+}
+
+.confirmation-modal-button--force:hover {
+  background: linear-gradient(90deg, #f44336, #e53935);
 }
