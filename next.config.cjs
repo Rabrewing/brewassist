@@ -6,7 +6,11 @@ const nextConfig = {
   output: 'standalone',
 
   // Silence the Turbopack warning without adding custom config yet
-  turbopack: {},
+  turbopack: {
+    // Explicitly set the workspace root for Turbopack
+    // This resolves the "multiple lockfiles" warning.
+    root: '/home/brewexec/brewassist/',
+  },
 
   // (Optional) expose env vars to the client side if you need them
   env: {

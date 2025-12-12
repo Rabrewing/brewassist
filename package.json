@@ -26,7 +26,8 @@
     "lint": "eslint pages components lib contexts --ext .ts,.tsx,.js,.jsx",
     "format": "prettier --write .",
     "lint:staged": "lint-staged",
-    "sandbox:mirror": "tsx scripts/sandbox_build_mirror.ts"
+    "sandbox:mirror": "tsx scripts/sandbox_build_mirror.ts",
+    "smoke:sandbox": "curl -sS -X POST http://localhost:3000/api/sandbox -H \"Content-Type: application/json\" -d '{\"engine\":\"tiny\",\"prompt\":\"smoke\"}' | cat"
   },
   "keywords": [],
   "author": "",
@@ -36,6 +37,8 @@
     "@eslint/compat": "^2.0.0",
     "@eslint/js": "^9.39.1",
     "@next/eslint-plugin-next": "^16.0.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/react-hooks": "^8.0.1",
     "@types/jest": "^30.0.0",
     "@types/node": "24.10.1",
     "@types/react": "19.2.3",
@@ -59,7 +62,7 @@
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
-    "typescript": "5.9.3",
+    "typescript": "^5.3.3",
     "typescript-eslint": "^8.46.4"
   }
 }
