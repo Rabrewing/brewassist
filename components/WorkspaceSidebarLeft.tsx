@@ -9,6 +9,7 @@ import ResearchWizard from "./mcp/ResearchWizard";
 import McpWizardModal from "./mcp/McpWizardModal";
 import { useToolbelt } from '@/contexts/ToolbeltContext'; // Import useToolbelt
 import type { ToolPermission } from '@/lib/toolbeltConfig'; // Import ToolbeltPermission
+import { useCockpitMode } from "@/contexts/CockpitModeContext";
 
 interface McpButtonProps {
   id: string;
@@ -44,6 +45,7 @@ const McpButton: React.FC<McpButtonProps> = ({ id, label, smallText, onClick, pe
 };
 
 export const WorkspaceSidebarLeft: React.FC = () => {
+  const { mode: cockpitMode } = useCockpitMode();
   const { mode, effectiveRules } = useToolbelt(); // Consume from context
   const [fileWizardOpen, setFileWizardOpen] = useState(false);
   const [gitWizardOpen, setGitWizardOpen] = useState(false);
@@ -53,6 +55,10 @@ export const WorkspaceSidebarLeft: React.FC = () => {
   const getMcpPermission = (mcpToolId: string): ToolPermission => {
     return effectiveRules.mcp[mcpToolId] || 'blocked';
   };
+
+  if (cockpitMode === "customer") {
+    return null; // hide entire MCP tools panel
+  }
 
   return (
     <div className="mcp-sidebar">

@@ -3,6 +3,7 @@ import { resolveRoute, BrewModelRole, BrewProviderId, getModelRoutes, getModelPr
 import { runBrewTruth, BrewTruthReport, BrewTruthModelTrace, BrewTruthTier, BrewTruthFlagType } from "./brewtruth";
 import { getPermissionForRisk } from './toolbeltGuard'; // Import toolbeltGuard
 import { computeToolbeltRules, ToolbeltBrewMode, ToolbeltTier, ToolbeltRulesSnapshot, ToolPermission } from './toolbeltConfig'; // Import ToolbeltConfig types
+import type { CockpitMode } from "./brewTypes";
 
 export type EngineBrewAssistMode = "hrm" | "llm" | "agent" | "loop"; // Renamed to avoid conflict
 
@@ -71,6 +72,7 @@ export interface BrewAssistSessionContext {
 export interface RunBrewAssistOptions {
   input: string;
   mode: EngineBrewAssistMode; // Use EngineBrewAssistMode
+  cockpitMode: CockpitMode;
   tier: ToolbeltTier; // Add tier to options
   sessionContext?: BrewAssistSessionContext;
   modelRole?: BrewModelRole;         // optional override
@@ -124,6 +126,7 @@ function buildSystemPrompt(ctx: BrewAssistSessionContext): string {
 interface BrewAssistEngineOptions {
   input: string;
   mode: BrewModelRole;
+  cockpitMode: CockpitMode;
   tier: ToolbeltTier; // Add tier to options
   useResearchModel?: boolean;
   systemPrompt?: string;
@@ -375,7 +378,7 @@ async function callProvider(
 export async function runBrewAssistEngine(
   opts: BrewAssistEngineOptions & { preferredProvider?: BrewProviderId } // Added preferredProvider to opts
 ): Promise<BrewAssistEngineResult> {
-  const { input, mode, tier, useResearchModel, systemPrompt, preferredProvider, dangerousAction } = opts; // Destructure tier and dangerousAction
+  const { input, mode, cockpitMode, tier, useResearchModel, systemPrompt, preferredProvider, dangerousAction } = opts; // Destructure tier and dangerousAction
 
   // Compute effective rules based on current mode and tier
   const effectiveRules = computeToolbeltRules(mode as ToolbeltBrewMode, tier);
@@ -567,4 +570,3 @@ export function shouldBlockActionFromTruth(
   if (truth.truthScore < 0.4) return true;
   return false;
 }
-

@@ -1,4 +1,5 @@
 import type { BrewTruthReport } from './brewtruth';
+import { readBrewLast, writeBrewLast } from './brewLastServer';
 
 export interface BrewLastTask {
   id: string;
@@ -38,6 +39,15 @@ export type BrewLastSandboxRun = {
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
   truthScore?: number;
   patchPath?: string; // path to generated patch (if any)
+};
+
+export type BrewLastSandboxBlock = {
+    id: string;
+    type: 'sandbox_block';
+    mode: string;
+    path: string;
+    reason: string;
+    at: string;
 };
 
 export type BrewLastPersonaEvent = {
@@ -98,6 +108,7 @@ export type BrewLastState = {
     | BrewLastToolRun
     | BrewLastPersonaEvent
     | BrewLastSandboxRun
+    | BrewLastSandboxBlock
     | BrewLastIdentityEvent
     | BrewLastHRMRun
   >;
@@ -115,3 +126,27 @@ export function summarizeToolRun(run: BrewLastToolRun): string {
   const time = run.timestamp ?? '';
   return `[${time}] ${run.tool} @ ${run.cwd}`;
 }
+
+export async function logSandboxBlocked(opts: {
+    mode: string;
+    path: string;
+    reason: string;
+  }) {
+    // For now: console + BrewLast entry
+    console.warn('[SANDBOX_BLOCKED]', opts);
+  
+    const current = await readBrewLast();
+    const sandboxBlock: BrewLastSandboxBlock = {
+      id: `${Date.now()}-sandbox-block`,
+      type: 'sandbox_block',
+      mode: opts.mode,
+      path: opts.path,
+      reason: opts.reason,
+      at: new Date().toISOString(),
+    };
+    const history = [...(current.history ?? []), sandboxBlock].slice(-100); // cap history
+  
+    await writeBrewLast({
+      history: history,
+    });
+  }

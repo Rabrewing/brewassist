@@ -16,6 +16,7 @@ export interface ToolbeltEvent {
   actionId?: string;
   riskLevel?: RiskLevel;
   reason?: string;
+  details?: string; // Added this line
   timestamp: string;
 }
 
@@ -26,7 +27,6 @@ export function logToolbeltEvent(event: ToolbeltEvent) {
   if (buffer.length > 100) buffer.shift();
   // Dev-only log for now
   if (process.env.NODE_ENV === 'development') {
-    // eslint-disable-next-line no-console
     console.log('[ToolbeltEvent]', event);
   }
 }

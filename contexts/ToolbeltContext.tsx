@@ -3,6 +3,7 @@ import React, { createContext, useContext, useMemo, useState } from 'react';
 import type { ToolbeltBrewMode, ToolbeltTier, ToolbeltRulesSnapshot } from '@/lib/toolbeltConfig';
 import { computeToolbeltRules } from '@/lib/toolbeltConfig';
 import { logToolbeltEvent } from '@/lib/toolbeltLog';
+import { useCockpitMode } from './CockpitModeContext';
 
 export interface ToolbeltState {
   mode: ToolbeltBrewMode;
@@ -22,11 +23,13 @@ const DEFAULT_MODE: ToolbeltBrewMode = 'LLM';
 const DEFAULT_TIER: ToolbeltTier = 'T2_GUIDED';
 
 export const ToolbeltProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { mode: cockpitMode } = useCockpitMode();
   const [mode, setModeState] = useState<ToolbeltBrewMode>(DEFAULT_MODE);
   const [tier, setTierState] = useState<ToolbeltTier>(DEFAULT_TIER);
 
   const value: ToolbeltContextValue = useMemo(() => {
-    const effectiveRules = computeToolbeltRules(mode, tier);
+    const effectiveTier = cockpitMode === 'customer' && tier === 'T3_POWER' ? 'T2_GUIDED' : tier;
+    const effectiveRules = computeToolbeltRules(mode, effectiveTier);
     const lastUpdatedAt = new Date().toISOString();
 
     return {
@@ -44,6 +47,18 @@ export const ToolbeltProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       },
       setTier: (next) => {
+        if (cockpitMode === 'customer' && next === 'T3_POWER') {
+          // In customer mode, silently cap at T2 instead of allowing T3.
+          setTierState('T2_GUIDED');
+          logToolbeltEvent({
+            type: 'tier_changed',
+            mode,
+            tier: 'T2_GUIDED',
+            timestamp: new Date().toISOString(),
+            details: 'Attempted to set Tier 3 in customer mode; capped at Tier 2.',
+          });
+          return;
+        }
         setTierState(next);
         logToolbeltEvent({
           type: 'tier_changed',
@@ -53,7 +68,7 @@ export const ToolbeltProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       },
     };
-  }, [mode, tier]);
+  }, [mode, tier, cockpitMode]);
 
   return <ToolbeltContext.Provider value={value}>{children}</ToolbeltContext.Provider>;
 };

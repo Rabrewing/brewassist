@@ -35,6 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const {
       input,
       mode = 'llm',
+      cockpitMode = 'admin',
       tier = 'T2_GUIDED',
       useResearchModel = false,
       preferredProvider,
@@ -72,10 +73,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           dangerousAction = true;
           if (mcpAction.includes('multi')) {
             riskLevel = 'write_multi';
-          } else {
+          }
+          else {
             riskLevel = 'write_single';
           }
-        } else {
+        }
+        else {
           riskLevel = 'read';
         }
 
@@ -98,6 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const engineResult = await runBrewAssistEngine({
       input,
       mode,
+      cockpitMode,
       tier: tier as ToolbeltTier,
       useResearchModel,
       preferredProvider,

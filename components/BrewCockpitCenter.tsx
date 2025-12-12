@@ -5,6 +5,8 @@ import type { BrewAssistApiResponse } from "@/pages/api/brewassist";
 import ReactMarkdown from "react-markdown";
 import { useToolbelt } from '@/contexts/ToolbeltContext'; // Import useToolbelt
 import type { ToolbeltBrewMode, ToolbeltTier } from '@/lib/toolbeltConfig'; // Import ToolbeltBrewMode and ToolbeltTier
+import { useCockpitMode } from "@/contexts/CockpitModeContext";
+import { CockpitModeToggle } from "./CockpitModeToggle";
 
 type UiMessageRole = "user" | "assistant" | "system";
 
@@ -27,6 +29,7 @@ function makeId() {
 
 export const BrewCockpitCenter: React.FC = () => { // Removed props
   const { mode, setMode, tier, setTier } = useToolbelt(); // Consume from context
+  const { mode: cockpitMode } = useCockpitMode();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<UiMessage[]>([
     {
@@ -383,19 +386,47 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
             onKeyDown={handleKeyDown}
           />
 
-          <button
-            className="workspace-send-button"
-            onClick={() => void handleSend()}
-            disabled={!input.trim() || isThinking}
-          >
-            Send
-          </button>
-        </div>
-      </div>
+                    <button
 
-      <div className="cockpit-mode-row">
-        {(["HRM", "LLM", "AGENT", "LOOP"] as ToolbeltBrewMode[]).map( // Use ToolbeltBrewMode
-          (m) => (
+                      className="workspace-send-button"
+
+                      onClick={() => void handleSend()}
+
+                      disabled={!input.trim() || isThinking}
+
+                    >
+
+                      Send
+
+                    </button>
+
+                  </div>
+
+                </div>
+
+          
+
+                <div className="cockpit-hud">
+
+                  {cockpitMode === 'admin' ? (
+
+                    <span className="hud-badge admin-mode">Admin Mode · Sandbox available</span>
+
+                  ) : (
+
+                    <span className="hud-badge customer-mode">Customer Mode · Sandbox locked (internal only)</span>
+
+                  )}
+
+                </div>
+
+          
+
+                <div className="cockpit-mode-row">
+
+                  {(["HRM", "LLM", "AGENT", "LOOP"] as ToolbeltBrewMode[]).map( // Use ToolbeltBrewMode
+
+                    (m) => (
             <button
               key={m}
               className={`mode-tab ${
@@ -421,6 +452,7 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
             <option value="T3_POWER">Tier 3 — Power</option>
           </select>
         </div>
+        <CockpitModeToggle />
       </div>
 
       {lastError && (

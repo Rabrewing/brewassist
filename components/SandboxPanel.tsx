@@ -2,10 +2,32 @@
 "use client";
 
 import React, { useState } from "react";
+import { useCockpitMode } from "@/contexts/CockpitModeContext";
 
 export const SandboxPanel: React.FC = () => {
+  const { mode: cockpitMode } = useCockpitMode();
   const [model, setModel] = useState("TinyLLAMA (local)");
   const [prompt, setPrompt] = useState("");
+
+  if (cockpitMode === "customer") {
+    return null;
+  }
+
+  const handleRunSandbox = async () => {
+    const payload = {
+      prompt,
+      engine: model,
+    };
+
+    await fetch('/api/sandbox', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-brewassist-mode': cockpitMode,
+      },
+      body: JSON.stringify(payload),
+    });
+  };
 
   return (
     <div className="sandbox-card">
@@ -37,7 +59,7 @@ export const SandboxPanel: React.FC = () => {
           <input type="checkbox" />
           BrewTruth Mode (cold audit)
         </label>
-        <button className="sandbox-run-button">Run Sandbox</button>
+        <button className="sandbox-run-button" onClick={handleRunSandbox}>Run Sandbox</button>
       </div>
     </div>
   );
