@@ -29,6 +29,10 @@ The project follows a phased stabilization plan (S1-S5) to ensure robust and inc
 
 For the complete roadmap and project history, refer to the documentation in the `brewdocs/` directory.
 
+## 🧪 Testing
+
+*   `pnpm test:chain`: Runs the Chain Gates regression suite to verify API contract, mode splitting, tool gating, and router integrity.
+
 ---
 
 🧠 *Every overlay is narratable. Every fallback is teachable. Every contributor arc is legacy-grade.*

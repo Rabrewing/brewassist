@@ -22,6 +22,7 @@
     "build": "next build",
     "start": "next start -p 3000",
     "test": "jest",
+    "test:chain": "jest __tests__/brewassist.chain.gates.test.ts",
     "prepare": "husky",
     "lint": "eslint pages components lib contexts --ext .ts,.tsx,.js,.jsx",
     "format": "prettier --write .",
