@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
  
 type Data =
   | { ok: true; engine: string; output: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code?: string };
  
 function runOverlay(engine: string, prompt: string): Promise<string> {
   return new Promise((resolve, reject) => {
