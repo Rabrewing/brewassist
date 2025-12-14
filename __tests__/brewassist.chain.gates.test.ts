@@ -175,4 +175,41 @@ describe("BrewAssist Chain Gates (S4.8–S4.10)", () => {
     expect(blob).not.toMatch(/zero routesToTry/i);
     expect(blob).not.toMatch(/No routesToTry/i);
   });
+
+  // G9: Customer MCP execution attempt is blocked (403)
+  test("G9 Toolbelt: customer MCP execution attempt is blocked (403)", async () => {
+    // Mock computeToolbeltRules to return rules for customer mode where write_single is blocked
+    (toolbeltConfig.computeToolbeltRules as jest.Mock).mockImplementation((mode, tier, cockpitMode) => {
+      if (cockpitMode === 'customer') {
+        return {
+          mcp: { 'file-assistant': 'blocked' }, // Block file-assistant for customer
+          actions: { fileWrite: 'blocked', fileDelete: 'blocked', gitCommit: 'blocked', dbMigrate: 'blocked', agentExec: 'blocked' }, // Block all execution actions for customer
+          truth: { minScoreForWrite: 1.0, minScoreForSystemChange: 1.0 },
+        };
+      }
+      // Fallback to default behavior for other modes/tiers if needed, though not strictly necessary for this test
+      return jest.requireActual("../lib/toolbeltConfig").computeToolbeltRules(mode, tier, cockpitMode);
+    });
+
+    // Mock getToolRule to return an enabled tool rule for file-assistant
+    (toolbeltConfig.getToolRule as jest.Mock).mockReturnValue({
+      enabled: true,
+      safety: 'single-file-write', // This is a write action
+      requireGepHeader: false,
+    });
+
+    // Mock getPermissionForRisk to return 'blocked' for write_single
+    (toolbeltGuard.getPermissionForRisk as jest.Mock).mockReturnValue('blocked');
+
+    const r = await callBrewassist({
+      input: "create a file test.txt with hello",
+      mode: "TOOL",
+      cockpitMode: "customer",
+      tier: "T1_SAFE", // Tier doesn't matter for customer execution block
+      mcpToolId: "file-assistant",
+      mcpAction: "write_single",
+      toolRequest: { type: "write_file", path: "test.txt", content: "hello" },
+    });
+    expect(r.status).toBe(403);
+  });
 });

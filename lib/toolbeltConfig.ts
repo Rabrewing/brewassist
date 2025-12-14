@@ -1,5 +1,7 @@
 // lib/toolbeltConfig.ts
 
+import type { CockpitMode } from "./brewTypes"; // Import CockpitMode
+
 // Define ToolbeltBrewMode locally to avoid conflict with existing BrewMode in lib/brewModes.ts
 export type ToolbeltBrewMode = 'HRM' | 'LLM' | 'AGENT' | 'LOOP';
 export type BrewModeId = 'HRM' | 'LLM' | 'AGENT' | 'LOOP';
@@ -64,7 +66,8 @@ export function getToolRule(toolId: McpToolId, action: string): ToolRule {
 
 export function computeToolbeltRules(
   mode: ToolbeltBrewMode,
-  tier: ToolbeltTier
+  tier: ToolbeltTier,
+  cockpitMode: CockpitMode // Add cockpitMode
 ): ToolbeltRulesSnapshot {
   // Base rules: most restrictive defaults
   const rules: ToolbeltRulesSnapshot = {
@@ -97,6 +100,28 @@ export function computeToolbeltRules(
       minScoreForSystemChange: 1.0,
     },
   };
+
+  if (cockpitMode === 'customer') {
+    // For customer mode, all write/exec actions are blocked,
+    // but read/proposals are allowed.
+    rules.mcp['read-file'] = 'allowed';
+    rules.mcp['list-directory'] = 'allowed';
+    rules.mcp['explain-code'] = 'allowed';
+    rules.mcp['propose-changes'] = 'allowed';
+    rules.mcp['research-nims'] = 'allowed';
+    rules.mcp['suggest-edits'] = 'allowed';
+    rules.mcp['sandbox-prototype'] = 'blocked'; // Sandbox is hidden and blocked
+    // All other mcp actions remain blocked by default
+
+    rules.actions.fileWrite = 'blocked';
+    rules.actions.fileDelete = 'blocked';
+    rules.actions.gitCommit = 'blocked';
+    rules.actions.dbMigrate = 'blocked';
+    rules.actions.agentExec = 'blocked';
+
+    // BrewTruth thresholds can remain as is, as BrewTruth is always on
+    return rules; // Return early for customer mode
+  }
 
   // Apply mode-specific and tier-specific rules
   if (mode === 'HRM') {

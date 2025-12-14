@@ -320,7 +320,7 @@ export async function runBrewAssistEngine(
   const { input, mode, cockpitMode, tier, useResearchModel, systemPrompt, preferredProvider, dangerousAction } = opts; // Destructure tier and dangerousAction
 
   // Compute effective rules based on current mode and tier
-  const effectiveRules = computeToolbeltRules(mode as ToolbeltBrewMode, tier);
+  const effectiveRules = computeToolbeltRules(mode as ToolbeltBrewMode, tier, cockpitMode);
 
   // S4.9d: Implement Toolbelt Guard for dangerous actions
   let blockedByToolbelt = false;
@@ -456,10 +456,10 @@ export async function runBrewAssistEngine(
 
       // 🔎 BrewTruth grading hook (works for any provider, including NIMs)
       let truth: BrewTruthAttachment | null = null; // Initialize to null
-      console.log("BREWTRUTH_ENABLED:", process.env.BREWTRUTH_ENABLED); // Debug log
-      const BREWTRUTH_ENABLED = process.env.BREWTRUTH_ENABLED === "true";
+      // console.log("BREWTRUTH_ENABLED:", process.env.BREWTRUTH_ENABLED); // Debug log
+      // const BREWTRUTH_ENABLED = process.env.BREWTRUTH_ENABLED === "true";
 
-      if (BREWTRUTH_ENABLED) {
+      // if (BREWTRUTH_ENABLED) { // BrewTruth is ALWAYS ON
         console.log("BrewTruth grading block entered."); // Debug log
         try {
           const providerTrace: BrewTruthModelTrace = {
@@ -493,7 +493,7 @@ export async function runBrewAssistEngine(
           console.warn('[BrewTruth] Grading failed in engine:', err);
           // Truth stays null; BrewAssist still returns normal answer.
         }
-      }
+      // }
 
       return {
         result: {

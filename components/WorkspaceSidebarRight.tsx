@@ -2,8 +2,11 @@
 import React from "react";
 import { ProjectTree } from "./ProjectTree";
 import { SandboxPanel } from "./SandboxPanel";
+import { useCockpitMode } from "@/contexts/CockpitModeContext"; // Import useCockpitMode
 
 export const WorkspaceSidebarRight: React.FC = () => {
+  const { mode: cockpitMode } = useCockpitMode(); // Get cockpitMode from context
+
   return (
     <div className="workspace-sidebar-right-inner">
       <div className="project-header">PROJECT · BREWASSIST</div>
@@ -14,9 +17,11 @@ export const WorkspaceSidebarRight: React.FC = () => {
         </div>
       </div>
 
-      <div className="sandbox-region">
-        <SandboxPanel />
-      </div>
+      {cockpitMode === 'admin' && ( // Conditionally render SandboxPanel
+        <div className="sandbox-region">
+          <SandboxPanel />
+        </div>
+      )}
     </div>
   );
 };

@@ -36,7 +36,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const {
       input,
       mode = 'llm',
-      cockpitMode = 'admin',
       tier = 'T2_GUIDED',
       useResearchModel = false,
       preferredProvider,
@@ -46,11 +45,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       gepHeaderPresent = false,
     } = req.body ?? {};
 
+    const cockpitMode = (req.headers['x-brewassist-mode'] as string || req.body.cockpitMode || 'admin') as 'admin' | 'customer';
+
     if (!input) {
       return res.status(400).json({ ok: false, error: "Missing input" });
     }
 
-    const effectiveRules = computeToolbeltRules(mode, tier as ToolbeltTier);
+    const effectiveRules = computeToolbeltRules(mode, tier as ToolbeltTier, cockpitMode);
 
     let dangerousAction = false;
     let riskLevel: RiskLevel | undefined;

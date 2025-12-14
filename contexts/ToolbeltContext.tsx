@@ -29,7 +29,7 @@ export const ToolbeltProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const value: ToolbeltContextValue = useMemo(() => {
     const effectiveTier = cockpitMode === 'customer' && tier === 'T3_POWER' ? 'T2_GUIDED' : tier;
-    const effectiveRules = computeToolbeltRules(mode, effectiveTier);
+    const effectiveRules = computeToolbeltRules(mode, effectiveTier, cockpitMode); // Pass cockpitMode
     const lastUpdatedAt = new Date().toISOString();
 
     return {

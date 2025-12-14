@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useToolbelt } from '@/contexts/ToolbeltContext'; // Import useToolbelt
 import type { ToolPermission } from '@/lib/toolbeltConfig'; // Import ToolbeltPermission
+import { useCockpitMode } from "@/contexts/CockpitModeContext"; // Import useCockpitMode
 
 
 interface ActionMenuProps {
@@ -22,11 +23,17 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   onImportFromGoogleDrive,
 }) => {
   const { effectiveRules } = useToolbelt(); // Consume from context
+  const { mode: cockpitMode } = useCockpitMode(); // Get cockpitMode from context
   const [isOpen, setIsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const fileWritePermission = effectiveRules.actions.fileWrite;
+
+  // Render empty fragment in customer mode
+  if (cockpitMode === "customer") {
+    return <></>;
+  }
 
 
   // Close on outside click

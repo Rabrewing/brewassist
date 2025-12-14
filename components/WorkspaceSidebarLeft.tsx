@@ -56,9 +56,9 @@ export const WorkspaceSidebarLeft: React.FC = () => {
     return effectiveRules.mcp[mcpToolId] || 'blocked';
   };
 
-  if (cockpitMode === "customer") {
-    return null; // hide entire MCP tools panel
-  }
+  // In customer mode, MCP tools are visible but execution is blocked.
+  // The individual McpButton components will handle their disabled state
+  // based on permissions from the ToolbeltContext.
 
   return (
     <div className="mcp-sidebar">
