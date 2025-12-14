@@ -30,12 +30,6 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
 
   const fileWritePermission = effectiveRules.actions.fileWrite;
 
-  // Render empty fragment in customer mode
-  if (cockpitMode === "customer") {
-    return <></>;
-  }
-
-
   // Close on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -57,6 +51,11 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
+
+  // Render empty fragment in customer mode AFTER all hooks are called
+  if (cockpitMode === "customer") {
+    return <></>;
+  }
 
 
   const handleUploadClick = () => {
