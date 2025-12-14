@@ -20,7 +20,7 @@ interface ToolbeltContextValue extends ToolbeltState {
 const ToolbeltContext = createContext<ToolbeltContextValue | null>(null);
 
 const DEFAULT_MODE: ToolbeltBrewMode = 'LLM';
-const DEFAULT_TIER: ToolbeltTier = 'T2_GUIDED';
+const DEFAULT_TIER: ToolbeltTier = 'T1_SAFE'; // Updated to new ToolbeltTier
 
 export const ToolbeltProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { mode: cockpitMode } = useCockpitMode();
@@ -28,7 +28,7 @@ export const ToolbeltProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [tier, setTierState] = useState<ToolbeltTier>(DEFAULT_TIER);
 
   const value: ToolbeltContextValue = useMemo(() => {
-    const effectiveTier = cockpitMode === 'customer' && tier === 'T3_POWER' ? 'T2_GUIDED' : tier;
+    const effectiveTier = cockpitMode === 'customer' && tier === 'T3_DANGEROUS' ? 'T2_PATCH' : tier; // Updated tier names
     const effectiveRules = computeToolbeltRules(mode, effectiveTier, cockpitMode); // Pass cockpitMode
     const lastUpdatedAt = new Date().toISOString();
 
@@ -47,24 +47,24 @@ export const ToolbeltProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       },
       setTier: (next) => {
-        if (cockpitMode === 'customer' && next === 'T3_POWER') {
+        if (cockpitMode === 'customer' && next === 'T3_DANGEROUS') { // Updated tier name
           // In customer mode, silently cap at T2 instead of allowing T3.
-          setTierState('T2_GUIDED');
+          setTierState('T2_PATCH'); // Updated tier name
           logToolbeltEvent({
             type: 'tier_changed',
-            mode,
-            tier: 'T2_GUIDED',
-            timestamp: new Date().toISOString(),
-            details: 'Attempted to set Tier 3 in customer mode; capped at Tier 2.',
+            mode: mode, // Use the aliased mode from useMemo scope
+            tier: 'T2_PATCH', // Log the capped tier
+            reason: 'Customer mode capped T3 to T2',
+            timestamp: new Date().toISOString(), // Added timestamp
           });
           return;
         }
         setTierState(next);
         logToolbeltEvent({
           type: 'tier_changed',
-          mode,
+          mode: mode, // Use the aliased mode from useMemo scope
           tier: next,
-          timestamp: new Date().toISOString(),
+          timestamp: new Date().toISOString(), // Added timestamp
         });
       },
     };

@@ -6,7 +6,7 @@ import type { CockpitMode } from "./brewTypes"; // Import CockpitMode
 export type ToolbeltBrewMode = 'HRM' | 'LLM' | 'AGENT' | 'LOOP';
 export type BrewModeId = 'HRM' | 'LLM' | 'AGENT' | 'LOOP';
 
-export type ToolbeltTier = 'T1_SAFE' | 'T2_GUIDED' | 'T3_POWER';
+export type ToolbeltTier = "T0_NONE" | "T1_SAFE" | "T2_PATCH" | "T3_DANGEROUS";
 export type ToolbeltTierId = 1 | 2 | 3;
 
 export type RiskLevel = 'read' | 'write_single' | 'write_multi' | 'system';
@@ -160,9 +160,11 @@ export function computeToolbeltRules(
     rules.mcp['sandbox-prototype'] = 'allowed';
     rules.mcp['suggest-edits'] = 'allowed';
 
-    if (tier === 'T1_SAFE') {
+    if (tier === 'T0_NONE') {
+      // All blocked by default, no changes needed here
+    } else if (tier === 'T1_SAFE') {
       // Already set to allowed for read-only tools
-    } else if (tier === 'T2_GUIDED') {
+    } else if (tier === 'T2_PATCH') { // Changed from T2_GUIDED
       rules.mcp['file-assistant'] = 'needs_confirm';
       rules.mcp['git-command-center'] = 'needs_confirm';
       rules.mcp['database-assistant'] = 'needs_confirm';
@@ -171,7 +173,7 @@ export function computeToolbeltRules(
       rules.actions.dbMigrate = 'needs_confirm';
       rules.actions.agentExec = 'needs_confirm';
       rules.truth.minScoreForWrite = 0.7;
-    } else if (tier === 'T3_POWER') {
+    } else if (tier === 'T3_DANGEROUS') { // Changed from T3_POWER
       rules.mcp['file-assistant'] = 'allowed';
       rules.mcp['git-command-center'] = 'needs_confirm';
       rules.mcp['database-assistant'] = 'admin_only';
@@ -199,9 +201,11 @@ export function computeToolbeltRules(
     rules.mcp['sandbox-prototype'] = 'allowed';
     rules.mcp['suggest-edits'] = 'allowed';
 
-    if (tier === 'T1_SAFE') {
+    if (tier === 'T0_NONE') {
+      // All blocked by default, no changes needed here
+    } else if (tier === 'T1_SAFE') {
       rules.actions.agentExec = 'needs_confirm';
-    } else if (tier === 'T2_GUIDED') {
+    } else if (tier === 'T2_PATCH') { // Changed from T2_GUIDED
       rules.mcp['file-assistant'] = 'allowed';
       rules.mcp['git-command-center'] = 'needs_confirm';
       rules.mcp['database-assistant'] = 'needs_confirm';
@@ -216,7 +220,7 @@ export function computeToolbeltRules(
       rules.actions.dbMigrate = 'needs_confirm';
       rules.actions.agentExec = 'needs_confirm';
       rules.truth.minScoreForWrite = 0.7;
-    } else if (tier === 'T3_POWER') {
+    } else if (tier === 'T3_DANGEROUS') { // Changed from T3_POWER
       rules.mcp['file-assistant'] = 'allowed';
       rules.mcp['git-command-center'] = 'allowed';
       rules.mcp['database-assistant'] = 'admin_only';

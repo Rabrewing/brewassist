@@ -2,7 +2,7 @@ import { DEFAULT_PERSONA } from "../lib/brewConfig";
 import { resolveRoute, BrewModelRole, BrewProviderId, getModelRoutes, getModelProviders, BrewRoute, BrewRouteType } from "../lib/model-router";
 import { pickNimsModel } from "../lib/nims-utils";
 import { runBrewTruth, BrewTruthReport, BrewTruthModelTrace, BrewTruthTier, BrewTruthFlagType } from "./brewtruth";
-import { getPermissionForRisk } from './toolbeltGuard'; // Import toolbeltGuard
+import { getPermissionForRisk, RiskLevel } from './toolbeltGuard'; // Import toolbeltGuard and RiskLevel
 import { computeToolbeltRules, ToolbeltBrewMode, ToolbeltTier, ToolbeltRulesSnapshot, ToolPermission } from './toolbeltConfig'; // Import ToolbeltConfig types
 import type { CockpitMode } from "./brewTypes";
 
@@ -28,28 +28,9 @@ export interface BrewMessage {
 }
 
 // S4.9c: New types for BrewTruth attachment
-export type RiskLevel = "low" | "medium" | "high";
 
-function mapBrewTruthTierToRiskLevel(tier: BrewTruthTier): RiskLevel {
-  switch (tier) {
-    case "gold":
-    case "silver":
-    case "bronze":
-      return "low";
-    case "red":
-      return "high";
-    default:
-      return "medium"; // Default to medium for unknown or new tiers
-  }
-}
 
-export type BrewTruthAttachment = {
-  version: string;
-  truthScore: number;           // 0–1
-  riskLevel: RiskLevel;
-  flags: BrewTruthFlagType[];   // Use BrewTruthFlagType from brewtruth.ts
-  notes?: string;               // short summary for UI
-};
+// BrewTruthAttachment is no longer needed, using BrewTruthReport directly
 
 export interface BrewAssistPersona {
   name: string;            // "BrewAssist"
@@ -153,7 +134,7 @@ export interface BrewAssistEngineResult {
   routeType: BrewRouteType;
   latencyMs: number; // NEW
   modelRoleUsed: string; // NEW
-  truth?: BrewTruthAttachment | null; // Updated to BrewTruthAttachment
+  truth?: BrewTruthReport | null; // Use BrewTruthReport directly
   blockedByTruth?: boolean; // S4.9d: Add blockedByTruth to result
 }
 
@@ -455,7 +436,7 @@ export async function runBrewAssistEngine(
       routeType = i === 0 ? route.routeType : 'fallback'; // Mark as fallback if not the first attempt
 
       // 🔎 BrewTruth grading hook (works for any provider, including NIMs)
-      let truth: BrewTruthAttachment | null = null; // Initialize to null
+      let truth: BrewTruthReport | null = null; // Initialize to null, using BrewTruthReport
       // console.log("BREWTRUTH_ENABLED:", process.env.BREWTRUTH_ENABLED); // Debug log
       // const BREWTRUTH_ENABLED = process.env.BREWTRUTH_ENABLED === "true";
 
@@ -475,17 +456,11 @@ export async function runBrewAssistEngine(
             providerTrace: providerTrace,
           });
 
-          truth = {
-            version: report.version,
-            truthScore: report.overallScore,
-            riskLevel: mapBrewTruthTierToRiskLevel(report.tier),
-            flags: report.flags,
-            notes: report.summary,
-          };
+          truth = report; // Directly assign the full report
           // S4.9c Logging: Add a console log on the server when BrewTruth is present
           console.log("BrewTruth verdict", {
-            truthScore: truth.truthScore,
-            riskLevel: truth.riskLevel,
+            overallScore: truth.overallScore, // Changed to overallScore
+            tier: truth.tier, // Changed to tier
             flags: truth.flags,
           });
           // TODO(S4.9c): Log into BrewLast once that engine is online.
@@ -524,12 +499,4 @@ export async function runBrewAssistEngine(
   );
 }
 
-// S4.9c: Simple Guardrail Hook for MCP / “dangerous-ish” actions
-export function shouldBlockActionFromTruth(
-  truth?: BrewTruthAttachment | null
-): boolean {
-  if (!truth) return false;
-  if (truth.riskLevel === "high") return true;
-  if (truth.truthScore < 0.4) return true;
-  return false;
-}
+

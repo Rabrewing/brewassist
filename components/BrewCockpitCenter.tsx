@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import type { BrewTruthAttachment } from "@/lib/brewassist-engine";
+import type { BrewTruthReport } from "@/lib/brewtruth"; // Import BrewTruthReport
 import { ActionMenu } from "./ActionMenu";
 import type { BrewAssistApiResponse } from "@/pages/api/brewassist";
 import ReactMarkdown from "react-markdown";
@@ -14,7 +14,7 @@ interface UiMessage {
   id: string;
   role: UiMessageRole;
   content: string;
-  truth?: BrewTruthAttachment | null;
+  truth?: BrewTruthReport | null; // Changed to BrewTruthReport
   blockedByTruth?: boolean;
 }
 
@@ -31,9 +31,9 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
   const { mode, setMode, tier, setTier } = useToolbelt(); // Consume from context
   const { mode: cockpitMode } = useCockpitMode();
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<UiMessage[]>([
+  const [messages, setMessages] = useState<UiMessage[]>(() => [
     {
-      id: makeId(),
+      id: "initial-system-message", // Use a static ID for the initial message
       role: "system",
       content: defaultSystemLine,
     },
@@ -264,23 +264,33 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
     if (isAssistant) lineClass = "log-assistant";
 
     let truthBadge = null;
-    if (isAssistant && msg.truth) {
-      const truthScore = Math.round(msg.truth.truthScore * 100);
+    // Only show truthBadge in admin mode
+    if (cockpitMode === 'admin' && isAssistant && msg.truth) { // Add cockpitMode check
+      const truthScore = Math.round(msg.truth.overallScore * 100); // Changed from truthScore to overallScore
       let badgeClass = "truth-badge";
-      switch (msg.truth.riskLevel) {
-        case "low":
+      let riskLevelDisplay = "low"; // Default for display
+      switch (msg.truth.tier) { // Changed from riskLevel to tier
+        case "gold":
+        case "silver":
+          riskLevelDisplay = "low";
           badgeClass += " truth-badge--low";
           break;
-        case "medium":
+        case "bronze":
+          riskLevelDisplay = "medium";
           badgeClass += " truth-badge--medium";
           break;
-        case "high":
+        case "red":
+          riskLevelDisplay = "high";
           badgeClass += " truth-badge--high";
+          break;
+        default:
+          riskLevelDisplay = "medium"; // Fallback
+          badgeClass += " truth-badge--medium";
           break;
       }
       truthBadge = (
         <div className={badgeClass}>
-          Truth {truthScore}% · {msg.truth.riskLevel}
+          Truth {truthScore}% · {riskLevelDisplay}
         </div>
       );
     }

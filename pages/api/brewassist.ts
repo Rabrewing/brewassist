@@ -1,15 +1,18 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { runBrewAssistEngine, BrewTruthAttachment, shouldBlockActionFromTruth, BrewAssistEngineResult } from '@/lib/brewassist-engine';
+import { runBrewAssistEngine, BrewAssistEngineResult } from '@/lib/brewassist-engine';
 import { BrewModelRole } from '@/lib/model-router';
 import { computeToolbeltRules, ToolbeltTier, getToolRule, ToolRule, McpToolId } from '@/lib/toolbeltConfig';
-import { getPermissionForRisk, RiskLevel } from '@/lib/toolbeltGuard';
+import { getPermissionForRisk, RiskLevel } from '@/lib/toolbeltGuard'; // Import RiskLevel
+import { BrewTruthReport } from '@/lib/brewtruth'; // Import BrewTruthReport
+import { evaluateHandshake, HandshakeDecision, BrewIntent } from '@/lib/toolbelt/handshake'; // Import handshake functions and types
 
 export type BrewAssistApiResponse =
   | ({
       ok: true;
       message: { role: 'assistant'; content: string };
       text: string;
-      truth: BrewTruthAttachment | null;
+      truth: BrewTruthReport | null; // Changed to BrewTruthReport
+      policy: HandshakeDecision; // Added policy field
       modelRole: BrewModelRole;
       blockedByTruth?: boolean;
     } & Omit<BrewAssistEngineResult, 'result' | 'truth'>)
@@ -22,8 +25,11 @@ export type BrewAssistApiResponse =
         | 'TOOLBELT_CONFIRM_REQUIRED'
         | 'TOOLBELT_GEP_REQUIRED'
         | 'TOOLBELT_READ_ONLY'
-        | 'BrewAssist internal failure.';
+        | 'BrewAssist internal failure.'
+        | 'POLICY_BLOCK' // Added new error type
+        | 'POLICY_CONFIRM_REQUIRED'; // Added new error type
       details?: string;
+      policy?: HandshakeDecision; // Include policy for blocked/confirm responses
     };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<BrewAssistApiResponse>) {
@@ -36,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const {
       input,
       mode = 'llm',
-      tier = 'T2_GUIDED',
+      tier = 'T1_SAFE', // Default to T1_SAFE for safety
       useResearchModel = false,
       preferredProvider,
       mcpToolId,
@@ -100,6 +106,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       }
     }
 
+    // Infer BrewIntent (simple heuristic for now)
+    let intent: BrewIntent = "GENERAL";
+    if (mcpToolId || mcpAction) {
+      intent = "TOOL_RUN";
+    } else if (input.toLowerCase().includes("risk") || input.toLowerCase().includes("safety")) {
+      intent = "RISK";
+    } else if (input.toLowerCase().includes("plan") || input.toLowerCase().includes("strategy")) {
+      intent = "ENGINEERING";
+    } else if (mode === 'hrm' || mode === 'agent') { // HRM and Agent modes often imply engineering/planning
+      intent = "ENGINEERING";
+    } else if (mode === 'llm' || mode === 'loop') { // LLM and Loop modes often imply knowledge/general chat
+      intent = "KNOWLEDGE";
+    }
+
     const engineResult = await runBrewAssistEngine({
       input,
       mode,
@@ -113,11 +133,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     const { result, provider, model, routeType, modelRoleUsed, truth, blockedByTruth, latencyMs } = engineResult;
 
+    // Evaluate Handshake Policy
+    const handshakeDecision = evaluateHandshake({
+      intent,
+      tier: tier as ToolbeltTier,
+      truthTier: truth?.tier,
+      truthScore: truth?.overallScore,
+      truthFlags: truth?.flags,
+      cockpitMode,
+    });
+
+    // Enforce Handshake Decision
+    if (handshakeDecision.decision === "BLOCK") {
+      return res.status(403).json({
+        ok: false,
+        error: 'POLICY_BLOCK',
+        details: handshakeDecision.reason,
+        policy: handshakeDecision,
+      });
+    }
+
+    if (handshakeDecision.decision === "REQUIRE_CONFIRMATION" && !confirmApply) {
+      return res.status(409).json({
+        ok: false,
+        error: 'POLICY_CONFIRM_REQUIRED',
+        details: handshakeDecision.reason,
+        policy: handshakeDecision,
+      });
+    }
+
     res.status(200).json({
       ok: true,
       message: result,
       text: result.content,
       truth: truth ?? null,
+      policy: handshakeDecision, // Include handshake decision
       modelRole: mode,
       modelRoleUsed,
       provider,
@@ -133,8 +183,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       ok: false,
       error: 'BrewAssist internal failure.',
       details: error?.message ?? String(error),
-      // Temporarily add lastError for debugging
-
     });
   }
 }
