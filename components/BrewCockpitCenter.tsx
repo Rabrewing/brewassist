@@ -386,39 +386,37 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
             onKeyDown={handleKeyDown}
           />
 
-                    <button
+                                        <button
 
-                      className="workspace-send-button"
+                                          className="workspace-send-button"
 
-                      onClick={() => void handleSend()}
+                                          onClick={() => void handleSend()}
 
-                      disabled={!input.trim() || isThinking}
+                                          disabled={!input.trim() || isThinking}
 
-                    >
+                                        >
 
-                      Send
+                                          Send
 
-                    </button>
+                                        </button>
 
-                  </div>
+                                      </div>
 
-                </div>
+                                      <div className="cockpit-hud">
 
-          
+                                        {cockpitMode === 'admin' ? (
 
-                <div className="cockpit-hud">
+                                          <span className="hud-badge admin-mode">Admin Mode · Sandbox available</span>
 
-                  {cockpitMode === 'admin' ? (
+                                        ) : (
 
-                    <span className="hud-badge admin-mode">Admin Mode · Sandbox available</span>
+                                          <span className="hud-badge customer-mode">Customer Mode · Sandbox locked (internal only)</span>
 
-                  ) : (
+                                        )}
 
-                    <span className="hud-badge customer-mode">Customer Mode · Sandbox locked (internal only)</span>
+                                      </div>
 
-                  )}
-
-                </div>
+                                    </div>
 
           
 
@@ -455,11 +453,7 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
         <CockpitModeToggle />
       </div>
 
-      {lastError && (
-        <div className="cockpit-error-hint">
-          {lastError}
-        </div>
-      )}
+      {}
 
       {showConfirmationModal && pendingAction && (
         <div className="confirmation-modal-overlay">

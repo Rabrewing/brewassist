@@ -9,7 +9,7 @@ export function CockpitModeToggle() {
     <select
       value={mode}
       onChange={(e) => updateMode(e.target.value as CockpitMode)}
-      className="brew-toggle"
+      className="brew-tier-dropdown"
     >
       <option value="admin">Admin Mode</option>
       <option value="customer">Customer Mode</option>

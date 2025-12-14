@@ -988,3 +988,39 @@
 .confirmation-modal-button--force:hover {
   background: linear-gradient(90deg, #f44336, #e53935);
 }
+
+.cockpit-hud {
+  z-index: 10; /* Ensure it's above other elements if needed */
+  padding: 0.5rem 1.5rem 0; /* Example padding */
+  display: flex; /* To center content */
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.hud-badge {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: all 0.3s ease-in-out;
+  display: inline-flex; /* Use flex to center content if needed */
+  align-items: center;
+  justify-content: center;
+}
+
+.hud-badge.admin-mode {
+  border: 1px solid #facc15; /* BrewGold border */
+  color: #facc15; /* BrewGold text */
+  background: radial-gradient(circle at top, rgba(250, 204, 21, 0.15) 0%, rgba(250, 204, 21, 0.05) 55%, transparent 100%);
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.3); /* BrewGold glow */
+}
+
+.hud-badge.customer-mode {
+  border: 1px solid rgba(148, 163, 184, 0.6); /* Muted border */
+  color: rgba(148, 163, 184, 0.9); /* Muted text */
+  background: radial-gradient(circle at top, rgba(148, 163, 184, 0.08) 0%, rgba(148, 163, 184, 0.02) 55%, transparent 100%);
+  box-shadow: 0 0 8px rgba(148, 163, 184, 0.15); /* Subtle glow */
+}
