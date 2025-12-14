@@ -1,5 +1,6 @@
 import { DEFAULT_PERSONA } from "../lib/brewConfig";
 import { resolveRoute, BrewModelRole, BrewProviderId, getModelRoutes, getModelProviders, BrewRoute, BrewRouteType } from "../lib/model-router";
+import { pickNimsModel } from "../lib/nims-utils";
 import { runBrewTruth, BrewTruthReport, BrewTruthModelTrace, BrewTruthTier, BrewTruthFlagType } from "./brewtruth";
 import { getPermissionForRisk } from './toolbeltGuard'; // Import toolbeltGuard
 import { computeToolbeltRules, ToolbeltBrewMode, ToolbeltTier, ToolbeltRulesSnapshot, ToolPermission } from './toolbeltConfig'; // Import ToolbeltConfig types
@@ -156,70 +157,7 @@ export interface BrewAssistEngineResult {
   blockedByTruth?: boolean; // S4.9d: Add blockedByTruth to result
 }
 
-// --- S4.8f NIMs Auto-Discovery Logic ---
-
-// 1-token health check for NIMs models
-async function probeNimsModel(model: string): Promise<boolean> {
-  const NIMS_API_KEY = process.env.NIMS_API_KEY;
-  const NIMS_BASE_URL = process.env.NIMS_BASE_URL?.replace(/\/+$/, "") || "https://integrate.api.nvidia.com/v1";
-
-  if (!NIMS_API_KEY) {
-    console.warn("NIMs API key not set for probe.");
-    return false;
-  }
-
-  try {
-    const res = await fetch(`${NIMS_BASE_URL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${NIMS_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: "ping" }],
-        max_tokens: 1
-      }),
-      signal: AbortSignal.timeout(Number(process.env.NIMS_TIMEOUT_MS ?? 5000)) // 5 second timeout for probe
-    });
-
-    // We only care if it's OK (200-299). 400s, 401s, 404s all mean it's not working for us.
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.warn(`NIMs probe failed for model ${model}: ${res.status} ${text.substring(0, 100)}...`);
-    }
-    return res.ok;
-  } catch (error) {
-    console.warn(`NIMs probe network error for model ${model}:`, (error as Error).message);
-    return false;
-  }
-}
-
-// Finds the first working NIMs model from a list of env keys
-export async function pickNimsModel(modelEnvKeys: string[]): Promise<string | null> {
-  if (process.env.NIMS_ENABLED !== "true") {
-    console.log("NIMs is disabled via NIMS_ENABLED env var.");
-    return null;
-  }
-
-  const modelsToProbe = modelEnvKeys
-    .map(key => process.env[key])
-    .filter(Boolean) as string[];
-
-  for (const model of modelsToProbe) {
-    console.log(`Probing NIMs model: ${model}`);
-    const ok = await probeNimsModel(model);
-    if (ok) {
-      console.log(`NIMs model ${model} is active.`);
-      return model;
-    }
-  }
-
-  console.warn("No active NIMs model found from configured list.");
-  return null; // No working NIMs model found
-}
-
-// --- End S4.8f NIMs Auto-Discovery Logic ---
+// --- S4.8f NIMs Auto-Discovery Logic (Moved to lib/nims-utils.ts) ---
 
 // Encapsulates NIMs API call logic
 async function callNimsProvider(
@@ -309,7 +247,8 @@ async function callProvider(
     }
     case 'gemini': {
       apiKey = providerConfig.apiKey;
-      url = providerConfig.baseUrl || `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const base = (providerConfig.baseUrl || "https://generativelanguage.googleapis.com/v1beta/models").replace(/\/+$/, "");
+      url = `${base}/${model}:generateContent?key=${apiKey}`;
       headers = {
         "Content-Type": "application/json",
       };
@@ -422,143 +361,167 @@ export async function runBrewAssistEngine(
   ];
 
   // Determine the initial route based on preferences
-  const initialRoute = resolveRoute(mode, { preferredProvider, useResearchModel });
+  const initialRoute = resolveRoute(mode, { preferredProvider, useResearchModel, cockpitMode, tier });
 
-  // Build the fallback chain. If a preferred provider is used, it's the first in the chain.
-  // Otherwise, the primary route for the role is first, followed by its fallbacks.
+  // Get all possible routes for the given mode, cockpitMode, and tier
+  const allPossibleRoutes = getModelRoutes({ mode, cockpitMode, tier });
+
+  // Build the fallback chain.
+  // Start with the initialRoute, then add other routes from allPossibleRoutes
+  // that are not the initialRoute, prioritizing primary then fallback.
   const routesToTry: BrewRoute[] = [];
-
-  if (initialRoute.routeType === 'preferred') {
+  if (initialRoute) {
     routesToTry.push(initialRoute);
-    // Add the role's primary and fallback routes as subsequent fallbacks
-    const roleRoutes = getModelRoutes(mode);
-    const primaryRoleRoute = roleRoutes.find(r => r.routeType === 'primary');
-    if (primaryRoleRoute && primaryRoleRoute.provider !== initialRoute.provider) {
-      routesToTry.push(primaryRoleRoute);
-    }
-    roleRoutes.filter(r => r.routeType === 'fallback' && r.provider !== initialRoute.provider).forEach(r => routesToTry.push(r));
-  } else if (initialRoute.routeType === 'research') {
-    // For research routes, we need to dynamically pick the best NIMs model.
-    // The initialRoute from resolveRoute is just a placeholder for NIMs.
-    const providers = getModelProviders();
-    const nimsConfig = providers.nims;
-
-    if (nimsConfig.enabled) {
-      const selectedNimsModel = await pickNimsModel([
-        "NIMS_MODEL_PREFERRED",
-        "NIMS_MODEL_FALLBACK_1",
-        "NIMS_MODEL_FALLBACK_2",
-      ]);
-
-      if (selectedNimsModel) {
-        routesToTry.push({
-          provider: 'nims',
-          model: selectedNimsModel,
-          routeType: 'research',
-        });
-      }
-    }
-
-    // If NIMs is not enabled, or no NIMs model is found, fall back to the role's primary route.
-    const roleRoutes = getModelRoutes(mode);
-    const primaryRoleRoute = roleRoutes.find(r => r.routeType === 'primary');
-    if (primaryRoleRoute) {
-      routesToTry.push(primaryRoleRoute);
-    }
-  } else {
-    // Default case: initialRoute is primary, add all role routes
-    routesToTry.push(...getModelRoutes(mode));
   }
 
-        let lastError: unknown;
-    let providerUsed: BrewProviderId = 'openai'; // Default to avoid undefined
-    let modelUsed: string = 'unknown';
-    let routeType: BrewRouteType = 'primary';
-    let latencyMs: number = 0;
-    const modelRoleUsed: string = mode; // Assuming mode is the modelRoleUsed
-  
-    for (let i = 0; i < routesToTry.length; i++) {
-      const route = routesToTry[i];
-      const startTime = Date.now(); // Capture start time
-      try {
-        let content: string;
-        if (route.routeType === 'research' && route.provider === 'nims') {
-          // Special call for NIMs
-          content = await callNimsProvider(route.model, messages);
-        } else {
-          content = await callProvider(route.provider, route.model, messages);
-        }
-        latencyMs = Date.now() - startTime; // Calculate latency
-  
-        providerUsed = route.provider;
-        modelUsed = route.model;
-        routeType = i === 0 ? route.routeType : 'fallback'; // Mark as fallback if not the first attempt
-  
-        // 🔎 BrewTruth grading hook (works for any provider, including NIMs)
-        let truth: BrewTruthAttachment | null = null; // Initialize to null
-        console.log("BREWTRUTH_ENABLED:", process.env.BREWTRUTH_ENABLED); // Debug log
-        const BREWTRUTH_ENABLED = process.env.BREWTRUTH_ENABLED === "true";
-  
-        if (BREWTRUTH_ENABLED) {
-          console.log("BrewTruth grading block entered."); // Debug log
-          try {
-            const providerTrace: BrewTruthModelTrace = {
-              provider: providerUsed,
-              model: modelUsed,
-              routeType: routeType,
-              latencyMs: latencyMs, // Pass latency
-            };
-            const report = await runBrewTruth({
-              prompt: input,
-              response: content,
-              mode: mode,
-              providerTrace: providerTrace,
-            });
+  // Add other routes, ensuring no duplicates and respecting primary/fallback order
+  for (const route of allPossibleRoutes) {
+    if (route.provider === initialRoute.provider && route.model === initialRoute.model) {
+      continue; // Skip if it's the initial route
+    }
+    routesToTry.push(route);
+  }
 
-            truth = {
-              version: report.version,
-              truthScore: report.overallScore,
-              riskLevel: mapBrewTruthTierToRiskLevel(report.tier),
-              flags: report.flags,
-              notes: report.summary,
-            };
-            // S4.9c Logging: Add a console log on the server when BrewTruth is present
-            console.log("BrewTruth verdict", {
-              truthScore: truth.truthScore,
-              riskLevel: truth.riskLevel,
-              flags: truth.flags,
-            });
-            // TODO(S4.9c): Log into BrewLast once that engine is online.
-          } catch (err) {
-            console.warn('[BrewTruth] Grading failed in engine:', err);
-            // Truth stays null; BrewAssist still returns normal answer.
-          }
-        }
+  // S3A: Add "no routes" guard (critical)
+  if (!routesToTry || routesToTry.length === 0) {
+    console.error("[BrewAssistEngine] No routesToTry. This indicates a routing configuration issue where no valid routes could be determined.", {
+      USE_OPENAI: process.env.USE_OPENAI,
+      USE_GEMINI: process.env.USE_GEMINI,
+      USE_MISTRAL: process.env.USE_MISTRAL,
+      OPENAI_KEY: !!process.env.OPENAI_API_KEY,
+      GEMINI_KEY: !!process.env.GEMINI_API_KEY,
+      MISTRAL_KEY: !!process.env.MISTRAL_API_KEY,
+    });
+
+    throw new Error(
+      "BrewAssistEngine has zero routesToTry (router returned empty). This is filtering/branching logic, not provider auth."
+    );
+  }
+
+  const failureLog: Array<{ provider: string; error: string }> = [];
+  let lastError: unknown = undefined;
+
+  function firstLine(e: unknown) {
+    const msg =
+      e instanceof Error ? e.message :
+      typeof e === "string" ? e :
+      (() => { try { return JSON.stringify(e); } catch { return String(e); } })();
+    return String(msg).split("\n")[0];
+  }
   
-        return {
-          result: {
-            role: "assistant",
-            content: content,
-          },
-          provider: providerUsed,
-          model: modelUsed,
-          routeType,
-          latencyMs,
-          modelRoleUsed: mode, // Use mode directly
-          truth,
-          blockedByTruth: false, // Not blocked by truth if we reached here
-        };    } catch (err) {
-      lastError = err;
-      console.error(
-        `Provider ${route.provider} failed for role ${mode}, trying next fallback…`,
-        err
-      );
-      // Continue to next route
+  let providerUsed: BrewProviderId = 'openai'; // Default to avoid undefined
+  let modelUsed: string = 'unknown';
+  let routeType: BrewRouteType = 'primary';
+  let latencyMs: number = 0;
+  const modelRoleUsed: string = mode; // Assuming mode is the modelRoleUsed
+  
+  for (let i = 0; i < routesToTry.length; i++) {
+    const route = routesToTry[i];
+    const startTime = Date.now(); // Capture start time
+    console.log(`[BrewAssistEngine] Attempting route ${i + 1}/${routesToTry.length}: ${route.provider} -> ${route.model}`);
+    try {
+      let content: string | undefined; // Allow undefined for content
+      let rawResult: any; // To capture raw result for ok:false check
+
+      if (route.provider === "nims") { // Check provider directly
+        console.log(`[BrewAssistEngine] Calling NIMs provider with model: ${route.model}`);
+        content = await callNimsProvider(route.model, messages);
+      } else {
+        console.log(`[BrewAssistEngine] Calling provider: ${route.provider} with model: ${route.model}`);
+        rawResult = await callProvider(route.provider, route.model, messages); // Assuming callProvider returns string
+        content = rawResult; // If callProvider returns string
+      }
+
+      // If callProvider returns an object with ok:false, treat as failure
+      if (rawResult && typeof rawResult === 'object' && (rawResult as any).ok === false) {
+        const msg = (rawResult as any).error ?? "ok:false without error";
+        failureLog.push({ provider: route.provider, error: firstLine(msg) });
+        lastError = msg;
+        continue;
+      }
+
+      if (!content) {
+        const msg = `Provider returned empty result`;
+        failureLog.push({ provider: route.provider, error: msg });
+        lastError = msg;
+        continue;
+      }
+
+      latencyMs = Date.now() - startTime; // Calculate latency
+      console.log(`[BrewAssistEngine] Route ${i + 1} succeeded in ${latencyMs}ms.`);
+
+      providerUsed = route.provider;
+      modelUsed = route.model;
+      routeType = i === 0 ? route.routeType : 'fallback'; // Mark as fallback if not the first attempt
+
+      // 🔎 BrewTruth grading hook (works for any provider, including NIMs)
+      let truth: BrewTruthAttachment | null = null; // Initialize to null
+      console.log("BREWTRUTH_ENABLED:", process.env.BREWTRUTH_ENABLED); // Debug log
+      const BREWTRUTH_ENABLED = process.env.BREWTRUTH_ENABLED === "true";
+
+      if (BREWTRUTH_ENABLED) {
+        console.log("BrewTruth grading block entered."); // Debug log
+        try {
+          const providerTrace: BrewTruthModelTrace = {
+            provider: providerUsed,
+            model: modelUsed,
+            routeType: routeType,
+            latencyMs: latencyMs, // Pass latency
+          };
+          const report = await runBrewTruth({
+            prompt: input,
+            response: content,
+            mode: mode,
+            providerTrace: providerTrace,
+          });
+
+          truth = {
+            version: report.version,
+            truthScore: report.overallScore,
+            riskLevel: mapBrewTruthTierToRiskLevel(report.tier),
+            flags: report.flags,
+            notes: report.summary,
+          };
+          // S4.9c Logging: Add a console log on the server when BrewTruth is present
+          console.log("BrewTruth verdict", {
+            truthScore: truth.truthScore,
+            riskLevel: truth.riskLevel,
+            flags: truth.flags,
+          });
+          // TODO(S4.9c): Log into BrewLast once that engine is online.
+        } catch (err) {
+          console.warn('[BrewTruth] Grading failed in engine:', err);
+          // Truth stays null; BrewAssist still returns normal answer.
+        }
+      }
+
+      return {
+        result: {
+          role: "assistant",
+          content: content,
+        },
+        provider: providerUsed,
+        model: modelUsed,
+        routeType,
+        latencyMs,
+        modelRoleUsed: mode, // Use mode directly
+        truth,
+        blockedByTruth: false, // Not blocked by truth if we reached here
+      };
+    } catch (e) {
+      lastError = e;
+      failureLog.push({ provider: route.provider, error: firstLine(e) });
+      console.error(`[BrewAssistEngine] Provider failed: ${route.provider}`, firstLine(e));
+      continue;
     }
   }
 
   // If we get here, all providers failed
-  throw lastError ?? new Error("All providers failed for BrewAssistEngine.");
+  console.error("[BrewAssistEngine] All provider attempts failed.", { failureLog });
+  throw new Error(
+    "All providers failed for BrewAssistEngine. Failures:\n" +
+    failureLog.map(f => `- ${f.provider}: ${f.error}`).join("\n")
+  );
 }
 
 // S4.9c: Simple Guardrail Hook for MCP / “dangerous-ish” actions

@@ -27,6 +27,7 @@ export type BrewAssistApiResponse =
     };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<BrewAssistApiResponse>) {
+
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
@@ -126,10 +127,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     });
   } catch (error: any) {
     console.error('BrewAssist API Error:', error);
+
     res.status(500).json({
       ok: false,
       error: 'BrewAssist internal failure.',
       details: error?.message ?? String(error),
+      // Temporarily add lastError for debugging
+
     });
   }
 }

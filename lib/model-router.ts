@@ -1,5 +1,7 @@
 // lib/model-router.ts
 
+import { pickNimsModel } from "../lib/nims-utils";
+
 export type BrewModelRole = 'llm' | 'hrm' | 'agent' | 'loop';
 
 export type BrewProviderId = 'gemini' | 'openai' | 'mistral' | 'nims' | 'tinyllm' | 'system';
@@ -31,40 +33,47 @@ export interface ProviderConfigDetails {
 
 // BrewRouteConfig is no longer needed as getModelRoutes now returns BrewRoute[]
 
+import { envBool, envStr } from "./env"; // Import new helpers
+
 export function getModelProviders(): Record<BrewProviderId, ProviderConfigDetails> {
-  return {
+  const OPENAI_ENABLED = envBool(process.env.USE_OPENAI) && !!envStr(process.env.OPENAI_API_KEY);
+  const GEMINI_ENABLED = envBool(process.env.USE_GEMINI) && !!envStr(process.env.GEMINI_API_KEY);
+  const MISTRAL_ENABLED = envBool(process.env.USE_MISTRAL) && !!envStr(process.env.MISTRAL_API_KEY);
+  const NIMS_ENABLED = envBool(process.env.NIMS_ENABLED) && !!envStr(process.env.NIMS_API_KEY);
+
+  const providers = {
     openai: {
-      enabled: !!process.env.OPENAI_API_KEY, // Enabled if API key is present
-      baseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
-      apiKey: process.env.OPENAI_API_KEY,
-      primaryModel: process.env.LLM_PRIMARY_MODEL ?? "gpt-4.1-mini",
-      secondaryModel: process.env.OPENAI_MODEL ?? "gpt-4.1",
+      enabled: OPENAI_ENABLED,
+      baseUrl: envStr(process.env.OPENAI_BASE_URL) ?? "https://api.openai.com/v1",
+      apiKey: envStr(process.env.OPENAI_API_KEY),
+      primaryModel: envStr(process.env.LLM_PRIMARY_MODEL) ?? "gpt-4o-mini", // Added explicit default
+      secondaryModel: envStr(process.env.OPENAI_MODEL) ?? "gpt-4o", // Added explicit default
     },
     gemini: {
-      enabled: !!process.env.GEMINI_API_KEY, // Enabled if API key is present
-      baseUrl: process.env.GEMINI_BASE_URL ?? "https://generativelanguage.googleapis.com/v1beta/models",
-      apiKey: process.env.GEMINI_API_KEY,
-      primaryModel: process.env.GEMINI_MODEL_PRIMARY ?? "gemini-2.0-flash",
-      secondaryModel: process.env.GEMINI_MODEL_SECONDARY ?? "gemini-2.0-pro",
+      enabled: GEMINI_ENABLED,
+      baseUrl: envStr(process.env.GEMINI_BASE_URL) ?? "https://generativelanguage.googleapis.com/v1beta/models",
+      apiKey: envStr(process.env.GEMINI_API_KEY),
+      primaryModel: envStr(process.env.GEMINI_MODEL_PRIMARY) ?? "gemini-1.5-flash", // Added explicit default
+      secondaryModel: envStr(process.env.GEMINI_MODEL_SECONDARY) ?? "gemini-1.5-pro", // Added explicit default
     },
     mistral: {
-      enabled: process.env.MISTRAL_ENABLED === "true" && !!process.env.MISTRAL_API_KEY,
-      baseUrl: process.env.MISTRAL_BASE_URL ?? "https://api.mistral.ai/v1",
-      apiKey: process.env.MISTRAL_API_KEY,
-      primaryModel: process.env.MISTRAL_MODEL_PRIMARY ?? "mistral-small-latest",
-      secondaryModel: process.env.MISTRAL_MODEL_SECONDARY ?? "mistral-large-latest",
+      enabled: MISTRAL_ENABLED,
+      baseUrl: envStr(process.env.MISTRAL_BASE_URL) ?? "https://api.mistral.ai/v1",
+      apiKey: envStr(process.env.MISTRAL_API_KEY),
+      primaryModel: envStr(process.env.MISTRAL_MODEL_PRIMARY) ?? "mistral-small-latest", // Added explicit default
+      secondaryModel: envStr(process.env.MISTRAL_MODEL_SECONDARY) ?? "mistral-large-latest", // Added explicit default
     },
     nims: {
-      enabled: process.env.NIMS_ENABLED === "true" && !!process.env.NIMS_API_KEY,
-      baseUrl: process.env.NIMS_BASE_URL ?? "https://integrate.api.nvidia.com/v1",
-      apiKey: process.env.NIMS_API_KEY,
-      preferredModel: process.env.NIMS_MODEL_PREFERRED ?? "nemotron-3-8b-instruct",
-      fallback1Model: process.env.NIMS_MODEL_FALLBACK_1 ?? "llama-3.1-8b-instruct",
-      fallback2Model: process.env.NIMS_MODEL_FALLBACK_2 ?? "mistral-7b-instruct",
+      enabled: NIMS_ENABLED,
+      baseUrl: envStr(process.env.NIMS_BASE_URL) ?? "https://integrate.api.nvidia.com/v1",
+      apiKey: envStr(process.env.NIMS_API_KEY),
+      preferredModel: envStr(process.env.NIMS_MODEL_PREFERRED) ?? "nemotron-3-8b-instruct", // Added explicit default
+      fallback1Model: envStr(process.env.NIMS_MODEL_FALLBACK_1) ?? "llama-3.1-8b-instruct", // Added explicit default
+      fallback2Model: envStr(process.env.NIMS_MODEL_FALLBACK_2) ?? "mistral-7b-instruct", // Added explicit default
     },
     tinyllm: {
       enabled: true, // Local only, always enabled
-      baseUrl: process.env.TINYLLM_BASE_URL ?? "http://localhost:8000/chat/completions",
+      baseUrl: envStr(process.env.TINYLLM_BASE_URL) ?? "http://localhost:8000/chat/completions",
       apiKey: undefined, // No API key for local
       primaryModel: "tiny-llm-local",
     },
@@ -74,204 +83,124 @@ export function getModelProviders(): Record<BrewProviderId, ProviderConfigDetail
       primaryModel: "toolbelt-guard",
     },
   };
+
+  return providers;
 }
 
-export function getModelRoutes(role: BrewModelRole): BrewRoute[] {
-  const providers = getModelProviders(); // Get dynamic providers
+function isEnabled(cfg?: ProviderConfigDetails) {
+  return !!cfg?.enabled;
+}
 
-  switch (role) {
-    case "llm":
-      return [
-        {
-          provider: "openai",
-          model: providers.openai.primaryModel!,
-          routeType: "primary",
-        },
-        {
-          provider: "gemini",
-          model: providers.gemini.primaryModel!,
-          routeType: "fallback",
-        },
-        {
-          provider: "mistral", // Added Mistral as a fallback for LLM role
-          model: providers.mistral.primaryModel!,
-          routeType: "fallback",
-        },
-      ];
-    case "hrm":
-      return [
-        {
-          provider: "gemini",
-          model: providers.gemini.primaryModel!,
-          routeType: "primary",
-        },
-        {
-          provider: "openai",
-          model: providers.openai.secondaryModel!,
-          routeType: "fallback",
-        },
-      ];
-    case "agent":
-      return [
-        {
-          provider: "openai",
-          model: providers.openai.primaryModel!,
-          routeType: "primary",
-        },
-        {
-          provider: "mistral",
-          model: providers.mistral.primaryModel!,
-          routeType: "fallback",
-        },
-      ];
-    case "loop":
-      return [
-        {
-          provider: "openai",
-          model: providers.openai.primaryModel!,
-          routeType: "primary",
-        },
-        {
-          provider: "tinyllm",
-          model: providers.tinyllm.primaryModel!,
-          routeType: "fallback",
-        },
-      ];
-    default:
-      return [];
+function pickPrimaryModel(pid: BrewProviderId, cfg: ProviderConfigDetails): string | undefined {
+  if (pid === "nims") return cfg.preferredModel; // NIMs uses preferredModel
+  return cfg.primaryModel;
+}
+
+export function getModelRoutes(opts: { mode: BrewModelRole, cockpitMode?: string, tier?: string }): BrewRoute[] {
+  const providers = getModelProviders();
+  const reasons: string[] = [];
+  const routes: BrewRoute[] = [];
+
+  const rawMode = (opts?.mode ?? "").toString();
+  const mode = rawMode.trim().toLowerCase(); // "LLM" -> "llm"
+
+  const safe = (provider: BrewProviderId, model: string | undefined, routeType: BrewRouteType): BrewRoute | null => {
+    if (!model) {
+      reasons.push(`${provider}_model_undefined`);
+      return null;
+    }
+    return { provider, model, routeType };
+  };
+
+  const isChatLane =
+    mode === "llm" || mode === "chat" || mode === "hrm" || mode === "assist";
+
+  const isToolLane =
+    mode === "tool" || mode === "toolbelt" || mode === "mcp";
+
+  if (!isChatLane && !isToolLane) {
+    reasons.push(`mode_not_recognized:${rawMode}`);
   }
+
+  if (isChatLane) {
+    if (providers.openai.enabled) {
+      const route = safe("openai", providers.openai.primaryModel, "primary");
+      if (route) routes.push(route);
+    } else {
+      reasons.push("openai_disabled_for_chat");
+    }
+
+    if (providers.gemini.enabled) {
+      const route = safe("gemini", providers.gemini.primaryModel, "fallback");
+      if (route) routes.push(route);
+    } else {
+      reasons.push("gemini_disabled_for_chat");
+    }
+
+    if (providers.mistral.enabled) {
+      const route = safe("mistral", providers.mistral.primaryModel, "fallback");
+      if (route) routes.push(route);
+    } else {
+      reasons.push("mistral_disabled_for_chat");
+    }
+    
+    // TinyLLM is always enabled as a local fallback
+    const tinyLlmRoute = safe("tinyllm", providers.tinyllm.primaryModel, "fallback");
+    if (tinyLlmRoute) routes.push(tinyLlmRoute);
+  }
+
+  if (isToolLane) {
+    // tool policy checks… (add specific tool routes here)
+    reasons.push("tool_lane_not_fully_implemented"); // Placeholder
+  }
+
+  console.log("[ModelRouter] route build result", {
+    rawMode,
+    mode,
+    cockpitMode: opts?.cockpitMode,
+    tier: opts?.tier,
+    routesLen: routes.length,
+    reasons,
+  });
+
+  return routes;
 }
 
-import { pickNimsModel } from './brewassist-engine';
+
 
 export function resolveRoute(
-
   role: BrewModelRole,
-
-  opts: { preferredProvider?: BrewProviderId; useResearchModel?: boolean } = {}
-
+  opts: { preferredProvider?: BrewProviderId; useResearchModel?: boolean; cockpitMode?: string; tier?: string } = {}
 ): BrewRoute {
-
   const providers = getModelProviders();
+  const routes = getModelRoutes({ mode: role, ...opts });
 
-  const routes = getModelRoutes(role);
-
-
-
-  // 1) Preferred provider, if enabled + has key
-
+  // 1) Preferred provider (must be enabled + have a model)
   if (opts.preferredProvider) {
-
     const cfg = providers[opts.preferredProvider];
-
-    if (cfg?.enabled && cfg.primaryModel) {
-
-      return {
-
-        provider: opts.preferredProvider,
-
-        model: cfg.primaryModel,
-
-        routeType: "preferred",
-
-      };
-
-    }
-
-  }
-
-
-
-    // 2) Handle Research Model (NIMs)
-
-
-
-    if (opts?.useResearchModel) {
-
-
-
-      const providers = getModelProviders();
-
-
-
-      const nimsConfig = providers.nims;
-
-
-
-      if (nimsConfig.enabled) {
-
-
-
-        // We need to find the best NIMs model here.
-
-
-
-        // The pickNimsModel function is in brewassist-engine.ts, so we can't call it directly here.
-
-
-
-        // resolveRoute should return the *intent* to use NIMs, and runBrewAssistEngine will pick the model.
-
-
-
-        // So, we return a generic NIMs route here.
-
-
-
-        return {
-
-
-
-          provider: 'nims',
-
-
-
-          model: nimsConfig.preferredModel || 'nemotron-3-8b-instruct', // Use preferred or a default
-
-
-
-          routeType: 'research',
-
-
-
-        };
-
-
-
+    if (cfg?.enabled) {
+      const model = pickPrimaryModel(opts.preferredProvider, cfg);
+      if (model) {
+        return { provider: opts.preferredProvider, model, routeType: "preferred" };
       }
-
-
-
     }
-
-
-
-  
-
-
-
-    // 3) Default to Primary Route
-
-
-
-    const primary = routes.find((r) => r.routeType === "primary");
-
-
-
-    if (!primary) {
-
-
-
-      throw new Error(`No primary route found for role: ${role}`);
-
-
-
-    }
-
-
-
-    return primary;
-
-
-
   }
+
+  // 2) Research route (NIMs)
+  if (opts.useResearchModel) {
+    const nims = providers.nims;
+    if (nims?.enabled && nims.preferredModel) {
+      return { provider: "nims", model: nims.preferredModel, routeType: "research" };
+    }
+  }
+
+  // 3) Default primary route (or first available)
+  const primary = routes.find((r) => r.routeType === "primary");
+  if (primary) return primary;
+
+  const first = routes[0];
+  if (first) return first;
+
+  // 4) If nothing exists, hard stop with system-block
+  return { provider: "system", model: "toolbelt-guard", routeType: "system-block" };
+}
