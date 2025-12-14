@@ -117,7 +117,7 @@
 /* Fixed input + buttons at bottom of center */
 .input-command-zone {
   flex: 0 0 auto;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1.5rem; /* Standardized horizontal padding */
   border-top: 1px solid rgba(148, 163, 184, 0.22);
   background: rgba(10, 15, 30, 0.75);
   backdrop-filter: blur(6px);
@@ -224,7 +224,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.5rem 1rem;
+  padding: 0.75rem 1.5rem; /* Standardized vertical padding */
   border-top: 1px solid rgba(30, 64, 175, 0.6);
   background: radial-gradient(circle at bottom, #020617 0, #020617 40%, #000 100%);
 }
@@ -386,16 +386,9 @@
 .workspace-scroll-zone::-webkit-scrollbar,
 .project-tree-scroll::-webkit-scrollbar,
 .sandbox-region::-webkit-scrollbar {
-  width: 0;
+  width: 6px; /* Always visible */
 }
-
-.workspace-sidebar-left:hover::-webkit-scrollbar,
-.cockpit-center-scroll:hover::-webkit-scrollbar,
-.workspace-scroll-zone:hover::-webkit-scrollbar,
-.project-tree-scroll:hover::-webkit-scrollbar,
-.sandbox-region:hover::-webkit-scrollbar {
-  width: 6px;
-}
+/* Removed the :hover rule for scrollbar width */
 
 .workspace-sidebar-left::-webkit-scrollbar-thumb,
 .cockpit-center-scroll::-webkit-scrollbar-thumb,
@@ -633,10 +626,7 @@
   }
 }
 
-/* Add a bit more separation between rows */
-.log-line + .log-line {
-  margin-top: 0.15rem;
-}
+
 /* ===========================================================
    BUBBLE ALIGNMENT SYSTEM
    =========================================================== */
@@ -644,7 +634,7 @@
 .cockpit-message-log {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 1rem; /* Increased gap for readability */
   padding: 0.5rem 0.75rem 0.75rem;
   overflow-y: auto;
 }
