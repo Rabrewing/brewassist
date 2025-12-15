@@ -7,6 +7,9 @@ import { useToolbelt } from '@/contexts/ToolbeltContext'; // Import useToolbelt
 import type { ToolbeltBrewMode, ToolbeltTier } from '@/lib/toolbeltConfig'; // Import ToolbeltBrewMode and ToolbeltTier
 import { useCockpitMode } from "@/contexts/CockpitModeContext";
 import { CockpitModeToggle } from "./CockpitModeToggle";
+import { CognitionState, assembleCognitionState, ReasoningMode, Intent, EmotionalState, RiskLevel } from "@/lib/brewCognition"; // Import CognitionState and assembleCognitionState
+import { getActivePersona, Persona } from "@/lib/brewIdentityEngine"; // Import getActivePersona and Persona
+import { HandshakeDecision } from "@/lib/toolbelt/handshake";
 
 type UiMessageRole = "user" | "assistant" | "system";
 
@@ -16,6 +19,7 @@ interface UiMessage {
   content: string;
   truth?: BrewTruthReport | null; // Changed to BrewTruthReport
   blockedByTruth?: boolean;
+  cognition?: CognitionState; // Add cognition state to message
 }
 
 const defaultSystemLine =
@@ -39,6 +43,8 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
     },
   ]);
   const [isThinking, setIsThinking] = useState(false);
+  const [cognitionState, setCognitionState] = useState<CognitionState | null>(null);
+  const [cognitionPhase, setCognitionPhase] = useState<string>("Initializing BrewAssist...");
   const [lastError, setLastError] = useState<string | null>(null);
   const [nextUseDeepReasoning, setNextUseDeepReasoning] = useState(false);
   const [nextUseResearchModel, setNextUseResearchModel] = useState(false);
@@ -46,7 +52,7 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
   const [pendingAction, setPendingAction] = useState<any | null>(null);
   const logRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(logRef.current); // Use logRef for chatContainerRef
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -86,6 +92,8 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsThinking(true);
+    setCognitionPhase("Evaluating request..."); // Initial cognition phase
+    setCognitionState(null); // Reset cognition state
 
     // S4.9c.1: Ensure auto-scroll is enabled on send
     setAutoScrollEnabled(true);
@@ -101,9 +109,16 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
         ...overridePayload,
       };
 
+      // Simulate cognition phases
+      setCognitionPhase("Interpreting intent and authority...");
+      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
+
+      setCognitionPhase("Checking safety and permissions...");
+      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
+
       const res = await fetch("/api/brewassist", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-brewassist-mode": cockpitMode },
         body: JSON.stringify(payload),
       });
 
@@ -140,9 +155,32 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
         return;
       }
 
+      setCognitionPhase("Selecting reasoning strategy...");
+      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
+
       const content = data.text ?? "BrewAssist responded, but no content was returned from the engine.";
       const truth = data.truth ?? null;
       const blockedByTruth = data.blockedByTruth ?? false;
+      const handshakeDecision: HandshakeDecision = data.policy || "ALLOW"; // Get handshake decision
+
+      // Assemble cognition state
+      const currentPersona: Persona['id'] = getActivePersona().id; // Get active persona ID
+      const inferredIntent: Intent = trimmed; // Placeholder, will be inferred later
+      const currentReasoningMode: ReasoningMode = mode as ReasoningMode; // Cast mode to ReasoningMode
+
+      const assembledCognitionState = assembleCognitionState(
+        currentPersona,
+        cockpitMode,
+        tier,
+        inferredIntent,
+        currentReasoningMode,
+        truth,
+        handshakeDecision
+      );
+      setCognitionState(assembledCognitionState);
+
+      setCognitionPhase("Preparing response...");
+      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
 
       if (blockedByTruth && payload.dangerousAction) {
         setPendingAction({ payload, truth });
@@ -157,6 +195,7 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
         content: content.trim(),
         truth: truth,
         blockedByTruth: blockedByTruth,
+        cognition: assembledCognitionState, // Attach cognition state to message
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
@@ -175,11 +214,13 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
       ]);
     } finally {
       setIsThinking(false);
+      setCognitionPhase("BrewAssist ready."); // Reset cognition phase
+      setCognitionState(null); // Clear cognition state after response
       // reset one-shot flags
       setNextUseDeepReasoning(false);
       setNextUseResearchModel(false);
     }
-  }, [input, mode, tier, isThinking, nextUseDeepReasoning, nextUseResearchModel]); // Add tier to dependencies
+  }, [input, mode, tier, isThinking, nextUseDeepReasoning, nextUseResearchModel, cockpitMode]); // Add cockpitMode to dependencies
 
   const handleForceRun = useCallback(() => {
     if (pendingAction) {
@@ -268,29 +309,51 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
     if (cockpitMode === 'admin' && isAssistant && msg.truth) { // Add cockpitMode check
       const truthScore = Math.round(msg.truth.overallScore * 100); // Changed from truthScore to overallScore
       let badgeClass = "truth-badge";
-      let riskLevelDisplay = "low"; // Default for display
-      switch (msg.truth.tier) { // Changed from riskLevel to tier
-        case "gold":
-        case "silver":
-          riskLevelDisplay = "low";
+      let riskLevelDisplay: RiskLevel = "Low"; // Default for display
+      let emotionalStateDisplay: EmotionalState = "Neutral";
+
+      if (msg.cognition) {
+        riskLevelDisplay = msg.cognition.riskLevel;
+        emotionalStateDisplay = msg.cognition.emotionalState;
+      } else {
+        // Fallback if cognition state is not available (e.g., old messages)
+        switch (msg.truth.tier) { // Changed from riskLevel to tier
+          case "gold":
+          case "silver":
+            riskLevelDisplay = "Low";
+            emotionalStateDisplay = "Confident";
+            break;
+          case "bronze":
+            riskLevelDisplay = "Moderate";
+            emotionalStateDisplay = "Cautious";
+            break;
+          case "red":
+            riskLevelDisplay = "Critical";
+            emotionalStateDisplay = "Uncertain";
+            break;
+          default:
+            riskLevelDisplay = "Low"; // Fallback
+            emotionalStateDisplay = "Neutral";
+            break;
+        }
+      }
+
+      switch (riskLevelDisplay) {
+        case "Low":
           badgeClass += " truth-badge--low";
           break;
-        case "bronze":
-          riskLevelDisplay = "medium";
+        case "Moderate":
           badgeClass += " truth-badge--medium";
           break;
-        case "red":
-          riskLevelDisplay = "high";
+        case "High":
+        case "Critical":
           badgeClass += " truth-badge--high";
           break;
-        default:
-          riskLevelDisplay = "medium"; // Fallback
-          badgeClass += " truth-badge--medium";
-          break;
       }
+      
       truthBadge = (
         <div className={badgeClass}>
-          Truth {truthScore}% · {riskLevelDisplay}
+          Confidence: {truthScore}% · Risk: {riskLevelDisplay} · State: {emotionalStateDisplay}
         </div>
       );
     }
@@ -302,6 +365,22 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
             <ReactMarkdown>{msg.content || ""}</ReactMarkdown>
           </div>
           {truthBadge}
+          {cockpitMode === 'admin' && msg.cognition && (
+            <div className="cognition-summary">
+              <p><strong>Cognition Summary:</strong></p>
+              <ul>
+                <li>Persona: {msg.cognition.persona}</li>
+                <li>Emotional State: {msg.cognition.emotionalState}</li>
+                <li>User Role: {msg.cognition.userRole}</li>
+                <li>Toolbelt Tier: {msg.cognition.toolbeltTier}</li>
+                <li>Intent: {msg.cognition.intent}</li>
+                <li>Reasoning Mode: {msg.cognition.reasoningMode}</li>
+                <li>Risk Level: {msg.cognition.riskLevel}</li>
+                <li>Execution Permission: {msg.cognition.executionPermission as unknown as string}</li>
+                <li>Truth Validation: {msg.cognition.truthValidationStatus}</li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -313,15 +392,30 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
 
   return (
     <div className="cockpit-center">
-      <div className="cockpit-center-scroll">
+      <div className="cockpit-center-scroll" onScroll={handleScroll}>
         <div className="cockpit-message-log" ref={logRef}>
           {messages.map(renderBubble)}
 
           {isThinking && (
             <div className="log-line log-assistant">
               <div className="cosmic-bubble">
-                <span className="brewassist-thinking-dot" /> BrewAssist is
-                thinking…
+                <span className="brewassist-thinking-dot" /> {cognitionPhase}
+                {cockpitMode === 'admin' && cognitionState && (
+                  <div className="cognition-summary">
+                    <p><strong>Current Cognition:</strong></p>
+                    <ul>
+                      <li>Persona: {cognitionState.persona}</li>
+                      <li>Emotional State: {cognitionState.emotionalState}</li>
+                      <li>User Role: {cognitionState.userRole}</li>
+                      <li>Toolbelt Tier: {cognitionState.toolbeltTier}</li>
+                      <li>Intent: {cognitionState.intent}</li>
+                      <li>Reasoning Mode: {cognitionState.reasoningMode}</li>
+                      <li>Risk Level: {cognitionState.riskLevel}</li>
+                      <li>Execution Permission: {cognitionState.executionPermission as unknown as string}</li>
+                      <li>Truth Validation: {cognitionState.truthValidationStatus}</li>
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -3,7 +3,12 @@
 // Summary: Central identity brain for BrewAssist, managing persona, emotion, and context.
 
 import { BrewLastToolRun } from './brewLast'; // Assuming BrewLastToolRun is defined here
-import { logIdentityEvent } from './brewLastServer'; // Import logIdentityEvent
+
+// Conditionally import logIdentityEvent for server-side only
+const logIdentityEvent =
+  typeof window === 'undefined'
+    ? require('./brewLastServer').logIdentityEvent
+    : () => {}; // No-op for client-side
 
 // Define types for Persona, Emotion Tier, and Context Window
 export type PersonaId = 'rb' | 'default' | 'strict';

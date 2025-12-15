@@ -100,6 +100,34 @@ To prevent future regressions and ensure the stability of the BrewAssist chain, 
 *   Update `PROGRESS_SUMMARY.md`.
 
 ---
+## December 14th, 2025 - S4.10c: Toolbelt × Intent × BrewTruth handshake (operational truth grading)
+
+**Status: Complete**
+
+**Summary:**
+Implemented BrewTruth v2.1 (deterministic, no web) to replace the stubbed 0.8 score, providing real, varying scores and flags. Implemented the S4.10c Toolbelt × Intent × Truth handshake policy function (`evaluateHandshake`) to create a consistent policy layer for decision-making (allow/warn/block/require-confirmation).
+
+**Actions Taken:**
+*   Replaced `lib/brewtruth.ts` with the provided BrewTruth v2.1 implementation.
+*   Created `lib/toolbelt/handshake.ts` with the `evaluateHandshake` function.
+*   Created `__tests__/brewtruth.v21.test.ts` with BrewTruth variance tests.
+*   Created `__tests__/handshake.s410c.test.ts` with Handshake Policy tests.
+*   Created `__tests__/api/s410c.policy.test.ts` with the API policy contract test.
+*   Updated `pages/api/brewassist.ts` to integrate `runBrewTruth` and `evaluateHandshake`, infer `BrewIntent`, enforce handshake decisions, and include `truth` and `policy` in the API response.
+*   Updated `lib/brewassist-engine.ts` to use the new `runBrewTruth` v2.1 implementation and `BrewTruthReport` type, and removed the deprecated `BrewTruthAttachment` interface and `shouldBlockActionFromTruth` function.
+*   Updated `lib/toolbeltConfig.ts` to align `ToolbeltTier` definition with `lib/toolbelt/handshake.ts` and adjusted `computeToolbeltRules` logic for new tier names.
+*   Updated `contexts/ToolbeltContext.tsx` to align `DEFAULT_TIER` and tier comparison logic with new `ToolbeltTier` definitions, and added `timestamp` to `logToolbeltEvent` calls.
+*   Updated `components/BrewCockpitCenter.tsx` to use `BrewTruthReport` for `UiMessage` and correctly access `overallScore` and `tier` for truth badge rendering.
+*   Moved `brewdocs/project/S4.10b_MASTER_SPEC.md` to `brewdocs/brewassist/s4/S4.10b_MASTER_SPEC.md`.
+*   Moved `brewdocs/project/S4.10c_MASTER_SPEC.md` to `brewdocs/brewassist/s4/S4.10c_MASTER_SPEC.md`.
+*   Fixed `SyntaxError` in `lib/brewtruth.ts` (regex issues).
+*   Fixed TypeScript errors related to `ToolbeltTier` and `BrewTruthReport` type mismatches across several files.
+
+**Validation:** All core tests (`pnpm test -- brewassist.chain.smoke`, `pnpm test -- brewtruth.v21`, `pnpm test -- handshake.s410c`, `pnpm test -- __tests__/api/s410c.policy.test.ts`), `pnpm lint`, `pnpm build`, and `pnpm test:chain` passed successfully. BrewTruth is operational with varying scores and flags, and handshake logic is wired and exposed in the API.
+
+**Next Steps:** Proceed to S4.10d.
+
+---
 **Debugging Session (December 14th, 2025 - Continued):**
 *   **Objective:** Implement the detailed plan to restore live BrewAssist provider routing and eliminate "All providers failed… lastError undefined" ghost failures.
 *   **Actions Taken:**
@@ -180,5 +208,5 @@ Implemented sandbox protection to restrict access to the AI Sandbox to 'admin' m
 *   **Critical Issue: "All providers failed for BrewAssistEngine" Error**
     *   **Description:** BrewAssist is currently unable to process requests, consistently returning "All providers failed for BrewAssistEngine." This is a critical blocker for all AI functionalities.
     *   **Diagnosis Plan:** Implement a dedicated integration test (`brewassist.chain.integration.test.ts`) to diagnose the root cause of the chain failure, specifically focusing on router, provider, and fallback chain coordination.
-    *   **Goal:** Stabilize the BrewAssist chain to ensure reliable AI responses and prevent future occurrences of this systemic failure.
 *   Update `PROGRESS_SUMMARY.md` to reflect the current status.
+---

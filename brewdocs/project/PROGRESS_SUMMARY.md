@@ -239,5 +239,57 @@ Addressed an issue where the `run_lint` tool failed due to incorrect serializati
 Resolved critical ESLint memory exhaustion and configuration issues that prevented successful linting of the BrewAssist application.
 
 ## November 24th, 2025 - Fix: `.brewlast.json` Not Updating
+---
+## December 14th, 2025 - S4.10 Master Spec Implementation & MCP Proposal-Only Enforcement
+
+**Status: Complete**
+
+**Summary:**
+Implemented the S4.10 Master Spec, formalizing Admin vs. Customer mode separation, access control, Toolbelt governance, and BrewTruth enforcement. Ensured MCP tools are visible in Customer Mode but enforce proposal-only behavior, blocking all execution. BrewTruth now runs silently for customers, and the Sandbox remains Admin-only.
+
+**Actions Taken:**
+*   Created `docs/S4.10_MASTER_SPEC.md` with the final, canonical specification.
+*   Updated `pages/api/brewassist.ts` to resolve `cockpitMode` from the `x-brewassist-mode` header and correctly pass it to `computeToolbeltRules`.
+*   Updated `components/WorkspaceSidebarRight.tsx` to conditionally render the `SandboxPanel` based on `cockpitMode`.
+*   Updated `components/ActionMenu.tsx` to render an empty fragment in Customer Mode.
+*   Updated `lib/brewassist-engine.ts` to ensure `BrewTruth` always runs, removing the `BREWTRUTH_ENABLED` environment variable check.
+*   Updated `lib/toolbeltConfig.ts` to modify `computeToolbeltRules` to accept `cockpitMode` and apply customer-specific rules, blocking execution actions while allowing proposals.
+*   Updated `components/WorkspaceSidebarLeft.tsx` to remove the conditional `null` return, ensuring the MCP Tools section is always visible in Customer Mode.
+*   Created placeholder glue utilities: `lib/permissions.ts`, `lib/guard.ts`, `lib/uiGates.ts`.
+*   Added a new test case `G9` to `__tests__/brewassist.chain.gates.test.ts` to verify customer MCP execution attempts are blocked (403).
+*   Fixed linting error in `lib/toolbeltConfig.ts` by importing `CockpitMode`.
+*   Fixed build error in `contexts/ToolbeltContext.tsx` by passing `cockpitMode` to `computeToolbeltRules`.
+
+**Validation:** All 9 Chain Gates tests, including the new `G9`, passed successfully.
+
+**Next Steps:** Proceed to S4.10b for visual refinement.
+
 
 Addressed a critical missing feature where the `.brewlast.json` file was not being updated after tool executions.
+---
+## December 14th, 2025 - S4.10c: Toolbelt × Intent × BrewTruth handshake (operational truth grading)
+
+**Status: Complete**
+
+**Summary:**
+Implemented BrewTruth v2.1 (deterministic, no web) to replace the stubbed 0.8 score, providing real, varying scores and flags. Implemented the S4.10c Toolbelt × Intent × Truth handshake policy function (`evaluateHandshake`) to create a consistent policy layer for decision-making (allow/warn/block/require-confirmation).
+
+**Actions Taken:**
+*   Replaced `lib/brewtruth.ts` with the provided BrewTruth v2.1 implementation.
+*   Created `lib/toolbelt/handshake.ts` with the `evaluateHandshake` function.
+*   Created `__tests__/brewtruth.v21.test.ts` with BrewTruth variance tests.
+*   Created `__tests__/handshake.s410c.test.ts` with Handshake Policy tests.
+*   Created `__tests__/api/s410c.policy.test.ts` with the API policy contract test.
+*   Updated `pages/api/brewassist.ts` to integrate `runBrewTruth` and `evaluateHandshake`, infer `BrewIntent`, enforce handshake decisions, and include `truth` and `policy` in the API response.
+*   Updated `lib/brewassist-engine.ts` to use the new `runBrewTruth` v2.1 implementation and `BrewTruthReport` type, and removed the deprecated `BrewTruthAttachment` interface and `shouldBlockActionFromTruth` function.
+*   Updated `lib/toolbeltConfig.ts` to align `ToolbeltTier` definition with `lib/toolbelt/handshake.ts` and adjusted `computeToolbeltRules` logic for new tier names.
+*   Updated `contexts/ToolbeltContext.tsx` to align `DEFAULT_TIER` and tier comparison logic with new `ToolbeltTier` definitions, and added `timestamp` to `logToolbeltEvent` calls.
+*   Updated `components/BrewCockpitCenter.tsx` to use `BrewTruthReport` for `UiMessage` and correctly access `overallScore` and `tier` for truth badge rendering.
+*   Moved `brewdocs/project/S4.10b_MASTER_SPEC.md` to `brewdocs/brewassist/s4/S4.10b_MASTER_SPEC.md`.
+*   Moved `brewdocs/project/S4.10c_MASTER_SPEC.md` to `brewdocs/brewassist/s4/S4.10c_MASTER_SPEC.md`.
+*   Fixed `SyntaxError` in `lib/brewtruth.ts` (regex issues).
+*   Fixed TypeScript errors related to `ToolbeltTier` and `BrewTruthReport` type mismatches across several files.
+
+**Validation:** All core tests (`pnpm test -- brewassist.chain.smoke`, `pnpm test -- brewtruth.v21`, `pnpm test -- handshake.s410c`, `pnpm test -- __tests__/api/s410c.policy.test.ts`), `pnpm lint`, `pnpm build`, and `pnpm test:chain` passed successfully. BrewTruth is operational with varying scores and flags, and handshake logic is wired and exposed in the API.
+
+**Next Steps:** Proceed to S4.10d.

@@ -93,3 +93,38 @@ a {
   font-size: 0.7rem;
   color: rgba(148, 163, 184, 0.9);
 }
+
+/* Tighten response vertical rhythm */
+.brewassist-response p {
+  margin: 0.35rem 0;
+  line-height: 1.5;
+}
+
+.brewassist-response ul,
+.brewassist-response ol {
+  margin: 0.4rem 0 0.4rem 1.1rem;
+  padding: 0;
+}
+
+.brewassist-response li {
+  margin: 0.2rem 0;
+}
+
+/* Code blocks: compact, professional */
+.brewassist-response pre {
+  margin: 0.5rem 0;
+  padding: 0.6rem 0.8rem;
+  line-height: 1.45;
+}
+
+/* Headings: reduce air, keep hierarchy */
+.brewassist-response h1,
+.brewassist-response h2,
+.brewassist-response h3 {
+  margin: 0.7rem 0 0.3rem 0;
+}
+
+/* Remove excessive spacing between sections */
+.brewassist-response > * + * {
+  margin-top: 0.4rem;
+}
