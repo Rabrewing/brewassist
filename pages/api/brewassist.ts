@@ -1,188 +1,209 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { runBrewAssistEngine, BrewAssistEngineResult } from '@/lib/brewassist-engine';
-import { BrewModelRole } from '@/lib/model-router';
-import { computeToolbeltRules, ToolbeltTier, getToolRule, ToolRule, McpToolId } from '@/lib/toolbeltConfig';
-import { getPermissionForRisk, RiskLevel } from '@/lib/toolbeltGuard'; // Import RiskLevel
-import { BrewTruthReport } from '@/lib/brewtruth'; // Import BrewTruthReport
-import { evaluateHandshake, HandshakeDecision, BrewIntent } from '@/lib/toolbelt/handshake'; // Import handshake functions and types
+// pages/api/brewassist.ts
+import type { NextApiRequest, NextApiResponse } from "next";
+import { runBrewAssistEngineStream } from "@/lib/brewassist-engine";
+import { BrewTruthReport, runBrewTruth } from "@/lib/brewtruth";
+import { computeToolbeltRules, ToolbeltTier, CockpitMode, getToolRule } from "@/lib/toolbeltConfig";
+import { evaluateHandshake, HandshakeDecision } from "@/lib/toolbelt/handshake";
+import { classifyIntent, ScopeCategory } from "@/lib/intent-gatekeeper";
+import { getPermissionForRisk } from "@/lib/toolbeltGuard";
 
-export type BrewAssistApiResponse =
-  | ({
-      ok: true;
-      message: { role: 'assistant'; content: string };
-      text: string;
-      truth: BrewTruthReport | null; // Changed to BrewTruthReport
-      policy: HandshakeDecision; // Added policy field
-      modelRole: BrewModelRole;
-      blockedByTruth?: boolean;
-    } & Omit<BrewAssistEngineResult, 'result' | 'truth'>)
-  | {
-      ok: false;
-      error:
-        | 'Method not allowed'
-        | 'Missing input'
-        | 'TOOLBELT_FORBIDDEN'
-        | 'TOOLBELT_CONFIRM_REQUIRED'
-        | 'TOOLBELT_GEP_REQUIRED'
-        | 'TOOLBELT_READ_ONLY'
-        | 'BrewAssist internal failure.'
-        | 'POLICY_BLOCK' // Added new error type
-        | 'POLICY_CONFIRM_REQUIRED'; // Added new error type
-      details?: string;
-      policy?: HandshakeDecision; // Include policy for blocked/confirm responses
-    };
+export type BrewAssistApiRequest = {
+  input: string;
+  mode: "HRM" | "LLM" | "AGENT" | "LOOP" | "TOOL"; // Add "TOOL" mode
+  tier?: ToolbeltTier; // Make tier optional as it might come as toolbeltTier
+  skillLevel?: "beginner" | "intermediate" | "expert";
+  useDeepReasoning?: boolean;
+  useResearchModel?: boolean;
+  dangerousAction?: boolean;
+  mcpToolId?: string; // Add toolbelt related fields
+  mcpAction?: string;
+  toolRequest?: any;
+  confirmApply?: boolean;
+  toolbeltTier?: ToolbeltTier; // Add toolbeltTier for mapping
+};
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<BrewAssistApiResponse>) {
-
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "Method not allowed" });
+    res.setHeader("Allow", "POST");
+    res.status(405).json({
+      ok: false,
+      error: "Method Not Allowed",
+      code: "METHOD_NOT_ALLOWED"
+    });
+    return;
   }
 
-  try {
-    const {
-      input,
-      mode = 'llm',
-      tier = 'T1_SAFE', // Default to T1_SAFE for safety
-      useResearchModel = false,
-      preferredProvider,
-      mcpToolId,
-      mcpAction,
-      confirmApply = false,
-      gepHeaderPresent = false,
-    } = req.body ?? {};
+  const {
+    input,
+    mode,
+    skillLevel,
+    useDeepReasoning,
+    useResearchModel,
+    dangerousAction,
+    mcpToolId,
+    mcpAction,
+    toolRequest,
+    confirmApply,
+    tier: bodyTier, // Rename 'tier' from body to avoid conflict
+    toolbeltTier, // Capture toolbeltTier from body
+  }: BrewAssistApiRequest = req.body;
 
-    const cockpitMode = (req.headers['x-brewassist-mode'] as string || req.body.cockpitMode || 'admin') as 'admin' | 'customer';
+  const normalizedTier = (bodyTier ?? toolbeltTier) as ToolbeltTier;
 
-    if (!input) {
-      return res.status(400).json({ ok: false, error: "Missing input" });
-    }
+  const cockpitMode = (req.headers["x-brewassist-mode"] as CockpitMode) || "customer";
 
-    const effectiveRules = computeToolbeltRules(mode, tier as ToolbeltTier, cockpitMode);
-
-    let dangerousAction = false;
-    let riskLevel: RiskLevel | undefined;
-    let toolRule: ToolRule | undefined;
-
-    if (mcpToolId && mcpAction) {
-      toolRule = getToolRule(mcpToolId as McpToolId, mcpAction);
-
-      if (toolRule) {
-        const isWriteAction = mcpAction.includes('write') || mcpAction.includes('delete') || mcpAction.includes('commit') || mcpAction.includes('migrate') || mcpAction.includes('exec');
-
-        if (toolRule.safety === 'read-only' && isWriteAction) {
-          return res.status(403).json({ ok: false, error: 'TOOLBELT_READ_ONLY', details: 'This tool is in read-only mode.' });
-        }
-
-        if (!toolRule.enabled) {
-          return res.status(403).json({ ok: false, error: 'TOOLBELT_FORBIDDEN', details: `Tool ${mcpToolId} is disabled for this mode/tier.` });
-        }
-
-        if (isWriteAction) {
-          dangerousAction = true;
-          if (mcpAction.includes('multi')) {
-            riskLevel = 'write_multi';
-          }
-          else {
-            riskLevel = 'write_single';
-          }
-        }
-        else {
-          riskLevel = 'read';
-        }
-
-        const permission = getPermissionForRisk(effectiveRules, riskLevel);
-
-        if (permission === 'blocked' || permission === 'admin_only') {
-          return res.status(403).json({ ok: false, error: 'TOOLBELT_FORBIDDEN', details: `Action blocked by Toolbelt Tier ${tier} in ${mode} mode.` });
-        }
-
-        if (permission === 'needs_confirm' && !confirmApply) {
-          return res.status(409).json({ ok: false, error: 'TOOLBELT_CONFIRM_REQUIRED', details: `Action requires confirmation for Toolbelt Tier ${tier} in ${mode} mode.` });
-        }
-
-        if (toolRule.requireGepHeader && !gepHeaderPresent) {
-          return res.status(412).json({ ok: false, error: 'TOOLBELT_GEP_REQUIRED', details: 'GEP header required for this action.' });
-        }
-      }
-    }
-
-    // Infer BrewIntent (simple heuristic for now)
-    let intent: BrewIntent = "GENERAL";
-    if (mcpToolId || mcpAction) {
-      intent = "TOOL_RUN";
-    } else if (input.toLowerCase().includes("risk") || input.toLowerCase().includes("safety")) {
-      intent = "RISK";
-    } else if (input.toLowerCase().includes("plan") || input.toLowerCase().includes("strategy")) {
-      intent = "ENGINEERING";
-    } else if (mode === 'hrm' || mode === 'agent') { // HRM and Agent modes often imply engineering/planning
-      intent = "ENGINEERING";
-    } else if (mode === 'llm' || mode === 'loop') { // LLM and Loop modes often imply knowledge/general chat
-      intent = "KNOWLEDGE";
-    }
-
-    const engineResult = await runBrewAssistEngine({
-      input,
-      mode,
-      cockpitMode,
-      tier: tier as ToolbeltTier,
-      useResearchModel,
-      preferredProvider,
-      systemPrompt: "You are BrewAssist, a helpful AI assistant.",
-      dangerousAction: dangerousAction,
+  if (!input) {
+    return res.status(400).json({
+      ok: false,
+      error: "Missing required field: input",
+      code: "INVALID_REQUEST"
     });
+  }
 
-    const { result, provider, model, routeType, modelRoleUsed, truth, blockedByTruth, latencyMs } = engineResult;
+  const intent = classifyIntent(input);
 
-    // Evaluate Handshake Policy
+  // Toolbelt enforcement applies if any tool-related field is present
+  if (mcpToolId || mcpAction || toolRequest) {
     const handshakeDecision = evaluateHandshake({
       intent,
-      tier: tier as ToolbeltTier,
-      truthTier: truth?.tier,
-      truthScore: truth?.overallScore,
-      truthFlags: truth?.flags,
+      tier: normalizedTier,
       cockpitMode,
+      mcpToolId,
+      mcpAction,
+      toolRequest,
+      confirmApply,
+      gepHeaderPresent: !!req.headers['x-gemini-execution-protocol'],
+      // truthTier, truthScore, truthFlags are not available here yet, will be added later
     });
 
-    // Enforce Handshake Decision
     if (handshakeDecision.decision === "BLOCK") {
+      if (handshakeDecision.reason === 'TOOLBELT_GEP_REQUIRED') {
+        return res.status(412).json({
+          ok: false,
+          error: handshakeDecision.reason,
+          policy: "BLOCK",
+          route: "blocked",
+        });
+      }
       return res.status(403).json({
         ok: false,
-        error: 'POLICY_BLOCK',
-        details: handshakeDecision.reason,
-        policy: handshakeDecision,
+        error: handshakeDecision.reason,
+        policy: "BLOCK",
+        route: "blocked",
       });
-    }
-
-    if (handshakeDecision.decision === "REQUIRE_CONFIRMATION" && !confirmApply) {
+    } else if (handshakeDecision.decision === "REQUIRE_CONFIRMATION") {
       return res.status(409).json({
         ok: false,
-        error: 'POLICY_CONFIRM_REQUIRED',
-        details: handshakeDecision.reason,
-        policy: handshakeDecision,
+        error: handshakeDecision.reason,
+        policy: "REQUIRE_CONFIRMATION",
+        route: "blocked",
+      });
+    } else if (handshakeDecision.decision === "ALLOWED") {
+      // For now, we'll mock a successful tool execution.
+      // In a real scenario, this would trigger the actual tool.
+      return res.status(200).json({
+        ok: true,
+        message: "Tool execution mocked successfully.",
+        policy: "ALLOWED",
+        route: "tool_executed",
+        toolResult: { status: "success", output: "Mocked tool output" },
       });
     }
+    return;
+  }
 
+  if (cockpitMode === "customer" && intent === "GENERAL_KNOWLEDGE") {
+    const redirectMessage =
+      "This question seems to be outside of my scope as a DevOps assistant. For general knowledge questions, please use BrewChat or BrewCore.";
+    res.setHeader("Content-Type", "application/json");
     res.status(200).json({
       ok: true,
-      message: result,
-      text: result.content,
-      truth: truth ?? null,
-      policy: handshakeDecision, // Include handshake decision
-      modelRole: mode,
-      modelRoleUsed,
-      provider,
-      model,
-      routeType,
-      latencyMs,
-      blockedByTruth,
+      text: redirectMessage,
+      truth: null,
+      blockedByTruth: false,
+      policy: "BLOCK",
+      route: "blocked",
+      scopeCategory: "GENERAL_KNOWLEDGE",
     });
-  } catch (error: any) {
-    console.error('BrewAssist API Error:', error);
+    return;
+  }
 
-    res.status(500).json({
-      ok: false,
-      error: 'BrewAssist internal failure.',
-      details: error?.message ?? String(error),
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  if (typeof res.flushHeaders === "function") {
+    res.flushHeaders();
+  }
+
+  let accumulatedText = "";
+  let providerUsed: string | undefined;
+  let modelUsed: string | undefined;
+  let brewTruthReport: BrewTruthReport | null = null;
+  let policyDecisionReport: HandshakeDecision | null = null;
+
+  const sendEvent = (data: object) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  try {
+    // Run BrewTruth if enabled
+    if (process.env.BREWTRUTH_ENABLED === "true") {
+      brewTruthReport = await runBrewTruth(input);
+    }
+
+    // Evaluate Handshake for policy decision (even if not TOOL mode, for reporting)
+    policyDecisionReport = evaluateHandshake({
+      intent,
+      tier: normalizedTier,
+      cockpitMode,
+      mcpToolId,
+      mcpAction,
+      toolRequest,
+      confirmApply,
+      gepHeaderPresent: !!req.headers['x-gemini-execution-protocol'],
+      truthTier: brewTruthReport?.tier,
+      truthScore: brewTruthReport?.score,
+      truthFlags: brewTruthReport?.flags,
     });
+
+    await runBrewAssistEngineStream(
+      {
+        prompt: input,
+        mode: mode.toLowerCase() as "hrm" | "llm" | "agent" | "loop",
+        preferredProvider: undefined,
+        tier: normalizedTier,
+        cockpitMode,
+      },
+      (chunk) => {
+        const text = String(chunk ?? "");
+        if (!text) return;
+        accumulatedText += text;
+        sendEvent({ type: "chunk", text });
+      },
+      (result) => { // onEnd callback
+        providerUsed = result.provider;
+        modelUsed = result.model;
+      }
+    );
+
+    sendEvent({
+      type: "end",
+      payload: {
+        provider: providerUsed,
+        model: modelUsed,
+        route: "brewassist", // Add the route property inside payload
+        scopeCategory: intent, // Add the scopeCategory property inside payload
+      },
+      text: accumulatedText,
+      truth: brewTruthReport,
+      policy: policyDecisionReport,
+    });
+    res.end();
+  } catch (error) {
+    console.error("Error in brewassist-stream:", error);
+    sendEvent({ type: "error", payload: { message: (error as Error).message } });
   }
 }

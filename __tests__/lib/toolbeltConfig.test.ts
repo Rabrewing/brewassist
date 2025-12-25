@@ -72,44 +72,44 @@ describe('computeToolbeltRules', () => {
     });
   });
 
-  // --- Tier 2 (T2_GUIDED) Tests ---
-  describe('T2_GUIDED (Tier 2 - Guided Actions)', () => {
-    it('should allow file-assistant in LLM at T2_GUIDED with confirmation', () => {
-      expect(checkPermission('LLM', 'T2_GUIDED', 'file-assistant')).toBe('needs_confirm');
+  // --- Tier 2 (T2_PATCH) Tests ---
+  describe('T2_PATCH (Tier 2 - Patch Actions)', () => {
+    it('should allow file-assistant in LLM at T2_PATCH with confirmation', () => {
+      expect(checkPermission('LLM', 'T2_PATCH', 'file-assistant')).toBe('needs_confirm');
     });
-    it('should allow file-assistant in AGENT at T2_GUIDED', () => {
-      expect(checkPermission('AGENT', 'T2_GUIDED', 'file-assistant')).toBe('allowed');
+    it('should allow file-assistant in AGENT at T2_PATCH', () => {
+      expect(checkPermission('AGENT', 'T2_PATCH', 'file-assistant')).toBe('allowed');
     });
-    it('should block file-assistant in HRM at T2_GUIDED', () => {
-      expect(checkPermission('HRM', 'T2_GUIDED', 'file-assistant')).toBe('blocked');
-    });
-
-    it('should allow git-command-center in AGENT at T2_GUIDED with confirmation', () => {
-      expect(checkPermission('AGENT', 'T2_GUIDED', 'git-command-center')).toBe('needs_confirm');
-    });
-    it('should allow git-command-center in LLM at T2_GUIDED with confirmation', () => {
-      expect(checkPermission('LLM', 'T2_GUIDED', 'git-command-center')).toBe('needs_confirm');
+    it('should block file-assistant in HRM at T2_PATCH', () => {
+      expect(checkPermission('HRM', 'T2_PATCH', 'file-assistant')).toBe('blocked');
     });
 
-    it('should block multi-file-refactors in LLM at T2_GUIDED', () => {
-      expect(checkPermission('LLM', 'T2_GUIDED', 'multi-file-refactors')).toBe('blocked');
+    it('should allow git-command-center in AGENT at T2_PATCH with confirmation', () => {
+      expect(checkPermission('AGENT', 'T2_PATCH', 'git-command-center')).toBe('needs_confirm');
     });
-    it('should allow multi-file-refactors in AGENT at T2_GUIDED with confirmation', () => {
-      expect(checkPermission('AGENT', 'T2_GUIDED', 'multi-file-refactors')).toBe('needs_confirm');
+    it('should allow git-command-center in LLM at T2_PATCH with confirmation', () => {
+      expect(checkPermission('LLM', 'T2_PATCH', 'git-command-center')).toBe('needs_confirm');
     });
 
-    it('LLM mode T2_GUIDED requires confirmation for fileWrite, gitCommit, agentExec', () => {
-      const rules = computeToolbeltRules('LLM', 'T2_GUIDED');
+    it('should block multi-file-refactors in LLM at T2_PATCH', () => {
+      expect(checkPermission('LLM', 'T2_PATCH', 'multi-file-refactors')).toBe('blocked');
+    });
+    it('should allow multi-file-refactors in AGENT at T2_PATCH with confirmation', () => {
+      expect(checkPermission('AGENT', 'T2_PATCH', 'multi-file-refactors')).toBe('needs_confirm');
+    });
+
+    it('LLM mode T2_PATCH requires confirmation for fileWrite, gitCommit, agentExec', () => {
+      const rules = computeToolbeltRules('LLM', 'T2_PATCH');
       expect(rules.actions.fileWrite).toBe('needs_confirm');
       expect(rules.actions.gitCommit).toBe('needs_confirm');
       expect(rules.actions.agentExec).toBe('needs_confirm');
-      expect(rules.actions.dbMigrate).toBe('needs_confirm'); // Corrected expectation
+      expect(rules.actions.dbMigrate).toBe('needs_confirm');
       expect(rules.truth.minScoreForWrite).toBe(0.7);
     });
 
-    it('AGENT mode T2_GUIDED requires confirmation for all write actions', () => {
-      const rules = computeToolbeltRules('AGENT', 'T2_GUIDED');
-      expect(rules.actions.fileWrite).toBe('allowed'); // Corrected expectation
+    it('AGENT mode T2_PATCH requires confirmation for all write actions', () => {
+      const rules = computeToolbeltRules('AGENT', 'T2_PATCH');
+      expect(rules.actions.fileWrite).toBe('allowed');
       expect(rules.actions.fileDelete).toBe('needs_confirm');
       expect(rules.actions.gitCommit).toBe('needs_confirm');
       expect(rules.actions.dbMigrate).toBe('needs_confirm');
@@ -117,32 +117,32 @@ describe('computeToolbeltRules', () => {
     });
   });
 
-  // --- Tier 3 (T3_POWER) Tests ---
-  describe('T3_POWER (Tier 3 - Power Changes)', () => {
-    it('should allow file-assistant in LLM at T3_POWER', () => {
-      expect(checkPermission('LLM', 'T3_POWER', 'file-assistant')).toBe('allowed');
+  // --- Tier 3 (T3_DANGEROUS) Tests ---
+  describe('T3_DANGEROUS (Tier 3 - Dangerous Actions)', () => {
+    it('should allow file-assistant in LLM at T3_DANGEROUS', () => {
+      expect(checkPermission('LLM', 'T3_DANGEROUS', 'file-assistant')).toBe('allowed');
     });
-    it('should allow multi-file-refactors in AGENT at T3_POWER with admin_only', () => {
-      expect(checkPermission('AGENT', 'T3_POWER', 'multi-file-refactors')).toBe('admin_only');
+    it('should allow multi-file-refactors in AGENT at T3_DANGEROUS with admin_only', () => {
+      expect(checkPermission('AGENT', 'T3_DANGEROUS', 'multi-file-refactors')).toBe('admin_only');
     });
-    it('should allow break-repo in AGENT at T3_POWER with admin_only', () => {
-      expect(checkPermission('AGENT', 'T3_POWER', 'break-repo')).toBe('admin_only');
+    it('should allow break-repo in AGENT at T3_DANGEROUS with admin_only', () => {
+      expect(checkPermission('AGENT', 'T3_DANGEROUS', 'break-repo')).toBe('admin_only');
     });
-    it('should allow break-repo in LLM at T3_POWER with admin_only', () => {
-      expect(checkPermission('LLM', 'T3_POWER', 'break-repo')).toBe('admin_only'); // Corrected expectation
+    it('should allow break-repo in LLM at T3_DANGEROUS with admin_only', () => {
+      expect(checkPermission('LLM', 'T3_DANGEROUS', 'break-repo')).toBe('admin_only');
     });
 
-    it('LLM mode T3_POWER marks agentExec and dbMigrate as admin_only', () => {
-      const rules = computeToolbeltRules('LLM', 'T3_POWER');
-      expect(rules.actions.fileWrite).toBe('allowed'); // Corrected expectation
+    it('LLM mode T3_DANGEROUS marks agentExec and dbMigrate as admin_only', () => {
+      const rules = computeToolbeltRules('LLM', 'T3_DANGEROUS');
+      expect(rules.actions.fileWrite).toBe('allowed');
       expect(rules.actions.gitCommit).toBe('needs_confirm');
       expect(rules.actions.agentExec).toBe('admin_only');
       expect(rules.actions.dbMigrate).toBe('admin_only');
     });
 
-    it('AGENT mode T3_POWER marks agentExec and dbMigrate as admin_only', () => {
-      const rules = computeToolbeltRules('AGENT', 'T3_POWER');
-      expect(rules.actions.fileWrite).toBe('allowed'); // Corrected expectation
+    it('AGENT mode T3_DANGEROUS marks agentExec and dbMigrate as admin_only', () => {
+      const rules = computeToolbeltRules('AGENT', 'T3_DANGEROUS');
+      expect(rules.actions.fileWrite).toBe('allowed');
       expect(rules.actions.fileDelete).toBe('allowed');
       expect(rules.actions.gitCommit).toBe('allowed');
       expect(rules.actions.dbMigrate).toBe('admin_only');

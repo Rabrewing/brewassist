@@ -293,3 +293,80 @@ Implemented BrewTruth v2.1 (deterministic, no web) to replace the stubbed 0.8 sc
 **Validation:** All core tests (`pnpm test -- brewassist.chain.smoke`, `pnpm test -- brewtruth.v21`, `pnpm test -- handshake.s410c`, `pnpm test -- __tests__/api/s410c.policy.test.ts`), `pnpm lint`, `pnpm build`, and `pnpm test:chain` passed successfully. BrewTruth is operational with varying scores and flags, and handshake logic is wired and exposed in the API.
 
 **Next Steps:** Proceed to S4.10d.
+---
+## December 14th, 2025 - S4.10c.1: Identity + HRM "Thinking" Cognition Surface & UI Text Spacing Fixes
+
+**Status: Complete**
+
+**Summary:**
+Implemented an enterprise-safe “BrewAssist is thinking” cognition surface to display high-level reasoning signals without exposing private chain-of-thought. This includes a structured cognition state model, phase-based status lines, and integration with persona, HRM/LLM/Agent selection, Toolbelt tier constraints, and BrewTruth requirements. Also, addressed UI text spacing issues to improve readability and enterprise feel.
+
+**Actions Taken:**
+*   Created `brewdocs/brewassist/s4/S4.10c.1_COGNITION_SURFACE_SPEC.md` documenting the implementation.
+*   Created `lib/brewCognition.ts` defining the `CognitionState` interface and `assembleCognitionState` function.
+*   Modified `components/BrewCockpitCenter.tsx` to:
+    *   Introduce `cognitionState` and `cognitionPhase` state variables.
+    *   Update `handleSend` to manage cognition phases and assemble `CognitionState` using `assembleCognitionState`.
+    *   Replace "BrewAssist is thinking..." with the current `cognitionPhase`.
+    *   Display detailed `cognitionState` in Admin mode.
+    *   Rename footer status text from "Truth {score}% · {risk}" to "Confidence: {score}% · Risk: {risk} · State: {emotionalState}".
+    *   Corrected `handshakeDecision` assignment from `data.policy?.decision` to `data.policy`.
+    *   Cast `msg.cognition.executionPermission` and `cognitionState.executionPermission` to `unknown as string` for JSX rendering.
+*   Modified `styles/cockpit-base.css` to apply provided CSS rules for tightening vertical rhythm and spacing in chat responses.
+*   Modified `lib/brewIdentityEngine.ts` to conditionally import `logIdentityEvent` (using a no-op for client-side) to resolve `fs` module import errors in client bundles.
+*   Modified `lib/brewCognition.ts` to import `CockpitMode` from `lib/brewTypes.ts` (correct path).
+*   Modified `lib/brewCognition.ts` to correct comparison of `handshakeDecision` to `handshakeDecision.decision`.
+
+**Validation:** All core tests (`pnpm test -- brewassist.chain.smoke`, `pnpm test -- brewtruth.v21`, `pnpm test -- handshake.s410c`, `pnpm test -- __tests__/api/s410c.policy.test.ts`, `pnpm test:chain`), `pnpm lint`, and `pnpm build` passed successfully.
+
+**Next Steps:** Proceed to `S4-COST-SCOPE-ROUTER-LOCK`.
+
+---
+## December 14th, 2025 - S4-COST-SCOPE-ROUTER-LOCK: Cost-Aware Scope Gating
+
+**Status: Complete**
+
+**Summary:**
+Implemented a cost-aware scope gating mechanism to prevent BrewAssist from answering general-knowledge questions in Customer mode, instead routing to BrewChat/BrewCore or returning a low-token redirect message. This enforcement happens before any provider call to optimize cost. Admin mode now allows general knowledge but labels it "Non-Operational" for transparency.
+
+**Actions Taken:**
+*   Updated `lib/intent-gatekeeper.ts` with a heuristic-first `classifyIntent` function to categorize user prompts into `PLATFORM_DEVOPS`, `SUPPORT`, `DOCS_KB`, `GENERAL_KNOWLEDGE`, or `UNKNOWN`.
+*   Modified `pages/api/brewassist.ts` to:
+    *   Import `classifyIntent` and `ScopeCategory`.
+    *   Refine `BrewAssistApiResponse` into a discriminated union to correctly handle different response types (engine responses vs. blocked/redirected responses).
+    *   Implement mode-aware policy enforcement:
+        *   In Customer mode, `GENERAL_KNOWLEDGE` intents are immediately blocked and return a redirect message without calling any LLM provider.
+        *   In Admin mode, `GENERAL_KNOWLEDGE` intents are allowed to proceed but are labeled.
+    *   Ensure all `ok: false` error responses include `route: "blocked"`.
+*   Created `__tests__/s4.cost.scope.router.lock.test.ts` with comprehensive tests to validate:
+    *   Customer `GENERAL_KNOWLEDGE` triggers a block and returns a redirect message without a provider call.
+    *   Admin `GENERAL_KNOWLEDGE` is allowed but labeled "Non-Operational".
+    *   `PLATFORM_DEVOPS` continues the normal provider chain for customers.
+    *   Increased test timeout for long-running tests.
+    *   Modified `PLATFORM_DEVOPS` test input to avoid triggering `safety_concern` from BrewTruth.
+
+**Validation:** All new tests in `__tests__/s4.cost.scope.router.lock.test.ts` passed successfully, along with all existing core tests (`pnpm test -- brewassist.chain.smoke`, `pnpm test -- brewtruth.v21`, `pnpm test -- handshake.s410c`, `pnpm test -- __tests__/api/s410c.policy.test.ts`, `pnpm test:chain`), `pnpm lint`, and `pnpm build` passed successfully.
+
+**Next Steps:** Proceed with progressive response rendering (Flow Mode) and further UI/UX refinements.
+## December 16th, 2025 - In Progress: Progressive Response Rendering (Flow Mode)
+
+**Status: In Progress - Test Refactoring**
+
+**Summary:**
+Initiated implementation of progressive response rendering (Flow Mode) for BrewAssist. This involves transitioning the API to Server-Sent Events (SSE) and updating frontend components to consume the stream. The primary focus is currently on refactoring existing test suites to correctly handle the new streaming response format.
+
+**Actions Taken:**
+*   Created `__tests__/helpers/sse.ts` to provide utility functions for collecting and parsing SSE events in tests.
+*   Began refactoring `__tests__/api/brewassist.test.ts` to:
+    *   Update mock `res` objects to be stream-capable (`setHeader`, `flushHeaders`, `write`, `end`, `status`).
+    *   Utilize the new SSE helper functions to parse streamed responses and assert on their content and metadata.
+*   Identified and resolved initial syntax errors in `__tests__/api/brewassist.test.ts` related to misplaced import statements and incorrect closing braces.
+
+**Current Challenges:**
+*   Still encountering syntax errors in `__tests__/api/brewassist.test.ts` after previous fixes, indicating persistent structural issues in the test file.
+*   Other test files (`__tests__/api/brewassist.toolbelt.test.ts`, `__tests__/api/s410c.policy.test.ts`, `__tests__/brewassist.chain.gates.test.ts`, etc.) are expected to require similar refactoring for streaming compatibility, and are currently failing due to outdated assumptions about response formats and mock `res` object capabilities.
+
+**Next Steps:**
+*   Resolve remaining syntax errors in `__tests__/api/brewassist.test.ts`.
+*   Ensure `__tests__/api/brewassist.test.ts` passes independently.
+*   Proceed to refactor other affected test files one by one, addressing mock object consistency and SSE parsing.

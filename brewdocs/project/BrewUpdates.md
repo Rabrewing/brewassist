@@ -96,8 +96,34 @@ To prevent future regressions and ensure the stability of the BrewAssist chain, 
 *   **Test Results:** All 8 tests in `brewassist.chain.gates.test.ts` are expected to pass, confirming the integrity of the BrewAssist chain.
 
 **Next Steps:**
-*   Run `pnpm test:chain` to confirm all 8 tests pass.
 *   Update `PROGRESS_SUMMARY.md`.
+---
+## December 14th, 2025 - S4.10c.1: Identity + HRM "Thinking" Cognition Surface & UI Text Spacing Fixes
+
+**Status: Complete**
+
+**Summary:**
+Implemented an enterprise-safe “BrewAssist is thinking” cognition surface to display high-level reasoning signals without exposing private chain-of-thought. This includes a structured cognition state model, phase-based status lines, and integration with persona, HRM/LLM/Agent selection, Toolbelt tier constraints, and BrewTruth requirements. Also, addressed UI text spacing issues to improve readability and enterprise feel.
+
+**Actions Taken:**
+*   Created `brewdocs/brewassist/s4/S4.10c.1_COGNITION_SURFACE_SPEC.md` documenting the implementation.
+*   Created `lib/brewCognition.ts` defining the `CognitionState` interface and `assembleCognitionState` function.
+*   Modified `components/BrewCockpitCenter.tsx` to:
+    *   Introduce `cognitionState` and `cognitionPhase` state variables.
+    *   Update `handleSend` to manage cognition phases and assemble `CognitionState` using `assembleCognitionState`.
+    *   Replace "BrewAssist is thinking..." with the current `cognitionPhase`.
+    *   Display detailed `cognitionState` in Admin mode.
+    *   Rename footer status text from "Truth {score}% · {risk}" to "Confidence: {score}% · Risk: {risk} · State: {emotionalState}".
+    *   Corrected `handshakeDecision` assignment from `data.policy?.decision` to `data.policy`.
+    *   Cast `msg.cognition.executionPermission` and `cognitionState.executionPermission` to `unknown as string` for JSX rendering.
+*   Modified `styles/cockpit-base.css` to apply provided CSS rules for tightening vertical rhythm and spacing in chat responses.
+*   Modified `lib/brewIdentityEngine.ts` to conditionally import `logIdentityEvent` (using a no-op for client-side) to resolve `fs` module import errors in client bundles.
+*   Modified `lib/brewCognition.ts` to import `CockpitMode` from `lib/brewTypes.ts` (correct path).
+*   Modified `lib/brewCognition.ts` to correct comparison of `handshakeDecision` to `handshakeDecision.decision`.
+
+**Validation:** All core tests (`pnpm test -- brewassist.chain.smoke`, `pnpm test -- brewtruth.v21`, `pnpm test -- handshake.s410c`, `pnpm test -- __tests__/api/s410c.policy.test.ts`, `pnpm test:chain`), `pnpm lint`, and `pnpm build` passed successfully.
+
+**Next Steps:** Proceed to `S4-COST-SCOPE-ROUTER-LOCK`.
 
 ---
 ## December 14th, 2025 - S4.10c: Toolbelt × Intent × BrewTruth handshake (operational truth grading)
@@ -126,6 +152,33 @@ Implemented BrewTruth v2.1 (deterministic, no web) to replace the stubbed 0.8 sc
 **Validation:** All core tests (`pnpm test -- brewassist.chain.smoke`, `pnpm test -- brewtruth.v21`, `pnpm test -- handshake.s410c`, `pnpm test -- __tests__/api/s410c.policy.test.ts`), `pnpm lint`, `pnpm build`, and `pnpm test:chain` passed successfully. BrewTruth is operational with varying scores and flags, and handshake logic is wired and exposed in the API.
 
 **Next Steps:** Proceed to S4.10d.
+---
+## December 14th, 2025 - S4.10c.1: Identity + HRM "Thinking" Cognition Surface & UI Text Spacing Fixes
+
+**Status: Complete**
+
+**Summary:**
+Implemented an enterprise-safe “BrewAssist is thinking” cognition surface to display high-level reasoning signals without exposing private chain-of-thought. This includes a structured cognition state model, phase-based status lines, and integration with persona, HRM/LLM/Agent selection, Toolbelt tier constraints, and BrewTruth requirements. Also, addressed UI text spacing issues to improve readability and enterprise feel.
+
+**Actions Taken:**
+*   Created `brewdocs/brewassist/s4/S4.10c.1_COGNITION_SURFACE_SPEC.md` documenting the implementation.
+*   Created `lib/brewCognition.ts` defining the `CognitionState` interface and `assembleCognitionState` function.
+*   Modified `components/BrewCockpitCenter.tsx` to:
+    *   Introduce `cognitionState` and `cognitionPhase` state variables.
+    *   Update `handleSend` to manage cognition phases and assemble `CognitionState` using `assembleCognitionState`.
+    *   Replace "BrewAssist is thinking..." with the current `cognitionPhase`.
+    *   Display detailed `cognitionState` in Admin mode.
+    *   Rename footer status text from "Truth {score}% · {risk}" to "Confidence: {score}% · Risk: {risk} · State: {emotionalState}".
+    *   Corrected `handshakeDecision` assignment from `data.policy?.decision` to `data.policy`.
+    *   Cast `msg.cognition.executionPermission` and `cognitionState.executionPermission` to `unknown as string` for JSX rendering.
+*   Modified `styles/cockpit-base.css` to apply provided CSS rules for tightening vertical rhythm and spacing in chat responses.
+*   Modified `lib/brewIdentityEngine.ts` to conditionally import `logIdentityEvent` (using a no-op for client-side) to resolve `fs` module import errors in client bundles.
+*   Modified `lib/brewCognition.ts` to import `CockpitMode` from `lib/brewTypes.ts` (correct path).
+*   Modified `lib/brewCognition.ts` to correct comparison of `handshakeDecision` to `handshakeDecision.decision`.
+
+**Validation:** All core tests (`pnpm test -- brewassist.chain.smoke`, `pnpm test -- brewtruth.v21`, `pnpm test -- handshake.s410c`, `pnpm test -- __tests__/api/s410c.policy.test.ts`, `pnpm test:chain`), `pnpm lint`, and `pnpm build` passed successfully.
+
+**Next Steps:** Proceed to `S4-COST-SCOPE-ROUTER-LOCK`.
 
 ---
 **Debugging Session (December 14th, 2025 - Continued):**
@@ -209,4 +262,26 @@ Implemented sandbox protection to restrict access to the AI Sandbox to 'admin' m
     *   **Description:** BrewAssist is currently unable to process requests, consistently returning "All providers failed for BrewAssistEngine." This is a critical blocker for all AI functionalities.
     *   **Diagnosis Plan:** Implement a dedicated integration test (`brewassist.chain.integration.test.ts`) to diagnose the root cause of the chain failure, specifically focusing on router, provider, and fallback chain coordination.
 *   Update `PROGRESS_SUMMARY.md` to reflect the current status.
+## December 16th, 2025 - In Progress: Progressive Response Rendering (Flow Mode)
+
+**Status: In Progress - Test Refactoring**
+
+**Summary:**
+Initiated implementation of progressive response rendering (Flow Mode) for BrewAssist. This involves transitioning the API to Server-Sent Events (SSE) and updating frontend components to consume the stream. The primary focus is currently on refactoring existing test suites to correctly handle the new streaming response format.
+
+**Actions Taken:**
+*   Created `__tests__/helpers/sse.ts` to provide utility functions for collecting and parsing SSE events in tests.
+*   Began refactoring `__tests__/api/brewassist.test.ts` to:
+    *   Update mock `res` objects to be stream-capable (`setHeader`, `flushHeaders`, `write`, `end`, `status`).
+    *   Utilize the new SSE helper functions to parse streamed responses and assert on their content and metadata.
+*   Identified and resolved initial syntax errors in `__tests__/api/brewassist.test.ts` related to misplaced import statements and incorrect closing braces.
+
+**Current Challenges:**
+*   Still encountering syntax errors in `__tests__/api/brewassist.test.ts` after previous fixes, indicating persistent structural issues in the test file.
+*   Other test files (`__tests__/api/brewassist.toolbelt.test.ts`, `__tests__/api/s410c.policy.test.ts`, `__tests__/brewassist.chain.gates.test.ts`, etc.) are expected to require similar refactoring for streaming compatibility, and are currently failing due to outdated assumptions about response formats and mock `res` object capabilities.
+
+**Next Steps:**
+*   Resolve remaining syntax errors in `__tests__/api/brewassist.test.ts`.
+*   Ensure `__tests__/api/brewassist.test.ts` passes independently.
+*   Proceed to refactor other affected test files one by one, addressing mock object consistency and SSE parsing.
 ---

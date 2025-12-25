@@ -1,6 +1,6 @@
-# GEMINI.md — BrewVerse Global Instructions (Per-Repo)
+# .md — BrewVerse Global Instructions (Per-Repo)
  
-You are Gemini CLI operating **inside a single project repository**.
+You are  CLI operating **inside a single project repository**.
 You must treat each repository as a completely separate universe.
  
 Your goals:
@@ -134,7 +134,7 @@ then you must:
 3. Use it as the authoritative description of how this repo wants files organized.
  
 If that file does not exist:
-- Use the generic rules in this GEMINI.md,
+- Use the generic rules in this .md,
 - And ask the user before introducing new directory structures.
  
 ---

@@ -154,14 +154,16 @@ export function getModelRoutes(opts: { mode: BrewModelRole, cockpitMode?: string
     reasons.push("tool_lane_not_fully_implemented"); // Placeholder
   }
 
-  console.log("[ModelRouter] route build result", {
-    rawMode,
-    mode,
-    cockpitMode: opts?.cockpitMode,
-    tier: opts?.tier,
-    routesLen: routes.length,
-    reasons,
-  });
+  if (process.env.BREW_DEBUG_ROUTER === "1") {
+    console.log("[ModelRouter] route build result", {
+      rawMode,
+      mode,
+      cockpitMode: opts?.cockpitMode,
+      tier: opts?.tier,
+      routesLen: routes.length,
+      reasons,
+    });
+  }
 
   return routes;
 }

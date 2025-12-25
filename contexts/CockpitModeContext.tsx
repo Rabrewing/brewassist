@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import type { CockpitMode } from "@/lib/brewTypes";
 
 interface CockpitModeContextType {
@@ -10,10 +10,15 @@ interface CockpitModeContextType {
 const CockpitModeContext = createContext<CockpitModeContextType | undefined>(undefined);
 
 export function CockpitModeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<CockpitMode>(
-    (typeof window !== "undefined" && localStorage.getItem("cockpitMode") as CockpitMode) ||
-      "admin"
-  );
+  const [mode, setMode] = useState<CockpitMode>("admin"); // Default to "admin"
+
+  useEffect(() => {
+    // This effect runs only on the client side after hydration
+    const storedMode = localStorage.getItem("cockpitMode") as CockpitMode;
+    if (storedMode) {
+      setMode(storedMode);
+    }
+  }, []);
 
   const updateMode = (nextMode: CockpitMode) => {
     setMode(nextMode);

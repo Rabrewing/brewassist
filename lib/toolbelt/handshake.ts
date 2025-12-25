@@ -1,3 +1,6 @@
+import { getToolRule, computeToolbeltRules } from "@/lib/toolbeltConfig";
+import { getPermissionForRisk } from "@/lib/toolbeltGuard";
+
 export type BrewIntent =
   | "GENERAL"
   | "KNOWLEDGE"
@@ -28,11 +31,43 @@ export function evaluateHandshake(args: {
   truthScore?: number; // 0-1
   truthFlags?: string[];
   cockpitMode?: "admin" | "customer";
+  mcpToolId?: string;
+  mcpAction?: string;
+  toolRequest?: any;
+  confirmApply?: boolean;
+  gepHeaderPresent?: boolean; // Add gepHeaderPresent
 }): HandshakeDecision {
-  const { intent, tier, truthTier, truthScore, truthFlags, cockpitMode } = args;
+  const { intent, tier, truthTier, truthScore, truthFlags, cockpitMode, mcpToolId, mcpAction, toolRequest, confirmApply, gepHeaderPresent } = args;
 
   const isAdmin = cockpitMode === "admin";
   const hasSafetyConcern = (truthFlags || []).includes("safety_concern");
+
+  // Toolbelt specific checks
+  if (mcpToolId && mcpAction) {
+    const toolRule = getToolRule(mcpToolId, mcpAction);
+
+    if (!toolRule) {
+      return { decision: "ALLOW", reason: "Tool rule not found, bypassing toolbelt." };
+    }
+
+    if (!toolRule.enabled) {
+      return { decision: "BLOCK", reason: "TOOLBELT_FORBIDDEN" };
+    }
+
+    if (toolRule.safety === 'read-only' && (mcpAction.includes('write') || mcpAction.includes('commit') || mcpAction.includes('refactor'))) {
+        return { decision: "BLOCK", reason: "TOOLBELT_READ_ONLY" };
+    }
+
+    if (toolRule.requireGepHeader && !gepHeaderPresent) {
+      return { decision: "BLOCK", reason: "TOOLBELT_GEP_REQUIRED" };
+    }
+
+    if (toolRule.requireConfirmation && !confirmApply) {
+      return { decision: "REQUIRE_CONFIRMATION", reason: "TOOLBELT_CONFIRM_REQUIRED" };
+    }
+
+    return { decision: "ALLOW", reason: "Toolbelt check passed." };
+  }
 
   // Hard blocks
   if (!isAdmin && intent === "OVERRIDE") {

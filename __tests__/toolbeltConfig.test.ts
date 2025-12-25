@@ -31,17 +31,16 @@ describe('computeToolbeltRules', () => {
     expect(rules.truth.minScoreForWrite).toBe(1.0);
   });
 
-  test('LLM mode T2_GUIDED requires confirmation for fileWrite, gitCommit, agentExec', () => {
-    const rules = computeToolbeltRules('LLM', 'T2_GUIDED');
-    expect(rules.actions.fileWrite).toBe('needs_confirm');
+  test('LLM mode T2_PATCH requires confirmation for fileWrite, gitCommit, agentExec', () => { 
+      const rules = computeToolbeltRules('LLM', 'T2_PATCH');    expect(rules.actions.fileWrite).toBe('needs_confirm');
     expect(rules.actions.gitCommit).toBe('needs_confirm');
     expect(rules.actions.agentExec).toBe('needs_confirm');
     expect(rules.actions.dbMigrate).toBe('needs_confirm'); // Still blocked
     expect(rules.truth.minScoreForWrite).toBe(0.7);
   });
 
-  test('LLM mode T3_POWER marks agentExec and dbMigrate as admin_only', () => {
-    const rules = computeToolbeltRules('LLM', 'T3_POWER');
+  test('LLM mode T3_DANGEROUS marks agentExec and dbMigrate as admin_only', () => {
+    const rules = computeToolbeltRules('LLM', 'T3_DANGEROUS');
     expect(rules.actions.fileWrite).toBe('allowed');
     expect(rules.actions.gitCommit).toBe('needs_confirm');
     expect(rules.actions.agentExec).toBe('admin_only');
@@ -58,8 +57,8 @@ describe('computeToolbeltRules', () => {
     expect(rules.actions.gitCommit).toBe('blocked');
   });
 
-  test('AGENT mode T2_GUIDED requires confirmation for all write actions', () => {
-    const rules = computeToolbeltRules('AGENT', 'T2_GUIDED');
+  test('AGENT mode T2_PATCH requires confirmation for all write actions', () => {
+    const rules = computeToolbeltRules('AGENT', 'T2_PATCH');
     expect(rules.actions.fileWrite).toBe('allowed');
     expect(rules.actions.fileDelete).toBe('needs_confirm');
     expect(rules.actions.gitCommit).toBe('needs_confirm');
@@ -68,8 +67,8 @@ describe('computeToolbeltRules', () => {
     expect(rules.truth.minScoreForWrite).toBe(0.7);
   });
 
-  test('AGENT mode T3_POWER marks agentExec and dbMigrate as admin_only', () => {
-    const rules = computeToolbeltRules('AGENT', 'T3_POWER');
+  test('AGENT mode T3_DANGEROUS marks agentExec and dbMigrate as admin_only', () => {
+    const rules = computeToolbeltRules('AGENT', 'T3_DANGEROUS');
     expect(rules.actions.fileWrite).toBe('allowed');
     expect(rules.actions.fileDelete).toBe('allowed');
     expect(rules.actions.gitCommit).toBe('allowed');

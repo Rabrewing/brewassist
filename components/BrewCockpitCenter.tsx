@@ -8,6 +8,7 @@ import type { ToolbeltBrewMode, ToolbeltTier } from '@/lib/toolbeltConfig'; // I
 import { useCockpitMode } from "@/contexts/CockpitModeContext";
 import { CockpitModeToggle } from "./CockpitModeToggle";
 import { CognitionState, assembleCognitionState, ReasoningMode, Intent, EmotionalState, RiskLevel } from "@/lib/brewCognition"; // Import CognitionState and assembleCognitionState
+import { ScopeCategory } from "@/lib/intent-gatekeeper"; // Import ScopeCategory
 import { getActivePersona, Persona } from "@/lib/brewIdentityEngine"; // Import getActivePersona and Persona
 import { HandshakeDecision } from "@/lib/toolbelt/handshake";
 
@@ -20,6 +21,8 @@ interface UiMessage {
   truth?: BrewTruthReport | null; // Changed to BrewTruthReport
   blockedByTruth?: boolean;
   cognition?: CognitionState; // Add cognition state to message
+  route?: "brewassist" | "brewchat" | "brewcore" | "blocked"; // Add route to message
+  scopeCategory?: ScopeCategory; // Add scopeCategory to message
 }
 
 const defaultSystemLine =
@@ -55,6 +58,11 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
   const chatContainerRef = useRef<HTMLDivElement | null>(logRef.current); // Use logRef for chatContainerRef
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -92,29 +100,33 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsThinking(true);
-    setCognitionPhase("Evaluating request..."); // Initial cognition phase
-    setCognitionState(null); // Reset cognition state
-
-    // S4.9c.1: Ensure auto-scroll is enabled on send
+    setCognitionPhase("Evaluating request...");
+    setCognitionState(null);
     setAutoScrollEnabled(true);
+
+    const assistantMsgId = makeId();
+    const assistantMsg: UiMessage = {
+      id: assistantMsgId,
+      role: "assistant",
+      content: "",
+      truth: null,
+      blockedByTruth: false,
+      cognition: null,
+      route: "brewassist",
+      scopeCategory: "UNKNOWN",
+    };
+    setMessages((prev) => [...prev, assistantMsg]);
 
     try {
       const payload = {
         input: trimmed,
         mode,
-        tier, // Pass tier from context
-        skillLevel: "intermediate", // temp, will be wired from /init later
+        tier,
+        skillLevel: "intermediate",
         useDeepReasoning: nextUseDeepReasoning,
         useResearchModel: nextUseResearchModel,
         ...overridePayload,
       };
-
-      // Simulate cognition phases
-      setCognitionPhase("Interpreting intent and authority...");
-      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
-
-      setCognitionPhase("Checking safety and permissions...");
-      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
 
       const res = await fetch("/api/brewassist", {
         method: "POST",
@@ -123,86 +135,47 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
       });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        console.error("BrewAssist API error:", res.status, text);
-        const errLine =
-          "BrewAssist encountered an error while processing this request. Check the logs or try again.";
-        setLastError(errLine);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: makeId(),
-            role: "system",
-            content: errLine,
-          },
-        ]);
-        return;
+        throw new Error("Failed to connect to the streaming endpoint.");
       }
 
-      const data: BrewAssistApiResponse = await res.json().catch(() => ({}));
-
-      if (!data.ok) {
-        const errLine = data.error || "BrewAssist encountered an unknown error.";
-        setLastError(errLine);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: makeId(),
-            role: "system",
-            content: errLine,
-          },
-        ]);
-        return;
+      if (res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n').filter(line => line.trim() !== '');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.substring(6);
+              try {
+                const json = JSON.parse(data);
+                if (json.type === 'chunk') {
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantMsgId
+                        ? { ...msg, content: msg.content + json.payload }
+                        : msg
+                    )
+                  );
+                } else if (json.type === 'end') {
+                  // Handle end of stream if needed
+                } else if (json.type === 'error') {
+                  throw new Error(json.payload.message);
+                }
+              } catch (e) {
+                console.error('Error parsing stream chunk:', e);
+              }
+            }
+          }
+        }
       }
 
-      setCognitionPhase("Selecting reasoning strategy...");
-      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
-
-      const content = data.text ?? "BrewAssist responded, but no content was returned from the engine.";
-      const truth = data.truth ?? null;
-      const blockedByTruth = data.blockedByTruth ?? false;
-      const handshakeDecision: HandshakeDecision = data.policy || "ALLOW"; // Get handshake decision
-
-      // Assemble cognition state
-      const currentPersona: Persona['id'] = getActivePersona().id; // Get active persona ID
-      const inferredIntent: Intent = trimmed; // Placeholder, will be inferred later
-      const currentReasoningMode: ReasoningMode = mode as ReasoningMode; // Cast mode to ReasoningMode
-
-      const assembledCognitionState = assembleCognitionState(
-        currentPersona,
-        cockpitMode,
-        tier,
-        inferredIntent,
-        currentReasoningMode,
-        truth,
-        handshakeDecision
-      );
-      setCognitionState(assembledCognitionState);
-
-      setCognitionPhase("Preparing response...");
-      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate delay
-
-      if (blockedByTruth && payload.dangerousAction) {
-        setPendingAction({ payload, truth });
-        setShowConfirmationModal(true);
-        setIsThinking(false);
-        return;
-      }
-
-      const assistantMsg: UiMessage = {
-        id: makeId(),
-        role: "assistant",
-        content: content.trim(),
-        truth: truth,
-        blockedByTruth: blockedByTruth,
-        cognition: assembledCognitionState, // Attach cognition state to message
-      };
-
-      setMessages((prev) => [...prev, assistantMsg]);
     } catch (err) {
       console.error("BrewAssist fetch error:", err);
       const errLine =
-        "BrewAssist hit a network issue or the server restarted. Please try again.";
+        err instanceof Error ? err.message : "BrewAssist hit a network issue or the server restarted. Please try again.";
       setLastError(errLine);
       setMessages((prev) => [
         ...prev,
@@ -214,9 +187,8 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
       ]);
     } finally {
       setIsThinking(false);
-      setCognitionPhase("BrewAssist ready."); // Reset cognition phase
-      setCognitionState(null); // Clear cognition state after response
-      // reset one-shot flags
+      setCognitionPhase("BrewAssist ready.");
+      setCognitionState(null);
       setNextUseDeepReasoning(false);
       setNextUseResearchModel(false);
     }
@@ -378,6 +350,7 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
                 <li>Risk Level: {msg.cognition.riskLevel}</li>
                 <li>Execution Permission: {msg.cognition.executionPermission as unknown as string}</li>
                 <li>Truth Validation: {msg.cognition.truthValidationStatus}</li>
+                {msg.scopeCategory && <li>Scope Category: {msg.scopeCategory}</li>}
               </ul>
             </div>
           )}
@@ -470,17 +443,19 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
         </div>
 
         <div className="cockpit-input-row">
-          <ActionMenu
-            onUploadFile={(files, dangerousAction) => {
-              console.log("Uploaded files", files);
-              void handleSend({ input: `Uploaded ${files[0].name}`, dangerousAction: dangerousAction });
-            }}
-            onSelectDeepReasoning={() => setNextUseDeepReasoning(true)}
-            onSelectNimsResearch={() => setNextUseResearchModel(true)}
-            onUploadImage={() => console.log("Upload Image / Screenshot clicked")}
-            onTakePhoto={() => console.log("Take Photo (Camera) clicked")}
-            onImportFromGoogleDrive={() => console.log("Import from Google Drive clicked")}
-          />
+          {isClient && (
+            <ActionMenu
+              onUploadFile={(files, dangerousAction) => {
+                console.log("Uploaded files", files);
+                void handleSend({ input: `Uploaded ${files[0].name}`, dangerousAction: dangerousAction });
+              }}
+              onSelectDeepReasoning={() => setNextUseDeepReasoning(true)}
+              onSelectNimsResearch={() => setNextUseResearchModel(true)}
+              onUploadImage={() => console.log("Upload Image / Screenshot clicked")}
+              onTakePhoto={() => console.log("Take Photo (Camera) clicked")}
+              onImportFromGoogleDrive={() => console.log("Import from Google Drive clicked")}
+            />
+          )}
           <textarea
             ref={textareaRef}
             className="workspace-input"

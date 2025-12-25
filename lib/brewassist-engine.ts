@@ -1,207 +1,25 @@
-import { DEFAULT_PERSONA } from "../lib/brewConfig";
-import { resolveRoute, BrewModelRole, BrewProviderId, getModelRoutes, getModelProviders, BrewRoute, BrewRouteType } from "../lib/model-router";
-import { pickNimsModel } from "../lib/nims-utils";
-import { runBrewTruth, BrewTruthReport, BrewTruthModelTrace, BrewTruthTier, BrewTruthFlagType } from "./brewtruth";
-import { getPermissionForRisk, RiskLevel } from './toolbeltGuard'; // Import toolbeltGuard and RiskLevel
-import { computeToolbeltRules, ToolbeltBrewMode, ToolbeltTier, ToolbeltRulesSnapshot, ToolPermission } from './toolbeltConfig'; // Import ToolbeltConfig types
+import { getModelProviders, BrewProviderId, BrewRoute, getModelRoutes, resolveRoute, BrewRouteType } from "../lib/model-router";
+import { computeToolbeltRules, ToolbeltBrewMode, ToolbeltTier } from './toolbeltConfig';
 import type { CockpitMode } from "./brewTypes";
 
-export type EngineBrewAssistMode = "hrm" | "llm" | "agent" | "loop"; // Renamed to avoid conflict
+export type EngineBrewAssistMode = "hrm" | "llm" | "agent" | "loop";
 
-export type BrewMessageRole =
-  | "user"
-  | "assistant"
-  | "system"
-  | "hrm"
-  | "llm"
-  | "agent"
-  | "loop";
-
-export interface BrewMessage {
-  id: string;
-  role: BrewMessageRole;
-  content: string;
-  createdAt: string;
-  model?: string;
-  mode?: EngineBrewAssistMode; // Use EngineBrewAssistMode
-  truthScore?: number;
-}
-
-// S4.9c: New types for BrewTruth attachment
-
-
-// BrewTruthAttachment is no longer needed, using BrewTruthReport directly
-
-export interface BrewAssistPersona {
-  name: string;            // "BrewAssist"
-  version: string;         // "S4.8c"
-  role: "devops_copilot";
-  tone: "direct_supportive";
-  audience: "dev_or_vibe_coder";
-  ownerName?: string;      // "Randy Brewington"
-  orgName?: string;        // "Brewington Exec Group Inc."
-}
-
-export interface BrewAssistSessionContext {
-  persona: BrewAssistPersona;
-  mode: EngineBrewAssistMode; // Use EngineBrewAssistMode
-  skillLevel?: "vibe" | "intermediate" | "senior" | "enterprise";
-  projectName?: string;
-  repoSummary?: string;
-  lastTasks: string[];   // short text summaries
-}
-
-export interface RunBrewAssistOptions {
-  input: string;
-  mode: EngineBrewAssistMode; // Use EngineBrewAssistMode
+export interface BrewAssistEngineOptions {
+  prompt: string;
+  mode: EngineBrewAssistMode;
   cockpitMode: CockpitMode;
-  tier: ToolbeltTier; // Add tier to options
-  sessionContext?: BrewAssistSessionContext;
-  modelRole?: BrewModelRole;         // optional override
-  useResearchModel?: boolean;        // for explicit research calls
-  dangerousAction?: boolean; // S4.9d: Flag for actions that need confirmation
-}
-
-// Map tab mode → logical role
-export function modeToRole(mode: EngineBrewAssistMode): BrewMessageRole { // Use EngineBrewAssistMode
-  switch (mode) {
-    case "hrm":
-      return "hrm";
-    case "agent":
-      return "agent";
-    case "loop":
-      return "loop";
-    case "llm":
-    default:
-      return "llm";
-  }
-}
-
-const BREW_OWNER_NAME =
-  process.env.BREW_OWNER_NAME ?? "Randy Brewington";
-
-const BREW_OWNER_ALIASES = [
-  "RB",
-  "Randy",
-  "MasterBrew RB Jr Full Stack Dev",
-  "MasterBrew RB",
-];
-
-function buildSystemPrompt(ctx: BrewAssistSessionContext): string {
-  const { persona, mode } = ctx;
-
-  return [
-    `You are ${persona.name}, a ${persona.role} for ${persona.orgName}.`,
-    `You are helping ${persona.ownerName}, a full-stack dev and Recruitment Architect, work on BrewVerse projects.`,
-    `Current cockpit mode: ${mode.toUpperCase()}.`,
-    mode === "hrm"
-      ? "Focus on plans, roadmaps, teaching, and step-by-step reasoning."
-      : mode === "llm"
-      ? "Focus on direct answers, code help, and tight responses."
-      : mode === "agent"
-      ? "Focus on multi-step operations, tool usage, and proposing commands."
-      : "Focus on recap, narration, and summarizing what just happened.",
-    `Keep tone: supportive, clear, precise. Avoid acting like a generic chatbot.`,
-  ].join("\n");
-}
-
-interface BrewAssistEngineOptions {
-  input: string;
-  mode: BrewModelRole;
-  cockpitMode: CockpitMode;
-  tier: ToolbeltTier; // Add tier to options
+  tier: ToolbeltTier;
+  preferredProvider?: BrewProviderId;
   useResearchModel?: boolean;
-  systemPrompt?: string;
-  dangerousAction?: boolean; // S4.9d: Flag for actions that need confirmation
 }
 
-export class ToolbeltBlockedError extends Error {
-  statusCode: number;
-  constructor(message: string, statusCode: number) {
-    super(message);
-    this.name = 'ToolbeltBlockedError';
-    this.statusCode = statusCode;
-  }
-}
-
-export interface BrewAssistEngineResult {
-  result: {
-    role: "assistant";
-    content: string;
-  };
-  provider: BrewProviderId;
-  model: string;
-  routeType: BrewRouteType;
-  latencyMs: number; // NEW
-  modelRoleUsed: string; // NEW
-  truth?: BrewTruthReport | null; // Use BrewTruthReport directly
-  blockedByTruth?: boolean; // S4.9d: Add blockedByTruth to result
-}
-
-// --- S4.8f NIMs Auto-Discovery Logic (Moved to lib/nims-utils.ts) ---
-
-// Encapsulates NIMs API call logic
-async function callNimsProvider(
-  model: string,
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
-): Promise<string> {
-  const NIMS_API_KEY = process.env.NIMS_API_KEY;
-  const NIMS_BASE_URL = process.env.NIMS_BASE_URL?.replace(/\/+$/, "") || "https://integrate.api.nvidia.com/v1";
-
-  if (!NIMS_API_KEY) {
-    throw new Error("NIMs API key not set.");
-  }
-
-  const res = await fetch(`${NIMS_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${NIMS_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      max_tokens: Number(process.env.NIMS_MAX_TOKENS ?? 1536),
-      temperature: Number(process.env.NIMS_TEMPERATURE ?? 0.2),
-      // Add timeout for actual calls
-      signal: AbortSignal.timeout(Number(process.env.NIMS_TIMEOUT_MS ?? 20000))
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    console.error(`API chat error from nims:`, res.status, text);
-    throw new Error(`Provider nims returned status ${res.status}: ${text}`);
-  }
-
-  const data: any = await res.json();
-  const firstChoice = data?.choices?.[0];
-  const text =
-    firstChoice?.message?.content ??
-    firstChoice?.content ??
-    "";
-
-  if (!text) {
-    console.error(
-      "NIMs response missing content:",
-      JSON.stringify(data, null, 2)
-    );
-    throw new Error("NIMs response missing content");
-  }
-
-  return text;
-}
-
-
-
-// ... (rest of the file)
-
-async function callProvider(
+async function callProviderStream(
   provider: BrewProviderId,
   model: string,
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
-): Promise<string> {
-  const providers = getModelProviders(); // Get dynamic providers
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>, // Note: 'system' role is not supported by all providers
+  onChunk: (chunk: string) => void
+): Promise<void> {
+  const providers = getModelProviders();
   const providerConfig = providers[provider];
   if (!providerConfig || !providerConfig.enabled) {
     throw new Error(`Provider ${provider} is not enabled or configured.`);
@@ -215,49 +33,28 @@ async function callProvider(
   switch (provider) {
     case 'openai': {
       apiKey = providerConfig.apiKey;
-      const base =
-        providerConfig.baseUrl?.replace(/\/+$/, "") ||
-        "https://api.openai.com/v1";
+      const base = (providerConfig.baseUrl?.replace(/\/+$/, "") || "https://api.openai.com/v1");
       url = `${base}/chat/completions`;
       headers = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       };
-      requestBody = { model, messages, temperature: 0.7 };
+      requestBody = { model, messages, temperature: 0.7, stream: true };
       break;
     }
     case 'gemini': {
       apiKey = providerConfig.apiKey;
       const base = (providerConfig.baseUrl || "https://generativelanguage.googleapis.com/v1beta/models").replace(/\/+$/, "");
-      url = `${base}/${model}:generateContent?key=${apiKey}`;
-      headers = {
-        "Content-Type": "application/json",
-      };
+      url = `${base}/${model}:streamGenerateContent?key=${apiKey}`; // Use streamGenerateContent for streaming
+      headers = { "Content-Type": "application/json" };
       requestBody = { contents: messages.map(m => ({ role: m.role === 'system' ? 'user' : m.role, parts: [{ text: m.content }] })) };
       break;
     }
-    case 'mistral': {
-      apiKey = providerConfig.apiKey;
-      const mistralBase =
-        providerConfig.baseUrl?.replace(/\/+$/, "") ||
-        "https://api.mistral.ai/v1";
-      url = `${mistralBase}/chat/completions`;
-      headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      };
-      requestBody = { model, messages, temperature: 0.7 };
-      break;
-    }
-    case 'tinyllm':
-      url = providerConfig.baseUrl || "http://localhost:8000/chat/completions";
-      headers = {
-        "Content-Type": "application/json",
-      };
-      requestBody = { model, messages, temperature: 0.7 };
-      break;
     default:
-      throw new Error(`Unsupported provider: ${provider}`);
+      // For non-streaming providers, simulate a single chunk
+      const response = await callProvider(provider, model, messages);
+      onChunk(response);
+      return;
   }
 
   if (!apiKey && provider !== 'tinyllm') {
@@ -272,231 +69,170 @@ async function callProvider(
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    console.error(`API chat error from ${provider}:`, res.status, text);
     throw new Error(`Provider ${provider} returned status ${res.status}: ${text}`);
   }
 
-  const data: any = await res.json();
-  console.log(`Raw response from ${provider}:`, JSON.stringify(data, null, 2));
+  if (res.body) {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n').filter(line => line.trim() !== '');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.substring(6);
+          if (data.trim() === '[DONE]') {
+            return;
+          }
+          try {
+            const json = JSON.parse(data);
+            let content;
 
-  let rawContent: string | undefined;
+            if (provider === 'openai') {
+              content = json.choices?.[0]?.delta?.content;
+            } else if (provider === 'gemini') {
+              content = json.candidates?.[0]?.content?.parts?.[0]?.text;
+            }
+            // Fallback for generic SSE chunk events (like those from mocks)
+            if (!content && typeof json.text === 'string') {
+              content = json.text;
+            }
+            // Add other providers here if they have different streaming formats
 
-  if (provider === 'gemini') {
-    rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  } else {
-    rawContent = data.choices?.[0]?.message?.content ?? data.choices?.[0]?.text;
+            let chunkText = "";
+            if (typeof content === "string") {
+              chunkText = content;
+            } else if (content && typeof content === "object") {
+              if (typeof (content as any).text === "string") chunkText = (content as any).text;
+              else if (typeof (content as any).content === "string") chunkText = (content as any).content;
+              else if (typeof (content as any).message?.content === "string") chunkText = (content as any).message.content;
+              else chunkText = JSON.stringify(content);
+            }
+
+            if (chunkText) {
+              onChunk(chunkText);
+            }
+          } catch (e) {
+            console.error('Error parsing stream chunk:', e);
+          }
+        }
+      }
+    }
   }
-
-  if (!rawContent) {
-    console.error(`Response from ${provider} missing content:`, JSON.stringify(data, null, 2));
-    throw new Error(`Response from ${provider} missing content`);
-  }
-
-  return rawContent;
 }
 
-export async function runBrewAssistEngine(
-  opts: BrewAssistEngineOptions & { preferredProvider?: BrewProviderId } // Added preferredProvider to opts
-): Promise<BrewAssistEngineResult> {
-  const { input, mode, cockpitMode, tier, useResearchModel, systemPrompt, preferredProvider, dangerousAction } = opts; // Destructure tier and dangerousAction
-
-  // Compute effective rules based on current mode and tier
-  const effectiveRules = computeToolbeltRules(mode as ToolbeltBrewMode, tier, cockpitMode);
-
-  // S4.9d: Implement Toolbelt Guard for dangerous actions
-  let blockedByToolbelt = false;
-  let toolbeltBlockReason: string | undefined;
-
-  if (dangerousAction) {
-    const permission = getPermissionForRisk(effectiveRules, 'write_single'); // Assuming dangerousAction implies single write for now
-    if (permission === 'blocked') {
-      blockedByToolbelt = true;
-      toolbeltBlockReason = `Action blocked by Toolbelt Tier ${tier} in ${mode} mode.`;
-    } else if (permission === 'admin_only') {
-      blockedByToolbelt = true;
-      toolbeltBlockReason = `Action requires Admin privileges in Toolbelt Tier ${tier} in ${mode} mode.`;
+// A simplified non-streaming callProvider for fallback
+async function callProvider(
+  provider: BrewProviderId,
+  model: string,
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+): Promise<string> {
+    const providers = getModelProviders();
+    const providerConfig = providers[provider];
+    if (!providerConfig || !providerConfig.enabled) {
+        throw new Error(`Provider ${provider} is not enabled or configured.`);
     }
-    // 'needs_confirm' is handled by the UI, so no block here
-  }
 
-  if (blockedByToolbelt) {
-    return {
-      result: {
-        role: "assistant",
-        content: toolbeltBlockReason || "Action blocked by Toolbelt rules.",
-      },
-      provider: 'system', // Indicate system block
-      model: 'toolbelt-guard',
-      routeType: 'system-block',
-      latencyMs: 0,
-      modelRoleUsed: mode,
-      blockedByTruth: true, // Use this flag to indicate a block, even if not by truth
-    };
-  }
+    let url: string;
+    let headers: Record<string, string>;
+    let requestBody: any;
+    let apiKey: string | undefined;
 
-  const messages = [
-    ...(systemPrompt
-      ? [{ role: 'system' as const, content: systemPrompt }]
-      : []),
-    { role: 'user' as const, content: input },
-  ];
+    switch (provider) {
+        case 'openai': {
+            apiKey = providerConfig.apiKey;
+            const base = (providerConfig.baseUrl?.replace(/\/+$/, "") || "https://api.openai.com/v1");
+            url = `${base}/chat/completions`;
+            headers = { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` };
+            requestBody = { model, messages, temperature: 0.7 };
+            break;
+        }
 
-  // Determine the initial route based on preferences
+        case 'mistral': {
+            apiKey = providerConfig.apiKey;
+            const mistralBase = (providerConfig.baseUrl?.replace(/\/+$/, "") || "https://api.mistral.ai/v1");
+            url = `${mistralBase}/chat/completions`;
+            headers = { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` };
+            requestBody = { model, messages, temperature: 0.7 };
+            break;
+        }
+        case 'tinyllm':
+            url = providerConfig.baseUrl || "http://localhost:8000/chat/completions";
+            headers = { "Content-Type": "application/json" };
+            requestBody = { model, messages, temperature: 0.7 };
+            break;
+        default:
+            throw new Error(`Unsupported provider: ${provider}`);
+    }
+
+    if (!apiKey && provider !== 'tinyllm') {
+        throw new Error(`API key not set for provider: ${provider}`);
+    }
+
+    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(requestBody) });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Provider ${provider} returned status ${res.status}: ${text}`);
+    }
+
+    const data: any = await res.json();
+    let rawContent: string | undefined;
+
+    if (provider === 'gemini') {
+        rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    } else {
+        rawContent = data.choices?.[0]?.message?.content ?? data.choices?.[0]?.text;
+    }
+
+    if (!rawContent) {
+        throw new Error(`Response from ${provider} missing content`);
+    }
+
+    return rawContent;
+}
+
+
+export async function runBrewAssistEngineStream(
+  opts: BrewAssistEngineOptions,
+  onChunk: (chunk: string) => void,
+  onEnd: (result: { provider: BrewProviderId, model: string }) => void // Add onEnd callback
+): Promise<void> {
+  const { prompt, mode, cockpitMode, tier, useResearchModel, preferredProvider } = opts;
+
+  const messages = [{ role: 'user' as const, content: prompt }];
   const initialRoute = resolveRoute(mode, { preferredProvider, useResearchModel, cockpitMode, tier });
-
-  // Get all possible routes for the given mode, cockpitMode, and tier
   const allPossibleRoutes = getModelRoutes({ mode, cockpitMode, tier });
 
-  // Build the fallback chain.
-  // Start with the initialRoute, then add other routes from allPossibleRoutes
-  // that are not the initialRoute, prioritizing primary then fallback.
   const routesToTry: BrewRoute[] = [];
   if (initialRoute) {
     routesToTry.push(initialRoute);
   }
-
-  // Add other routes, ensuring no duplicates and respecting primary/fallback order
   for (const route of allPossibleRoutes) {
-    if (route.provider === initialRoute.provider && route.model === initialRoute.model) {
-      continue; // Skip if it's the initial route
+    if (route.provider === initialRoute?.provider && route.model === initialRoute?.model) {
+      continue;
     }
     routesToTry.push(route);
   }
 
-  // S3A: Add "no routes" guard (critical)
-  if (!routesToTry || routesToTry.length === 0) {
-    console.error("[BrewAssistEngine] No routesToTry. This indicates a routing configuration issue where no valid routes could be determined.", {
-      USE_OPENAI: process.env.USE_OPENAI,
-      USE_GEMINI: process.env.USE_GEMINI,
-      USE_MISTRAL: process.env.USE_MISTRAL,
-      OPENAI_KEY: !!process.env.OPENAI_API_KEY,
-      GEMINI_KEY: !!process.env.GEMINI_API_KEY,
-      MISTRAL_KEY: !!process.env.MISTRAL_API_KEY,
-    });
-
-    throw new Error(
-      "BrewAssistEngine has zero routesToTry (router returned empty). This is filtering/branching logic, not provider auth."
-    );
+  if (routesToTry.length === 0) {
+    throw new Error("No valid routes found for the given options.");
   }
 
-  const failureLog: Array<{ provider: string; error: string }> = [];
-  let lastError: unknown = undefined;
+  let lastError: unknown;
 
-  function firstLine(e: unknown) {
-    const msg =
-      e instanceof Error ? e.message :
-      typeof e === "string" ? e :
-      (() => { try { return JSON.stringify(e); } catch { return String(e); } })();
-    return String(msg).split("\n")[0];
-  }
-  
-  let providerUsed: BrewProviderId = 'openai'; // Default to avoid undefined
-  let modelUsed: string = 'unknown';
-  let routeType: BrewRouteType = 'primary';
-  let latencyMs: number = 0;
-  const modelRoleUsed: string = mode; // Assuming mode is the modelRoleUsed
-  
-  for (let i = 0; i < routesToTry.length; i++) {
-    const route = routesToTry[i];
-    const startTime = Date.now(); // Capture start time
-    console.log(`[BrewAssistEngine] Attempting route ${i + 1}/${routesToTry.length}: ${route.provider} -> ${route.model}`);
+  for (const route of routesToTry) {
     try {
-      let content: string | undefined; // Allow undefined for content
-      let rawResult: any; // To capture raw result for ok:false check
-
-      if (route.provider === "nims") { // Check provider directly
-        console.log(`[BrewAssistEngine] Calling NIMs provider with model: ${route.model}`);
-        content = await callNimsProvider(route.model, messages);
-      } else {
-        console.log(`[BrewAssistEngine] Calling provider: ${route.provider} with model: ${route.model}`);
-        rawResult = await callProvider(route.provider, route.model, messages); // Assuming callProvider returns string
-        content = rawResult; // If callProvider returns string
-      }
-
-      // If callProvider returns an object with ok:false, treat as failure
-      if (rawResult && typeof rawResult === 'object' && (rawResult as any).ok === false) {
-        const msg = (rawResult as any).error ?? "ok:false without error";
-        failureLog.push({ provider: route.provider, error: firstLine(msg) });
-        lastError = msg;
-        continue;
-      }
-
-      if (!content) {
-        const msg = `Provider returned empty result`;
-        failureLog.push({ provider: route.provider, error: msg });
-        lastError = msg;
-        continue;
-      }
-
-      latencyMs = Date.now() - startTime; // Calculate latency
-      console.log(`[BrewAssistEngine] Route ${i + 1} succeeded in ${latencyMs}ms.`);
-
-      providerUsed = route.provider;
-      modelUsed = route.model;
-      routeType = i === 0 ? route.routeType : 'fallback'; // Mark as fallback if not the first attempt
-
-      // 🔎 BrewTruth grading hook (works for any provider, including NIMs)
-      let truth: BrewTruthReport | null = null; // Initialize to null, using BrewTruthReport
-      // console.log("BREWTRUTH_ENABLED:", process.env.BREWTRUTH_ENABLED); // Debug log
-      // const BREWTRUTH_ENABLED = process.env.BREWTRUTH_ENABLED === "true";
-
-      // if (BREWTRUTH_ENABLED) { // BrewTruth is ALWAYS ON
-        console.log("BrewTruth grading block entered."); // Debug log
-        try {
-          const providerTrace: BrewTruthModelTrace = {
-            provider: providerUsed,
-            model: modelUsed,
-            routeType: routeType,
-            latencyMs: latencyMs, // Pass latency
-          };
-          const report = await runBrewTruth({
-            prompt: input,
-            response: content,
-            mode: mode,
-            providerTrace: providerTrace,
-          });
-
-          truth = report; // Directly assign the full report
-          // S4.9c Logging: Add a console log on the server when BrewTruth is present
-          console.log("BrewTruth verdict", {
-            overallScore: truth.overallScore, // Changed to overallScore
-            tier: truth.tier, // Changed to tier
-            flags: truth.flags,
-          });
-          // TODO(S4.9c): Log into BrewLast once that engine is online.
-        } catch (err) {
-          console.warn('[BrewTruth] Grading failed in engine:', err);
-          // Truth stays null; BrewAssist still returns normal answer.
-        }
-      // }
-
-      return {
-        result: {
-          role: "assistant",
-          content: content,
-        },
-        provider: providerUsed,
-        model: modelUsed,
-        routeType,
-        latencyMs,
-        modelRoleUsed: mode, // Use mode directly
-        truth,
-        blockedByTruth: false, // Not blocked by truth if we reached here
-      };
+      await callProviderStream(route.provider, route.model, messages, onChunk);
+      onEnd({ provider: route.provider, model: route.model }); // Call onEnd with provider and model
+      return; // Success
     } catch (e) {
       lastError = e;
-      failureLog.push({ provider: route.provider, error: firstLine(e) });
-      console.error(`[BrewAssistEngine] Provider failed: ${route.provider}`, firstLine(e));
-      continue;
+      console.error(`Provider ${route.provider} failed:`, e);
     }
   }
 
-  // If we get here, all providers failed
-  console.error("[BrewAssistEngine] All provider attempts failed.", { failureLog });
-  throw new Error(
-    "All providers failed for BrewAssistEngine. Failures:\n" +
-    failureLog.map(f => `- ${f.provider}: ${f.error}`).join("\n")
-  );
+  throw new Error(`All providers failed. Last error: ${lastError}`);
 }
-
-
