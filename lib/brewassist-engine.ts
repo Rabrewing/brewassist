@@ -1,6 +1,7 @@
 import { getModelProviders, BrewProviderId, BrewRoute, getModelRoutes, resolveRoute, BrewRouteType } from "../lib/model-router";
 import { computeToolbeltRules, ToolbeltBrewMode, ToolbeltTier } from './toolbeltConfig';
 import type { CockpitMode } from "./brewTypes";
+import type { ScopeCategory } from "./intent-gatekeeper"; // Import ScopeCategory
 
 export type EngineBrewAssistMode = "hrm" | "llm" | "agent" | "loop";
 
@@ -51,11 +52,12 @@ async function callProviderStream(
       requestBody = { contents: messages.map(m => ({ role: m.role === 'system' ? 'user' : m.role, parts: [{ text: m.content }] })) };
       break;
     }
-    default:
+    default: { // Added curly braces
       // For non-streaming providers, simulate a single chunk
       const response = await callProvider(provider, model, messages);
       onChunk(response);
       return;
+    } // Added curly braces
   }
 
   if (!apiKey && provider !== 'tinyllm') {

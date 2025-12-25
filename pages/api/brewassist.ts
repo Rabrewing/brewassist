@@ -6,7 +6,7 @@ import { computeToolbeltRules, ToolbeltTier, CockpitMode, getToolRule } from "@/
 import { evaluateHandshake, HandshakeDecision } from "@/lib/toolbelt/handshake";
 import { classifyIntent, ScopeCategory } from "@/lib/intent-gatekeeper";
 import { getPermissionForRisk } from "@/lib/toolbeltGuard";
-
+import { BREWASSIST_CANONICAL_DEFINITION, BREWASSIST_IDENTITY_PROMPTS } from "@/lib/brand/brewassist.definition"; // Import brand definition
 export type BrewAssistApiRequest = {
   input: string;
   mode: "HRM" | "LLM" | "AGENT" | "LOOP" | "TOOL"; // Add "TOOL" mode
@@ -64,6 +64,24 @@ export default async function handler(
   }
 
   const intent = classifyIntent(input);
+
+  // S4.10c.2 Patch: Brand Anchor - Detect identity/definition intents
+  const lowerCaseInput = input.toLowerCase();
+  const isIdentityIntent = BREWASSIST_IDENTITY_PROMPTS.some(p => lowerCaseInput.includes(p));
+
+  if (isIdentityIntent) {
+    res.setHeader("Content-Type", "application/json");
+    res.status(200).json({
+      ok: true,
+      text: BREWASSIST_CANONICAL_DEFINITION,
+      truth: null,
+      blockedByTruth: false,
+      policy: "LOCAL_ANSWER",
+      route: "brewassist",
+      scopeCategory: "PLATFORM_DEVOPS", // Identity is always platform devops
+    });
+    return;
+  }
 
   // Toolbelt enforcement applies if any tool-related field is present
   if (mcpToolId || mcpAction || toolRequest) {
@@ -172,34 +190,32 @@ export default async function handler(
 
     let hasEngineCompleted = false; // Moved inside handler
 
-    const engineRunPromise = new Promise<any>(async (resolve, reject) => {
-      try {
-        await runBrewAssistEngineStream(
-          {
-            prompt: input,
-            mode: mode.toLowerCase() as "hrm" | "llm" | "agent" | "loop",
-            preferredProvider: undefined,
-            tier: normalizedTier,
-            cockpitMode,
-            intent, // Pass intent here
-          },
-          (chunk) => {
-            const text = String(chunk ?? "");
-            if (!text) return;
-            accumulatedText += text;
-            sendEvent({ type: "chunk", text });
-          },
-          (result) => { // onEnd callback
-            providerUsed = result.provider;
-            modelUsed = result.model;
-            hasEngineCompleted = true;
-            debugInfo = result.debugInfo; // Capture debugInfo
-          }
-        );
-        resolve({ status: "completed" });
-      } catch (err) {
-        reject(err);
-      }
+    const engineRunPromise = new Promise<any>((resolve, reject) => {
+      runBrewAssistEngineStream(
+        {
+          prompt: input,
+          mode: mode.toLowerCase() as "hrm" | "llm" | "agent" | "loop",
+          preferredProvider: undefined,
+          tier: normalizedTier,
+          cockpitMode,
+          intent, // Pass intent here
+        },
+        (chunk) => {
+          const text = String(chunk ?? "");
+          if (!text) return;
+          accumulatedText += text;
+          sendEvent({ type: "chunk", text });
+        },
+        (result) => { // onEnd callback
+          providerUsed = result.provider;
+          modelUsed = result.model;
+          hasEngineCompleted = true;
+          debugInfo = result.debugInfo; // Capture debugInfo
+          resolve({ status: "completed" }); // Resolve here on successful completion
+        }
+      ).catch(err => {
+        reject(err); // Reject if runBrewAssistEngineStream throws an error
+      });
     });
 
     const timeoutPromise = new Promise<any>((resolve) => {
@@ -248,22 +264,20 @@ export default async function handler(
   } catch (error) {
     console.error("Error in brewassist-stream:", error);
     sendEvent({ type: "error", payload: { message: (error as Error).message } });
-    // Ensure an end event is sent even on error if not already sent by timeout
-    if (!hasEngineCompleted) { // If engineRunPromise didn't complete successfully
-      sendEvent({
-        type: "end",
-        payload: {
-          provider: "BrewAssist",
-          model: "ErrorFallback",
-          route: "brewassist",
-          scopeCategory: intent,
-          debugInfo: debugInfo, // Include debugInfo here
-        },
-        text: "An error occurred during processing.",
-        truth: brewTruthReport,
-        policy: policyDecisionReport,
-      });
-    }
+    // Always send an end event on error to ensure client stream closes
+    sendEvent({
+      type: "end",
+      payload: {
+        provider: "BrewAssist",
+        model: "ErrorFallback",
+        route: "brewassist",
+        scopeCategory: intent,
+        debugInfo: debugInfo, // Include debugInfo here
+      },
+      text: "An error occurred during processing.",
+      truth: brewTruthReport,
+      policy: policyDecisionReport,
+    });
   } finally {
     res.end();
   }
