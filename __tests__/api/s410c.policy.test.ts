@@ -1,6 +1,12 @@
 import handler from "@/pages/api/brewassist";
 import { createMocks } from "node-mocks-http";
 import { parseSseEvents } from "../helpers/sseTestUtils";
+import { callProviderStream } from "@/lib/brewassist-engine"; // Import callProviderStream
+
+jest.mock("@/lib/brewassist-engine", () => ({
+  ...jest.requireActual("@/lib/brewassist-engine"),
+  callProviderStream: jest.fn(),
+}));
 
 describe("S4.10c API policy contract", () => {
   const originalBrewTruthEnabled = process.env.BREWTRUTH_ENABLED;
@@ -30,6 +36,38 @@ describe("S4.10c API policy contract", () => {
     res.flushHeaders = jest.fn();
     res.write = jest.fn();
     res.end = jest.fn();
+
+    (callProviderStream as jest.Mock).mockImplementation(
+      async (provider: any, model: any, messages: any, onChunk: (chunk: string) => void) => {
+        // Simulate a chunk event
+        onChunk('data: {"type":"chunk","payload":"MOCK_RESPONSE_CHUNK"}\n\n');
+        // Simulate an end event with truth and policy
+        onChunk(`data: ${JSON.stringify({
+          type: "end",
+          payload: {
+            provider: provider,
+            model: model,
+            route: "brewassist",
+            scopeCategory: "PLATFORM_DEVOPS"
+          },
+          text: "MOCK_RESPONSE_END",
+          truth: {
+            tier: "gold",
+            overallScore: 0.9,
+            scores: [],
+            flags: [],
+            summary: "Mock truth summary",
+            modelTrace: { provider: provider, model: model, routeType: "primary" },
+            evaluatedAt: new Date().toISOString(),
+            version: "bt-2.1"
+          },
+          policy: {
+            decision: "ALLOW",
+            reason: "Mock policy reason"
+          }
+        })}\n\n`);
+      }
+    );
 
     await handler(req as any, res as any);
 

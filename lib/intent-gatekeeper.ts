@@ -25,7 +25,27 @@ export type ScopeCategory =
  * @returns A ScopeCategory representing the classified intent.
  */
 export function classifyIntent(prompt: string | undefined | null): ScopeCategory {
-  const lowerPrompt = (prompt || "").toLowerCase();
+  const lowerPrompt = (prompt || "").toLowerCase().trim();
+
+  // DOCS_KB keywords
+  if (
+    lowerPrompt.includes("docs") ||
+    lowerPrompt.includes("documentation") ||
+    lowerPrompt.includes("manual") ||
+    lowerPrompt.includes("guide") ||
+    lowerPrompt.includes("how to") ||
+    lowerPrompt.includes("how do") ||
+    lowerPrompt.includes("explain") ||
+    lowerPrompt.includes("reference")
+  ) {
+    return "DOCS_KB";
+  }
+
+  // Greetings check
+  const greetings = ["hello", "hi", "hey", "yo", "good morning", "good afternoon", "good evening"];
+  if (greetings.includes(lowerPrompt)) {
+    return "PLATFORM_DEVOPS";
+  }
 
   // PLATFORM_DEVOPS keywords
   if (
@@ -62,19 +82,6 @@ export function classifyIntent(prompt: string | undefined | null): ScopeCategory
     lowerPrompt.includes("ticket")
   ) {
     return "SUPPORT";
-  }
-
-  // DOCS_KB keywords
-  if (
-    lowerPrompt.includes("docs") ||
-    lowerPrompt.includes("documentation") ||
-    lowerPrompt.includes("manual") ||
-    lowerPrompt.includes("guide") ||
-    lowerPrompt.includes("how to") ||
-    lowerPrompt.includes("explain") ||
-    lowerPrompt.includes("reference")
-  ) {
-    return "DOCS_KB";
   }
 
   // GENERAL_KNOWLEDGE (catch-all for non-platform specific questions)

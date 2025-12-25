@@ -147,6 +147,32 @@ export function getModelRoutes(opts: { mode: BrewModelRole, cockpitMode?: string
     // TinyLLM is always enabled as a local fallback
     const tinyLlmRoute = safe("tinyllm", providers.tinyllm.primaryModel, "fallback");
     if (tinyLlmRoute) routes.push(tinyLlmRoute);
+  } else if (mode === "agent" || mode === "loop") {
+    // If agent/loop modes are active, and no specific routes have been added yet,
+    // fallback to primary LLM providers.
+    if (providers.openai.enabled) {
+      const route = safe("openai", providers.openai.primaryModel, "fallback");
+      if (route) routes.push(route);
+    } else {
+      reasons.push("openai_disabled_for_agent_loop");
+    }
+
+    if (providers.gemini.enabled) {
+      const route = safe("gemini", providers.gemini.primaryModel, "fallback");
+      if (route) routes.push(route);
+    } else {
+      reasons.push("gemini_disabled_for_agent_loop");
+    }
+
+    if (providers.mistral.enabled) {
+      const route = safe("mistral", providers.mistral.primaryModel, "fallback");
+      if (route) routes.push(route);
+    } else {
+      reasons.push("mistral_disabled_for_agent_loop");
+    }
+
+    const tinyLlmRoute = safe("tinyllm", providers.tinyllm.primaryModel, "fallback");
+    if (tinyLlmRoute) routes.push(tinyLlmRoute);
   }
 
   if (isToolLane) {

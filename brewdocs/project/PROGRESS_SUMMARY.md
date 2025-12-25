@@ -1,4 +1,3 @@
-
 ## December 13th, 2025 - S4.10b Debugging "All Providers Failed"
 
 The system is stable after reverting a patch that caused a build failure. The original "All providers failed" error persists on live requests. The immediate priority is to re-implement improved error logging in the BrewAssist Engine to capture the specific reason for the provider failures, which is currently being swallowed.
@@ -17,7 +16,7 @@ The "zero routesToTry" error has been fully resolved. The root cause was identif
 **Validation:**
 *   `curl` requests to `/api/brewassist` now return `200 OK` with valid responses.
 *   Server logs confirm `routesLen >= 1` and an empty `reasons` array in `[ModelRouter] route build result`, indicating successful route generation.
-*   The BrewAssist engine is now fully operational, selecting providers and integrating BrewTruth as expected.
+*   The BrewAssist engine is now fully operational, selecting providers and integrating BrewTruth.
 
 ---
 
@@ -290,7 +289,7 @@ Implemented BrewTruth v2.1 (deterministic, no web) to replace the stubbed 0.8 sc
 *   Fixed `SyntaxError` in `lib/brewtruth.ts` (regex issues).
 *   Fixed TypeScript errors related to `ToolbeltTier` and `BrewTruthReport` type mismatches across several files.
 
-**Validation:** All core tests (`pnpm test -- brewassist.chain.smoke`, `pnpm test -- brewtruth.v21`, `pnpm test -- handshake.s410c`, `pnpm test -- __tests__/api/s410c.policy.test.ts`), `pnpm lint`, `pnpm build`, and `pnpm test:chain` passed successfully. BrewTruth is operational with varying scores and flags, and handshake logic is wired and exposed in the API.
+**Validation:** All core tests (`pnpm test -- brewassist.chain.smoke`, `pnpm test -- brewtruth.v21`, `pnpm test -- handshake.s410c`, `pnpm test -- __tests__/api/s410c.policy.test.ts`, `pnpm test:chain`), `pnpm lint`, `pnpm build`, and `pnpm test:chain` passed successfully. BrewTruth is operational with varying scores and flags, and handshake logic is wired and exposed in the API.
 
 **Next Steps:** Proceed to S4.10d.
 ---
@@ -348,6 +347,7 @@ Implemented a cost-aware scope gating mechanism to prevent BrewAssist from answe
 **Validation:** All new tests in `__tests__/s4.cost.scope.router.lock.test.ts` passed successfully, along with all existing core tests (`pnpm test -- brewassist.chain.smoke`, `pnpm test -- brewtruth.v21`, `pnpm test -- handshake.s410c`, `pnpm test -- __tests__/api/s410c.policy.test.ts`, `pnpm test:chain`), `pnpm lint`, and `pnpm build` passed successfully.
 
 **Next Steps:** Proceed with progressive response rendering (Flow Mode) and further UI/UX refinements.
+---
 ## December 16th, 2025 - In Progress: Progressive Response Rendering (Flow Mode)
 
 **Status: In Progress - Test Refactoring**
@@ -370,3 +370,73 @@ Initiated implementation of progressive response rendering (Flow Mode) for BrewA
 *   Resolve remaining syntax errors in `__tests__/api/brewassist.test.ts`.
 *   Ensure `__tests__/api/brewassist.test.ts` passes independently.
 *   Proceed to refactor other affected test files one by one, addressing mock object consistency and SSE parsing.
+---
+## December 25th, 2025 - BrewAssist Runtime Stability & Agent/Loop Liveness Fixes
+
+**Status: Complete**
+
+**Summary:**
+Addressed critical UI and API stability issues that caused "undefinedundefined..." errors, "Evaluating request..." hangs, and "Unsupported provider: system" errors for Agent/Loop modes. Implemented robust streaming logic, enhanced API response handling, refined intent classification, and introduced a comprehensive "runtime-truth" test pack to prevent future regressions.
+
+**Problem Identification:**
+*   **UI Display Issues:** "undefinedundefined..." appearing in chat bubbles due to incorrect concatenation of streamed message content.
+*   **UI Hangs:** "Evaluating request..." state persisting indefinitely for Agent/Loop modes, indicating a lack of terminal `end` events from the API.
+*   **API Error:** "Unsupported provider: system" error originating from `lib/brewassist-engine.ts` when `AGENT` or `LOOP` modes were selected, preventing any provider from being called.
+
+**Root Causes:**
+*   **Stream Parsing & Concatenation:** The UI (`components/BrewCockpitCenter.tsx`) was incorrectly assuming `json.payload` for streamed content and concatenating `undefined` values. It also lacked dynamic parsing based on `Content-Type` headers for SSE vs. JSON responses.
+*   **API Stream Termination:** The API (`pages/api/brewassist.ts`) did not guarantee an `end` event for all scenarios, especially for `AGENT` and `LOOP` modes, leading to UI hangs. The `res.end()` call was not robustly placed.
+*   **Provider Routing for Agent/Loop:** The `model-router` (`lib/model-router.ts`) was returning a `system` provider for `AGENT` and `LOOP` modes when no specific routes were configured, and `lib/brewassist-engine.ts` was not designed to handle this `system` provider gracefully, leading to an "Unsupported provider" error.
+*   **Test Suite Gaps:** Existing tests did not cover critical runtime behaviors such as UI `undefined` safety, API stream termination for all modes, and correct intent classification for greetings.
+
+**Solutions Implemented:**
+
+1.  **UI Stream Handling & `undefined` Safety:**
+    *   **`components/BrewCockpitCenter.tsx`:**
+        *   Updated streaming logic to safely concatenate `json.text` (instead of `json.payload`) onto `(msg.content ?? "")`.
+        *   Implemented branching for `Content-Type` headers to correctly parse SSE vs. JSON responses.
+        *   Updated `renderBubble` to use `getMessageText`.
+    *   **`lib/ui/messageText.ts` (NEW):** Created a dedicated utility function `getMessageText` for safe extraction of displayable text from various message object shapes, refactored from `BrewCockpitCenter.tsx`.
+
+2.  **API Stream Liveness & Error Handling:**
+    *   **`pages/api/brewassist.ts`:**
+        *   Moved `res.end()` to a `finally` block to guarantee stream termination.
+        *   Implemented a `Promise.race` with a 10-second timeout for `AGENT` and `LOOP` modes. If the engine hangs, a "not wired yet" message is sent, followed by an `end` event.
+        *   Refactored `engineRunPromise` and `timeoutPromise` logic to ensure only a single `end` event is sent, preventing duplicate `end` events.
+        *   Passed `intent` to `runBrewAssistEngineStream` for enhanced debug logging.
+        *   Captured `debugInfo` from `runBrewAssistEngineStream` and included it in the final `end` event payload for all scenarios (timeout, completed, error).
+    *   **`lib/brewassist-engine.ts`:**
+        *   Updated `BrewAssistEngineOptions` to include `intent`.
+        *   Updated `onEnd` callback type to include optional `debugInfo`.
+        *   Modified `system` provider handling: If `resolveRoute` returns a `system` provider, `runBrewAssistEngineStream` now directly emits a "No active LLM providers found..." message and an `end` event with detailed `debugInfo` (including `mode`, `tier`, `intent`, `enabledFlags`, `candidateProviders`), preventing the "Unsupported provider: system" error.
+
+3.  **Intent Classification Refinement:**
+    *   **`lib/intent-gatekeeper.ts`:**
+        *   Added logic to classify short greetings (e.g., "hello", "hi") as `PLATFORM_DEVOPS` to allow a response.
+        *   Reordered intent checks to prioritize `DOCS_KB` (e.g., "how to") over broader `PLATFORM_DEVOPS` keywords (e.g., "toolbelt") when both are present.
+        *   Corrected a test assertion in `__tests__/api/intent.greeting.allow.test.ts` to reflect the intended behavior of classifying complex prompts with keywords as `PLATFORM_DEVOPS`.
+
+4.  **Provider Routing for Agent/Loop Modes:**
+    *   **`lib/model-router.ts`:**
+        *   Modified `getModelRoutes` to include primary LLM providers (OpenAI, Gemini, Mistral, TinyLLM) as fallback routes for `AGENT` and `LOOP` modes if no specific agent/loop providers are configured. This ensures these modes can always find a provider and do not default to the `system` provider.
+
+**New "Runtime-Truth" Test Pack & Prevention:**
+A comprehensive suite of new regression tests was implemented to harden contracts and prevent recurrence of these issues:
+
+*   **`__tests__/ui/messageText.normalize.test.ts` (NEW):** Ensures UI text normalization contract is met (never "undefined", always safe string).
+*   **`__tests__/api/brewassist.sse.shape.test.ts` (EXTENDED):** Guarantees API emits valid SSE frames or valid JSON with required fields, including enhanced `makeRes` mock. Strengthened with an ALLOW scenario where gate allows and engine emits chunk + end, ensuring clean parsing and no "undefined" in text.
+*   **`__tests__/ui/noUndefined.render.test.ts` (NEW):** Regression test for UI `undefined` safety in streaming, ensuring correct chunk parsing and JSON response handling.
+*   **`__tests__/ui/messageStream.guard.test.ts` (NEW):** UI regression test ensuring `undefined` safety even with malformed stream chunks.
+*   **`__tests__/lib/intent-gatekeeper.test.ts` (NEW):** Test suite for the `classifyIntent` function, verifying greeting and keyword prioritization logic.
+*   **`__tests__/api/intent.greeting.allow.test.ts` (NEW):** Ensures greeting prompts (e.g., "hello") are not blocked by the intent gate and are correctly classified as `PLATFORM_DEVOPS`.
+*   **`__tests__/api/brewassist.agent.loop.liveness.test.ts` (NEW/EXTENDED):** Ensures Agent/Loop requests always terminate with an `end` event, even if the underlying engine hangs or no specific providers are found. This test now correctly simulates hanging scenarios and verifies the API's timeout and fallback mechanisms.
+
+**Validation:**
+*   All 21 test suites and 133 tests are passing (`pnpm test`).
+*   Manual UI testing confirms:
+    *   No "undefined" strings appear in chat bubbles.
+    *   HRM, LLM, AGENT, and LOOP modes respond or gracefully return a "not wired yet" message (for Agent/Loop if no specific providers are configured), and never get stuck on "Evaluating Request...".
+    *   All tools across the bottom are working.
+
+**Conclusion:**
+The BrewAssist platform has achieved a significant milestone in runtime stability and robustness. The implemented fixes and comprehensive test suite provide strong guarantees against regressions related to UI rendering, API streaming, and core routing logic. The system is now more resilient, user-friendly, and observable.

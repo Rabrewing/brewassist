@@ -143,6 +143,7 @@ export default async function handler(
   let modelUsed: string | undefined;
   let brewTruthReport: BrewTruthReport | null = null;
   let policyDecisionReport: HandshakeDecision | null = null;
+  let debugInfo: any | undefined; // Declare debugInfo here
 
   const sendEvent = (data: object) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
@@ -169,41 +170,101 @@ export default async function handler(
       truthFlags: brewTruthReport?.flags,
     });
 
-    await runBrewAssistEngineStream(
-      {
-        prompt: input,
-        mode: mode.toLowerCase() as "hrm" | "llm" | "agent" | "loop",
-        preferredProvider: undefined,
-        tier: normalizedTier,
-        cockpitMode,
-      },
-      (chunk) => {
-        const text = String(chunk ?? "");
-        if (!text) return;
-        accumulatedText += text;
-        sendEvent({ type: "chunk", text });
-      },
-      (result) => { // onEnd callback
-        providerUsed = result.provider;
-        modelUsed = result.model;
-      }
-    );
+    let hasEngineCompleted = false; // Moved inside handler
 
-    sendEvent({
-      type: "end",
-      payload: {
-        provider: providerUsed,
-        model: modelUsed,
-        route: "brewassist", // Add the route property inside payload
-        scopeCategory: intent, // Add the scopeCategory property inside payload
-      },
-      text: accumulatedText,
-      truth: brewTruthReport,
-      policy: policyDecisionReport,
+    const engineRunPromise = new Promise<any>(async (resolve, reject) => {
+      try {
+        await runBrewAssistEngineStream(
+          {
+            prompt: input,
+            mode: mode.toLowerCase() as "hrm" | "llm" | "agent" | "loop",
+            preferredProvider: undefined,
+            tier: normalizedTier,
+            cockpitMode,
+            intent, // Pass intent here
+          },
+          (chunk) => {
+            const text = String(chunk ?? "");
+            if (!text) return;
+            accumulatedText += text;
+            sendEvent({ type: "chunk", text });
+          },
+          (result) => { // onEnd callback
+            providerUsed = result.provider;
+            modelUsed = result.model;
+            hasEngineCompleted = true;
+            debugInfo = result.debugInfo; // Capture debugInfo
+          }
+        );
+        resolve({ status: "completed" });
+      } catch (err) {
+        reject(err);
+      }
     });
-    res.end();
+
+    const timeoutPromise = new Promise<any>((resolve) => {
+      setTimeout(() => {
+        if (!hasEngineCompleted && (mode === "AGENT" || mode === "LOOP")) {
+          resolve({ status: "timeout" });
+        } else {
+          resolve({ status: "no_timeout" }); // Resolve without timeout action if engine already completed or not agent/loop
+        }
+      }, 10000); // 10 seconds timeout
+    });
+
+    const raceResult = await Promise.race([engineRunPromise, timeoutPromise]);
+
+    if (raceResult.status === "timeout") {
+      const message = `Agent/Loop mode is not fully wired yet. Please use HRM or LLM mode.`;
+      sendEvent({ type: "chunk", text: message });
+      sendEvent({
+        type: "end",
+        payload: {
+          provider: "BrewAssist",
+          model: "Fallback",
+          route: "brewassist",
+          scopeCategory: intent,
+          debugInfo: debugInfo, // Include debugInfo here
+        },
+        text: message,
+        truth: brewTruthReport,
+        policy: policyDecisionReport,
+      });
+    } else if (raceResult.status === "completed") {
+      sendEvent({
+        type: "end",
+        payload: {
+          provider: providerUsed,
+          model: modelUsed,
+          route: "brewassist",
+          scopeCategory: intent,
+          debugInfo: debugInfo, // Include debugInfo here
+        },
+        text: accumulatedText,
+        truth: brewTruthReport,
+        policy: policyDecisionReport,
+      });
+    }
   } catch (error) {
     console.error("Error in brewassist-stream:", error);
     sendEvent({ type: "error", payload: { message: (error as Error).message } });
+    // Ensure an end event is sent even on error if not already sent by timeout
+    if (!hasEngineCompleted) { // If engineRunPromise didn't complete successfully
+      sendEvent({
+        type: "end",
+        payload: {
+          provider: "BrewAssist",
+          model: "ErrorFallback",
+          route: "brewassist",
+          scopeCategory: intent,
+          debugInfo: debugInfo, // Include debugInfo here
+        },
+        text: "An error occurred during processing.",
+        truth: brewTruthReport,
+        policy: policyDecisionReport,
+      });
+    }
+  } finally {
+    res.end();
   }
 }

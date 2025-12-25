@@ -9,6 +9,7 @@ export interface BrewAssistEngineOptions {
   mode: EngineBrewAssistMode;
   cockpitMode: CockpitMode;
   tier: ToolbeltTier;
+  intent: ScopeCategory; // Add intent here
   preferredProvider?: BrewProviderId;
   useResearchModel?: boolean;
 }
@@ -200,7 +201,7 @@ export async function runBrewAssistEngineStream(
   onChunk: (chunk: string) => void,
   onEnd: (result: { provider: BrewProviderId, model: string }) => void // Add onEnd callback
 ): Promise<void> {
-  const { prompt, mode, cockpitMode, tier, useResearchModel, preferredProvider } = opts;
+  const { prompt, mode, cockpitMode, tier, useResearchModel, preferredProvider, intent } = opts; // Destructure intent
 
   const messages = [{ role: 'user' as const, content: prompt }];
   const initialRoute = resolveRoute(mode, { preferredProvider, useResearchModel, cockpitMode, tier });
@@ -218,15 +219,38 @@ export async function runBrewAssistEngineStream(
   }
 
   if (routesToTry.length === 0) {
+    // This case should ideally be caught by resolveRoute returning "system"
     throw new Error("No valid routes found for the given options.");
   }
 
   let lastError: unknown;
 
   for (const route of routesToTry) {
+    if (route.provider === "system") {
+      const providersConfig = getModelProviders();
+      const enabledFlags = Object.entries(providersConfig).reduce((acc, [key, value]) => {
+        acc[key] = value.enabled;
+        return acc;
+      }, {} as Record<BrewProviderId, boolean>);
+      const candidateProviders = getModelRoutes({ mode, cockpitMode, tier }).map(r => ({ provider: r.provider, model: r.model }));
+
+      onChunk("No active LLM providers found for this request, or the request was blocked by system policy.");
+      onEnd({
+        provider: "system",
+        model: route.model,
+        debugInfo: {
+          mode,
+          tier,
+          intent,
+          enabledFlags,
+          candidateProviders,
+        },
+      });
+      return;
+    }
     try {
       await callProviderStream(route.provider, route.model, messages, onChunk);
-      onEnd({ provider: route.provider, model: route.model }); // Call onEnd with provider and model
+      onEnd({ provider: route.provider, model: route.model, debugInfo: {} }); // Call onEnd with provider and model
       return; // Success
     } catch (e) {
       lastError = e;

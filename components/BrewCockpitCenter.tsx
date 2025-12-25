@@ -10,6 +10,7 @@ import { CockpitModeToggle } from "./CockpitModeToggle";
 import { CognitionState, assembleCognitionState, ReasoningMode, Intent, EmotionalState, RiskLevel } from "@/lib/brewCognition"; // Import CognitionState and assembleCognitionState
 import { ScopeCategory } from "@/lib/intent-gatekeeper"; // Import ScopeCategory
 import { getActivePersona, Persona } from "@/lib/brewIdentityEngine"; // Import getActivePersona and Persona
+import { getMessageText } from "@/lib/ui/messageText";
 import { HandshakeDecision } from "@/lib/toolbelt/handshake";
 
 type UiMessageRole = "user" | "assistant" | "system";
@@ -135,41 +136,59 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
       });
 
       if (!res.ok) {
-        throw new Error("Failed to connect to the streaming endpoint.");
+        const errorBody = await res.json().catch(() => ({ message: "Failed to connect to the API." }));
+        throw new Error(errorBody.message || "Failed to connect to the streaming endpoint.");
       }
 
-      if (res.body) {
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n').filter(line => line.trim() !== '');
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.substring(6);
-              try {
-                const json = JSON.parse(data);
-                if (json.type === 'chunk') {
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === assistantMsgId
-                        ? { ...msg, content: msg.content + json.payload }
-                        : msg
-                    )
-                  );
-                } else if (json.type === 'end') {
-                  // Handle end of stream if needed
-                } else if (json.type === 'error') {
-                  throw new Error(json.payload.message);
+      const ct = res.headers.get("content-type") || "";
+
+      if (ct.includes("text/event-stream")) {
+        if (res.body) {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n').filter(line => line.trim() !== '');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.substring(6);
+                try {
+                  const json = JSON.parse(data);
+                  if (json?.type === "chunk") {
+                    const t = typeof json.text === "string" ? json.text : "";
+                    if (t) {
+                      setMessages((prev) =>
+                        prev.map((msg) =>
+                          msg.id === assistantMsgId
+                            ? { ...msg, content: (msg.content ?? "") + t }
+                            : msg
+                        )
+                      );
+                    }
+                  } else if (json.type === 'end') {
+                    // Handle end of stream if needed
+                  } else if (json.type === 'error') {
+                    throw new Error(json.payload.message);
+                  }
+                } catch (e) {
+                  console.error('Error parsing stream chunk:', e);
                 }
-              } catch (e) {
-                console.error('Error parsing stream chunk:', e);
               }
             }
           }
         }
+      } else {
+        const body = await res.json();
+        const newText = typeof body?.text === 'string' ? body.text : "";
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? { ...msg, content: newText }
+              : msg
+          )
+        );
       }
 
     } catch (err) {
@@ -334,7 +353,7 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
       <div key={msg.id} className={`log-line ${lineClass}`}>
         <div className="cosmic-bubble">
           <div className="bubble-content">
-            <ReactMarkdown>{msg.content || ""}</ReactMarkdown>
+            <ReactMarkdown>{getMessageText(msg)}</ReactMarkdown>
           </div>
           {truthBadge}
           {cockpitMode === 'admin' && msg.cognition && (
