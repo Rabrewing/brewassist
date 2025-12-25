@@ -40,3 +40,29 @@ body {
   background: #02040a;
   color: #f5f5f5;
 }
+
+/* S4.10c.2 Spacing Fix: Tighten markdown output for enterprise look */
+.cosmic-bubble .bubble-content p {
+  margin-bottom: 0.5em; /* Reduce space after paragraphs */
+}
+
+.cosmic-bubble .bubble-content ul,
+.cosmic-bubble .bubble-content ol {
+  margin-top: 0.5em;    /* Reduce space before lists */
+  margin-bottom: 0.5em; /* Reduce space after lists */
+  padding-left: 1.5em;  /* Adjust indentation */
+}
+
+.cosmic-bubble .bubble-content li {
+  margin-bottom: 0.25em; /* Reduce space between list items */
+}
+
+.cosmic-bubble .bubble-content h1,
+.cosmic-bubble .bubble-content h2,
+.cosmic-bubble .bubble-content h3,
+.cosmic-bubble .bubble-content h4,
+.cosmic-bubble .bubble-content h5,
+.cosmic-bubble .bubble-content h6 {
+  margin-top: 1em;      /* Keep some space above headings */
+  margin-bottom: 0.5em; /* Reduce space below headings */
+}

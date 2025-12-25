@@ -18,7 +18,9 @@ type UiMessageRole = "user" | "assistant" | "system";
 interface UiMessage {
   id: string;
   role: UiMessageRole;
-  content: string;
+  content: string; // This will be the visible content
+  fullContent?: string; // The full, un-streamed content
+  isTyping?: boolean; // Flag for flow mode
   truth?: BrewTruthReport | null; // Changed to BrewTruthReport
   blockedByTruth?: boolean;
   cognition?: CognitionState; // Add cognition state to message
@@ -61,9 +63,26 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [isClient, setIsClient] = useState(false);
 
+  // S4.10c.2 Flow Mode State
+  const [flowModeEnabled, setFlowModeEnabled] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true; // Default to true on server
+    const stored = localStorage.getItem("brewassist.flowMode");
+    if (stored !== null) {
+      return JSON.parse(stored);
+    }
+    return cockpitMode === 'customer'; // Default ON for customer, OFF for admin if not stored
+  });
+
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // S4.10c.2: Persist flowModeEnabled to localStorage
+  useEffect(() => {
+    if (isClient) {
+      localStorage.setItem("brewassist.flowMode", JSON.stringify(flowModeEnabled));
+    }
+  }, [flowModeEnabled, isClient]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -84,6 +103,59 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
       setAutoScrollEnabled(true);
     }
   }, []);
+
+  // S4.10c.2: Progressive Renderer (word-based)
+  useEffect(() => {
+    if (!flowModeEnabled) return;
+
+    const lastAssistantMsg = messages[messages.length - 1];
+    if (!lastAssistantMsg || lastAssistantMsg.role !== "assistant" || !lastAssistantMsg.isTyping) {
+      return;
+    }
+
+    const { id, content, fullContent } = lastAssistantMsg;
+    if (!fullContent || content.length >= fullContent.length) {
+      // Message is already fully displayed or has no full content
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === id ? { ...msg, isTyping: false } : msg))
+      );
+      return;
+    }
+
+    const words = fullContent.substring(content.length).split(/\s+/).filter(Boolean);
+    let wordsToAppend = Math.floor(Math.random() * 5) + 2; // 2-6 words
+    let nextContent = content;
+    let appendedCount = 0;
+
+    for (let i = 0; i < words.length && appendedCount < wordsToAppend; i++) {
+      nextContent += (nextContent.length > 0 && !nextContent.endsWith(' ') ? ' ' : '') + words[i];
+      appendedCount++;
+    }
+
+    let pauseMs = Math.floor(Math.random() * 40) + 80; // 80-120ms normal
+    const lastChar = nextContent[nextContent.length - 1];
+    if (lastChar && (lastChar === '.' || lastChar === '!' || lastChar === '?' || lastChar === ':' || lastChar === ';')) {
+      pauseMs += Math.floor(Math.random() * 100) + 150; // +150-250ms for punctuation
+    } else if (nextContent.endsWith('\n')) {
+      pauseMs += Math.floor(Math.random() * 80) + 120; // +120-200ms for newline
+    }
+
+    const timer = setTimeout(() => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === id
+            ? {
+                ...msg,
+                content: nextContent,
+                isTyping: nextContent.length < (fullContent?.length || 0),
+              }
+            : msg
+        )
+      );
+    }, pauseMs);
+
+    return () => clearTimeout(timer);
+  }, [messages, flowModeEnabled]);
 
   const handleSend = useCallback(async (overridePayload?: any) => {
     const currentInput = overridePayload?.input || input;
@@ -109,7 +181,9 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
     const assistantMsg: UiMessage = {
       id: assistantMsgId,
       role: "assistant",
-      content: "",
+      content: "", // visible content
+      fullContent: "", // full content will be built up
+      isTyping: flowModeEnabled, // Only true if flow mode is enabled
       truth: null,
       blockedByTruth: false,
       cognition: null,
@@ -162,7 +236,7 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
                       setMessages((prev) =>
                         prev.map((msg) =>
                           msg.id === assistantMsgId
-                            ? { ...msg, content: (msg.content ?? "") + t }
+                            ? { ...msg, fullContent: (msg.fullContent ?? "") + t }
                             : msg
                         )
                       );
@@ -177,15 +251,25 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
                 }
               }
             }
+            }
           }
+          // After stream ends, ensure full content is set and isTyping is false
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMsgId
+                ? { ...msg, content: msg.fullContent ?? "", isTyping: false }
+                : msg
+            )
+          );
         }
       } else {
+        // Handle non-streaming JSON response
         const body = await res.json();
         const newText = typeof body?.text === 'string' ? body.text : "";
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMsgId
-              ? { ...msg, content: newText }
+              ? { ...msg, content: newText, fullContent: newText, isTyping: false }
               : msg
           )
         );
@@ -349,6 +433,16 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
       );
     }
 
+    const handleSkipShowFull = useCallback(() => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msg.id
+            ? { ...m, content: m.fullContent ?? m.content, isTyping: false }
+            : m
+        )
+      );
+    }, [msg.id]);
+
     return (
       <div key={msg.id} className={`log-line ${lineClass}`}>
         <div className="cosmic-bubble">
@@ -356,6 +450,11 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
             <ReactMarkdown>{getMessageText(msg)}</ReactMarkdown>
           </div>
           {truthBadge}
+          {isAssistant && msg.isTyping && flowModeEnabled && (
+            <button className="flow-mode-control" onClick={handleSkipShowFull}>
+              Skip
+            </button>
+          )}
           {cockpitMode === 'admin' && msg.cognition && (
             <div className="cognition-summary">
               <p><strong>Cognition Summary:</strong></p>
@@ -548,6 +647,14 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
             <option value="T3_POWER">Tier 3 — Power</option>
           </select>
         </div>
+        {cockpitMode === 'admin' && (
+          <button
+            className={`mode-tab ${flowModeEnabled ? 'mode-tab--active' : ''}`}
+            onClick={() => setFlowModeEnabled(!flowModeEnabled)}
+          >
+            Flow Mode {flowModeEnabled ? 'ON' : 'OFF'}
+          </button>
+        )}
         <CockpitModeToggle />
       </div>
 
