@@ -1,5 +1,5 @@
 import { getModelProviders, BrewProviderId, BrewRoute, getModelRoutes, resolveRoute, BrewRouteType } from "../lib/model-router";
-import { computeToolbeltRules, ToolbeltBrewMode, ToolbeltTier } from './toolbeltConfig';
+import { BrewTier } from './commands/types'; // Import BrewTier from commands/types
 import type { CockpitMode } from "./brewTypes";
 import type { ScopeCategory } from "./intent-gatekeeper"; // Import ScopeCategory
 
@@ -78,48 +78,66 @@ async function callProviderStream(
   if (res.body) {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
+    let buffer = ""; // Buffer to accumulate partial JSON data
+    let jsonBuffer = ""; // Buffer for partial JSON objects
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       const chunk = decoder.decode(value);
-      const lines = chunk.split('\n').filter(line => line.trim() !== '');
-      for (const line of lines) {
+      buffer += chunk;
+
+      let newlineIndex;
+      while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.substring(0, newlineIndex).trim();
+        buffer = buffer.substring(newlineIndex + 1);
+
         if (line.startsWith('data: ')) {
           const data = line.substring(6);
           if (data.trim() === '[DONE]') {
             return;
           }
-          try {
-            const json = JSON.parse(data);
-            let content;
+          jsonBuffer += data; // Accumulate data
 
-            if (provider === 'openai') {
-              content = json.choices?.[0]?.delta?.content;
-            } else if (provider === 'gemini') {
-              content = json.candidates?.[0]?.content?.parts?.[0]?.text;
-            }
-            // Fallback for generic SSE chunk events (like those from mocks)
-            if (!content && typeof json.text === 'string') {
-              content = json.text;
-            }
-            // Add other providers here if they have different streaming formats
+          // Attempt to parse only if it looks like a complete JSON object
+          if (jsonBuffer.startsWith('{') && jsonBuffer.endsWith('}')) {
+            try {
+              const json = JSON.parse(jsonBuffer); // Try parsing the accumulated data
+              jsonBuffer = ""; // Clear buffer on successful parse
+              let content;
 
-            let chunkText = "";
-            if (typeof content === "string") {
-              chunkText = content;
-            } else if (content && typeof content === "object") {
-              if (typeof (content as any).text === "string") chunkText = (content as any).text;
-              else if (typeof (content as any).content === "string") chunkText = (content as any).content;
-              else if (typeof (content as any).message?.content === "string") chunkText = (content as any).message.content;
-              else chunkText = JSON.stringify(content);
-            }
+              if (provider === 'openai') {
+                content = json.choices?.[0]?.delta?.content;
+              } else if (provider === 'gemini') {
+                content = json.candidates?.[0]?.content?.parts?.[0]?.text;
+              }
+              // Fallback for generic SSE chunk events (like those from mocks)
+              if (!content && typeof json.text === 'string') {
+                content = json.text;
+              }
+              // Add other providers here if they have different streaming formats
 
-            if (chunkText) {
-              onChunk(chunkText);
+              let chunkText = "";
+              if (typeof content === "string") {
+                chunkText = content;
+              } else if (content && typeof content === "object") {
+                if (typeof (content as any).text === "string") chunkText = (content as any).text;
+                else if (typeof (content as any).content === "string") chunkText = (content as any).content;
+                else if (typeof (content as any).message?.content === "string") chunkText = (content as any).message.content;
+                else chunkText = JSON.stringify(content);
+              }
+
+              if (chunkText) {
+                onChunk(chunkText);
+              }
+            } catch (e) {
+              // If parsing fails, it means we have a partial JSON object, continue accumulating
+              // console.error('Partial JSON, accumulating:', e); // For debugging
             }
-          } catch (e) {
-            console.error('Error parsing stream chunk:', e);
           }
+        } else if (line.length > 0) {
+          // If it's not a data: line, but it's not empty, treat it as a raw chunk
+          onChunk(line);
         }
       }
     }

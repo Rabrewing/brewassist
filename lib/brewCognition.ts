@@ -1,8 +1,7 @@
 import { Persona } from "./brewIdentityEngine"; // Import Persona from brewIdentityEngine
 import { CockpitMode } from "@/lib/brewTypes";
-import { ToolbeltTier } from "./toolbeltConfig";
-import { BrewTruthReport } from "./brewtruth";
-import { HandshakeDecision } from "./toolbelt/handshake";
+import { BrewTier } from "./commands/types"; // Use BrewTier from commands/types
+import { UnifiedPolicyEnvelope } from "./toolbelt/handshake"; // Use UnifiedPolicyEnvelope
 
 export type ReasoningMode = "LLM" | "HRM" | "Agent" | "Loop";
 export type RiskLevel = "Low" | "Moderate" | "High" | "Critical";
@@ -10,15 +9,15 @@ export type EmotionalState = "Neutral" | "Cautious" | "Uncertain" | "Confident";
 export type Intent = string; // This could be more structured later
 
 export interface CognitionState {
-  persona: Persona['id']; // Use Persona['id'] for persona
+  persona: Persona;
   emotionalState: EmotionalState;
-  userRole: CockpitMode; // Assuming CockpitMode maps to user role for now
-  toolbeltTier: ToolbeltTier;
+  userRole: UserRole;
+  toolbeltTier: BrewTier; // Use BrewTier
   intent: Intent;
   reasoningMode: ReasoningMode;
   riskLevel: RiskLevel;
-  executionPermission: HandshakeDecision;
-  truthValidationStatus: "Validated" | "Uncertain" | "Failed";
+  executionPermission: UnifiedPolicyEnvelope; // Use UnifiedPolicyEnvelope
+  truthValidationStatus: TruthValidationStatus;
 }
 
 /**

@@ -8,54 +8,58 @@ import DatabaseWizard from "./mcp/DatabaseWizard";
 import ResearchWizard from "./mcp/ResearchWizard";
 import McpWizardModal from "./mcp/McpWizardModal";
 import { useToolbelt } from '@/contexts/ToolbeltContext'; // Import useToolbelt
-import type { ToolPermission } from '@/lib/toolbeltConfig'; // Import ToolbeltPermission
+import { CAPABILITY_REGISTRY, CapabilityId, RWX } from '@/lib/capabilities/registry'; // Import CAPABILITY_REGISTRY and CapabilityId
+import { evaluateHandshake, UnifiedPolicyEnvelope } from '@/lib/toolbelt/handshake'; // Import evaluateHandshake and UnifiedPolicyEnvelope
 import { useCockpitMode } from "@/contexts/CockpitModeContext";
+import { Persona } from "@/lib/brewIdentityEngine"; // Import Persona
 
 interface McpButtonProps {
-  id: string;
+  capabilityId: CapabilityId;
   label: string;
   smallText: string;
   onClick: () => void;
-  permission: ToolPermission;
 }
 
-const McpButton: React.FC<McpButtonProps> = ({ id, label, smallText, onClick, permission }) => {
-  const disabled = permission === 'blocked' || permission === 'admin_only';
+const McpButton: React.FC<McpButtonProps> = ({ capabilityId, label, smallText, onClick }) => {
+  const { tier, persona } = useToolbelt(); // Get tier and persona from ToolbeltContext
+  const { mode: cockpitMode } = useCockpitMode(); // Get cockpitMode from CockpitModeContext
 
-  const tooltip =
-    permission === 'blocked'
-      ? 'Disabled in current Mode/Tier'
-      : permission === 'admin_only'
-      ? 'Admin-only in this configuration'
-      : undefined;
+  const policyEnvelope = evaluateHandshake({
+    intent: CAPABILITY_REGISTRY[capabilityId].intentCategory, // Use intentCategory from registry
+    tier,
+    persona,
+    cockpitMode,
+    capabilityId,
+    action: CAPABILITY_REGISTRY[capabilityId].rwx, // Pass RWX action if defined
+  });
+
+  const disabled = !policyEnvelope.ok && !policyEnvelope.requiresConfirm;
+  const tooltip = policyEnvelope.reason;
 
   return (
     <button
-      className={`mcp-button mcp-${permission}`}
-      onClick={permission === 'allowed' || permission === 'needs_confirm' ? onClick : undefined}
+      className={`mcp-button mcp-${policyEnvelope.ok ? 'allowed' : 'blocked'}`} // Simplified class
+      onClick={onClick}
       disabled={disabled}
       title={tooltip}
     >
       <span>{label}</span>
       <small>{smallText}</small>
-      {permission === 'needs_confirm' && <span className="mcp-badge">⚠</span>}
-      {permission === 'admin_only' && <span className="mcp-badge">🔒</span>}
+      {policyEnvelope.requiresConfirm && <span className="mcp-badge">⚠</span>}
+      {policyEnvelope.requiresSandbox && <span className="mcp-badge"> sandbox </span>}
     </button>
   );
 };
 
 export const WorkspaceSidebarLeft: React.FC = () => {
   const { mode: cockpitMode } = useCockpitMode();
-  const { mode, effectiveRules } = useToolbelt(); // Consume from context
+  const { tier, persona } = useToolbelt(); // Consume from context
   const [fileWizardOpen, setFileWizardOpen] = useState(false);
   const [gitWizardOpen, setGitWizardOpen] = useState(false);
   const [dbWizardOpen, setDbWizardOpen] = useState(false);
   const [researchWizardOpen, setResearchWizardOpen] = useState(false);
 
-  const getMcpPermission = (mcpToolId: string): ToolPermission => {
-    return effectiveRules.mcp[mcpToolId] || 'blocked';
-  };
-
+  // getMcpPermission is no longer needed
   // In customer mode, MCP tools are visible but execution is blocked.
   // The individual McpButton components will handle their disabled state
   // based on permissions from the ToolbeltContext.
@@ -68,43 +72,38 @@ export const WorkspaceSidebarLeft: React.FC = () => {
       </div>
 
       <McpButton
-        id="mcp.file"
+        capabilityId="fs_read" // Using fs_read as the primary capability for File Assistant
         label="File Assistant"
         smallText="Create, delete, move files"
         onClick={() => setFileWizardOpen(true)}
-        permission={getMcpPermission('mcp.file')}
       />
 
       <McpButton
-        id="mcp.git"
+        capabilityId="git_status" // Using git_status as the primary capability for Git Command Center
         label="Git Command Center"
         smallText="Add, commit, push, PR"
         onClick={() => setGitWizardOpen(true)}
-        permission={getMcpPermission('mcp.git')}
       />
 
       <McpButton
-        id="mcp.db"
+        capabilityId="db_read" // Using db_read as the primary capability for Database Assistant
         label="Database Assistant"
         smallText="Connect, migrate, schema"
         onClick={() => setDbWizardOpen(true)}
-        permission={getMcpPermission('mcp.db')}
       />
 
       <McpButton
-        id="mcp.research"
+        capabilityId="research_web" // Using research_web as the primary capability for Research (NIMs)
         label="Research (NIMs)"
         smallText="Deep analysis, web research"
         onClick={() => setResearchWizardOpen(true)}
-        permission={getMcpPermission('mcp.research')}
       />
 
       <McpButton
-        id="mcp.suggest-edits" // Assuming 'suggest-edits' maps to 'mcp.suggest-edits'
+        capabilityId="/patch" // Using /patch command as the capability for Suggest Edits
         label="Suggest Edits"
         smallText="Ask BrewAssist for a patch"
         onClick={() => alert("Suggest Edits clicked!")}
-        permission={getMcpPermission('mcp.suggest-edits')}
       />
 
       {/* Render Wizards */}

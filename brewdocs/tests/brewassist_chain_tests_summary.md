@@ -118,9 +118,8 @@ This document summarizes the conditions and fixes required for the `brewassist.c
 *   **`finalJson undefined => events empty => capture stream via res.write`:** If `finalJson` is `undefined` or `events` array is empty, it indicates that the SSE stream was not correctly captured or parsed. The solution is to ensure `res.write` and `res.end` are overridden to accumulate output into a local buffer, which is then passed to `parseSseEvents`.
 *   **`content empty => chunk events missing OR chunk payload shape mismatch`:** If `reconstructContentFromEvents` returns an empty string when content is expected, it means either no `chunk` events were received, or the `text`/`delta`/`content` fields within the chunk events do not match the expected structure. Verify the `fetch` mock's SSE payload and the `reconstructContentFromEvents` logic.
 
-### Do/Don’t
+### Update to `G6 Toolbelt: admin tool requires confirmation (409)`
 
-*   **Do NOT** add `console.log` in tests unless explicitly for temporary debugging and removed before committing.
-*   **Do NOT** parse SSE with `JSON.parse(res._getData())` directly. Always use `parseSseEvents` for SSE streams.
-*   **Do** use `collectSseWrites(res.write as jest.Mock)` or a custom `captured` string with `res.write` override for robust SSE stream capture.
-*   **Do** ensure `fetch` mocks for streaming providers return `Response` objects with `ReadableStream` bodies for accurate simulation.
+*   **Issue:** The test was failing because the `patch` capability now requires `BrewTruth` flags to be present before checking for `TOOLBELT_CONFIRM_REQUIRED`. The original test case did not provide these flags, leading to a `BREWTRUTH_MISSING_FLAGS` error instead of the expected `TOOLBELT_CONFIRM_REQUIRED`.
+*   **Fix:** Modified the `G6` test case in `__tests__/brewassist.chain.gates.test.ts` to include `truthScore: 0.9` and `truthFlags: ['placeholder-flag']`. This allows the test to pass the `BrewTruth` flag validation and proceed to the intended `TOOLBELT_CONFIRM_REQUIRED` check.
+*   **Impact:** The `G6` test now passes, correctly asserting that an admin tool without explicit confirmation (even with valid `BrewTruth` flags) still requires confirmation.

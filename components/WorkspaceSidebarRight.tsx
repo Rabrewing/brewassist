@@ -3,9 +3,14 @@ import React from "react";
 import { ProjectTree } from "./ProjectTree";
 import { SandboxPanel } from "./SandboxPanel";
 import { useCockpitMode } from "@/contexts/CockpitModeContext"; // Import useCockpitMode
+import { CognitionSurface } from "./CognitionSurface"; // Import CognitionSurface
 
 export const WorkspaceSidebarRight: React.FC = () => {
   const { mode: cockpitMode } = useCockpitMode(); // Get cockpitMode from context
+
+  // Mock cognition state and highlighted principle for demonstration
+  const mockCognitionState = "Policy Enforcement";
+  const mockHighlightedPrinciple = "Make work visible";
 
   return (
     <div className="workspace-sidebar-right-inner">
@@ -22,6 +27,12 @@ export const WorkspaceSidebarRight: React.FC = () => {
           <SandboxPanel />
         </div>
       )}
+
+      {/* Render CognitionSurface */}
+      <CognitionSurface
+        currentCognitionState={mockCognitionState}
+        highlightedPrinciple={mockHighlightedPrinciple}
+      />
     </div>
   );
 };

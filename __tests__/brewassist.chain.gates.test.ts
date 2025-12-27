@@ -1,16 +1,8 @@
 import { callBrewassist } from "./helpers/brewassistTestClient";
-import * as toolbeltConfig from "../lib/toolbeltConfig";
-import * as toolbeltGuard from "../lib/toolbeltGuard";
-
-jest.mock("../lib/toolbeltConfig", () => ({
-  ...jest.requireActual("../lib/toolbeltConfig"),
-  computeToolbeltRules: jest.fn(),
-}));
-
-jest.mock("../lib/toolbeltGuard", () => ({
-  ...jest.requireActual("../lib/toolbeltGuard"),
-  getPermissionForRisk: jest.fn(),
-}));
+import { CAPABILITY_REGISTRY, CapabilityId, RWX } from "../lib/capabilities/registry";
+import { BrewTier } from "../lib/commands/types";
+import { Persona } from "../lib/brewIdentityEngine";
+import { evaluateHandshake, UnifiedPolicyEnvelope } from "../lib/toolbelt/handshake";
 
 /**
  * Provider mocks:
@@ -28,31 +20,9 @@ jest.mock("../lib/brewassist-engine", () => ({
   }),
 }));
 
-jest.mock("../lib/toolbeltConfig", () => ({
-  ...jest.requireActual("../lib/toolbeltConfig"),
-  computeToolbeltRules: jest.fn(),
-  getToolRule: jest.fn(), // Mock getToolRule
-}));
-
-
 describe("BrewAssist Chain Gates (S4.8–S4.10)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default mock for computeToolbeltRules
-    (toolbeltConfig.computeToolbeltRules as jest.Mock).mockReturnValue({
-      // Simulate rules that generally allow actions unless explicitly blocked
-      'write_single': 'allowed',
-      'write_multi': 'allowed',
-      'read': 'allowed',
-    });
-    // Default mock for getPermissionForRisk
-    (toolbeltGuard.getPermissionForRisk as jest.Mock).mockReturnValue('allowed');
-    // Default mock for getToolRule
-    (toolbeltConfig.getToolRule as jest.Mock).mockReturnValue({
-      enabled: true,
-      safety: 'write_single', // Default to a write action
-      requireGepHeader: false,
-    });
   });
   // G1: Contract — valid payload -> 200
   test("G1 Contract: valid payload returns 200", async () => {
@@ -84,57 +54,54 @@ describe("BrewAssist Chain Gates (S4.8–S4.10)", () => {
    * than toolRequest/confirmApply, adjust payload accordingly but keep the gate intent.
    */
 
-  // G5: Customer tool attempt blocked -> 403 or 412
-  test("G5 Toolbelt: customer tool attempt is blocked (403/412)", async () => {
-    (toolbeltConfig.getToolRule as jest.Mock).mockReturnValue({
-      enabled: false,
-      safety: 'write_single',
-      requireGepHeader: false,
-    });
+  // G5: Customer tool attempt blocked -> 403
+  test("G5 Toolbelt: customer tool attempt is blocked (403)", async () => {
     const r = await callBrewassist({
       input: "create a file test.txt with hello",
       mode: "TOOL",
-      tier: "T1_SAFE",
-      mcpToolId: "write_file", // Add mcpToolId to trigger toolbelt logic in handler
-      mcpAction: "write_single", // Add mcpAction
+      tier: "basic", // Customer tier
+      persona: "customer",
+      capabilityId: "fs_write", // Use fs_write capability
+      action: "W",
       toolRequest: { type: "write_file", path: "test.txt", content: "hello" },
     }, { 'x-brewassist-mode': 'customer' });
-    expect([403, 412]).toContain(r.resStatus);
+    expect(r.resStatus).toBe(403);
+    expect(r.json.policy.reason).toContain("Persona 'customer' not allowed for 'fs_write'");
   });
 
   // G6: Admin tool without confirmation -> 409
   test("G6 Toolbelt: admin tool requires confirmation (409)", async () => {
-    (toolbeltConfig.getToolRule as jest.Mock).mockReturnValue({
-      enabled: true,
-      safety: 'write_single',
-      requireConfirmation: true,
-      requireGepHeader: false,
-    });
     const r = await callBrewassist({
       input: "apply a patch",
       mode: "TOOL",
-      tier: "T3_APPLY",
-      confirmApply: false,
-      mcpToolId: "apply_patch", // Add mcpToolId
-      mcpAction: "write_single", // Assuming apply_patch is a write_single action
+      tier: "pro", // Pro tier for /patch
+      persona: "admin",
+      capabilityId: "/patch", // Use patch capability
+      confirmApply: false, // Missing confirmation
+      truthScore: 0.9, // Add truthScore
+      truthFlags: ['placeholder-flag'], // Add truthFlags with a placeholder
       toolRequest: { type: "apply_patch", patch: "diff --git a/x b/x" },
     }, { 'x-brewassist-mode': 'admin' });
     expect(r.resStatus).toBe(409);
+    expect(r.json.policy.reason).toContain("TOOLBELT_CONFIRM_REQUIRED");
   });
 
-  // G7: Admin tool with confirmation -> 200 or 202 (proposal/executed)
-  test("G7 Toolbelt: admin tool with confirmation allowed (200/202)", async () => {
-    (toolbeltGuard.getPermissionForRisk as jest.Mock).mockReturnValue('allowed');
+  // G7: Admin tool with confirmation -> 200
+  test("G7 Toolbelt: admin tool with confirmation allowed (200)", async () => {
     const r = await callBrewassist({
       input: "apply a patch",
       mode: "TOOL",
-      tier: "T3_APPLY",
+      tier: "pro", // Pro tier for /patch
+      persona: "admin",
+      capabilityId: "/patch", // Use patch capability
       confirmApply: true,
-      mcpToolId: "apply_patch", // Add mcpToolId
-      mcpAction: "write_single", // Assuming apply_patch is a write_single action
+      truthScore: 0.9,
+      truthFlags: ['placeholder-flag'],
       toolRequest: { type: "apply_patch", patch: "diff --git a/x b/x" },
-    }, { 'x-brewassist-mode': 'admin' });
-    expect([200, 202]).toContain(r.resStatus);
+    }, { 'x-brewassist-mode': 'admin', 'x-gemini-execution-protocol': 'strict' });
+    expect(r.resStatus).toBe(200);
+    expect(r.json.policy.ok).toBe(true);
+    expect(r.json.message).toContain("Tool '/patch' mocked successfully.");
   });
 
   // G8: Router integrity — enabled providers + chat lane must NOT yield zero routes
@@ -158,20 +125,16 @@ describe("BrewAssist Chain Gates (S4.8–S4.10)", () => {
 
   // G9: Customer MCP execution attempt is blocked (403)
   test("G9 Toolbelt: customer MCP execution attempt is blocked (403)", async () => {
-    (toolbeltConfig.getToolRule as jest.Mock).mockReturnValue({
-      enabled: false,
-      safety: 'single-file-write', // This is a write action
-      requireGepHeader: false,
-    });
-
     const r = await callBrewassist({
       input: "create a file test.txt with hello",
       mode: "TOOL",
-      tier: "T1_SAFE", // Tier doesn't matter for customer execution block
-      mcpToolId: "file-assistant",
-      mcpAction: "write_single",
+      tier: "basic", // Customer tier
+      persona: "customer",
+      capabilityId: "fs_write", // Use fs_write capability
+      action: "W",
       toolRequest: { type: "write_file", path: "test.txt", content: "hello" },
     }, { 'x-brewassist-mode': 'customer' });
     expect(r.resStatus).toBe(403);
+    expect(r.json.policy.reason).toContain("Persona 'customer' not allowed for 'fs_write'");
   });
 });

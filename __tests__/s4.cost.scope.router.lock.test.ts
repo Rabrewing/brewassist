@@ -156,7 +156,7 @@ describe("S4-COST-SCOPE-ROUTER-LOCK Policy Enforcement", () => {
     expect(json.text).toBeTruthy(); // Should have a response from the LLM
     expect(json.truth).toBeTruthy(); // Should have a truth report
     // Assuming policy is present for admin mode, if not, adjust
-    expect(json.policy.decision).toBe("ALLOW"); // Should be allowed
+    expect(json.policy.ok).toBe(true); // Should be allowed
     expect(json.payload?.provider).toBeTruthy(); // Should have provider info
     expect(json.payload?.model).toBeTruthy(); // Should have model info
   });

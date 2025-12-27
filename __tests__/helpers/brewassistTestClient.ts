@@ -16,7 +16,11 @@ export async function callBrewassist(body: any, headers: Record<string, string> 
     method: "POST",
     url: "/api/brewassist",
     headers: { "Content-Type": "application/json", ...headers },
-    body,
+    body: {
+      ...body,
+      truthScore: body.truthScore,
+      truthFlags: body.truthFlags,
+    },
   });
 
   const res: any = {
@@ -85,5 +89,5 @@ export async function callBrewassist(body: any, headers: Record<string, string> 
     }
   }
 
-  return { resStatus, content, events, raw };
+  return { resStatus, content, events, raw, json: _jsonBody };
 }

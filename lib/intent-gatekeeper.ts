@@ -1,30 +1,30 @@
+import { CAPABILITY_REGISTRY, BrewCommandId, IntentCategory } from "./capabilities/registry";
+
 export type BrewIntent =
   | "ENGINEERING"
   | "GENERAL"
   | "KNOWLEDGE"
   | "RISK"
   | "OVERRIDE"
-  | "PLATFORM_DEVOPS" // New intent category
-  | "SUPPORT"         // New intent category
-  | "DOCS_KB"         // New intent category
-  | "GENERAL_KNOWLEDGE" // More specific general knowledge
-  | "UNKNOWN";        // For unclassifiable intents
-
-export type ScopeCategory =
-  | "PLATFORM_DEVOPS"
-  | "SUPPORT"
-  | "DOCS_KB"
+  | IntentCategory // Use IntentCategory from registry
   | "GENERAL_KNOWLEDGE"
   | "UNKNOWN";
+
+export type ScopeCategory = IntentCategory | "GENERAL_KNOWLEDGE" | "UNKNOWN";
 
 /**
  * Classifies the user's intent based on the prompt.
  * This is a heuristic-first classifier, avoiding LLM calls for cost efficiency.
  *
  * @param prompt The user's input prompt.
+ * @param command The command being executed, if any.
  * @returns A ScopeCategory representing the classified intent.
  */
-export function classifyIntent(prompt: string | undefined | null): ScopeCategory {
+export function classifyIntent(prompt: string | undefined | null, command?: BrewCommandId): ScopeCategory {
+  if (command && CAPABILITY_REGISTRY[command]) {
+    return CAPABILITY_REGISTRY[command].intentCategory;
+  }
+
   const lowerPrompt = (prompt || "").toLowerCase().trim();
 
   // DOCS_KB keywords
@@ -107,3 +107,4 @@ export function classifyIntent(prompt: string | undefined | null): ScopeCategory
   // If none of the above, default to UNKNOWN or a more general category
   return "GENERAL_KNOWLEDGE";
 }
+

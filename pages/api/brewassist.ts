@@ -2,24 +2,27 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { runBrewAssistEngineStream } from "@/lib/brewassist-engine";
 import { BrewTruthReport, runBrewTruth } from "@/lib/brewtruth";
-import { computeToolbeltRules, ToolbeltTier, CockpitMode, getToolRule } from "@/lib/toolbeltConfig";
-import { evaluateHandshake, HandshakeDecision } from "@/lib/toolbelt/handshake";
+import { CAPABILITY_REGISTRY, CapabilityId, RWX } from "@/lib/capabilities/registry"; // Import CAPABILITY_REGISTRY, CapabilityId, RWX
+import { BrewTier } from "@/lib/commands/types"; // Import BrewTier
+import { evaluateHandshake, UnifiedPolicyEnvelope } from "@/lib/toolbelt/handshake"; // Import evaluateHandshake, UnifiedPolicyEnvelope
 import { classifyIntent, ScopeCategory } from "@/lib/intent-gatekeeper";
-import { getPermissionForRisk } from "@/lib/toolbeltGuard";
 import { BREWASSIST_CANONICAL_DEFINITION, BREWASSIST_IDENTITY_PROMPTS } from "@/lib/brand/brewassist.definition"; // Import brand definition
+import { Persona } from "@/lib/brewIdentityEngine"; // Import Persona
+import type { CockpitMode } from "@/lib/brewTypes"; // Import CockpitMode
+
 export type BrewAssistApiRequest = {
   input: string;
   mode: "HRM" | "LLM" | "AGENT" | "LOOP" | "TOOL"; // Add "TOOL" mode
-  tier?: ToolbeltTier; // Make tier optional as it might come as toolbeltTier
+  tier?: BrewTier; // Use BrewTier
+  persona?: Persona; // Add persona
   skillLevel?: "beginner" | "intermediate" | "expert";
   useDeepReasoning?: boolean;
   useResearchModel?: boolean;
   dangerousAction?: boolean;
-  mcpToolId?: string; // Add toolbelt related fields
-  mcpAction?: string;
+  capabilityId?: CapabilityId; // Use capabilityId
+  action?: RWX; // Use action
   toolRequest?: any;
   confirmApply?: boolean;
-  toolbeltTier?: ToolbeltTier; // Add toolbeltTier for mapping
 };
 
 export default async function handler(
@@ -39,21 +42,23 @@ export default async function handler(
   const {
     input,
     mode,
+    tier, // Use 'tier' directly
+    persona: requestPersona, // Capture persona from body if provided
     skillLevel,
     useDeepReasoning,
     useResearchModel,
     dangerousAction,
-    mcpToolId,
-    mcpAction,
+    capabilityId, // Use capabilityId
+    action, // Use action
     toolRequest,
     confirmApply,
-    tier: bodyTier, // Rename 'tier' from body to avoid conflict
-    toolbeltTier, // Capture toolbeltTier from body
-  }: BrewAssistApiRequest = req.body;
-
-  const normalizedTier = (bodyTier ?? toolbeltTier) as ToolbeltTier;
+    truthScore,
+    truthFlags,
+  }: BrewAssistApiRequest & { truthScore?: number; truthFlags?: string[] } = req.body;
 
   const cockpitMode = (req.headers["x-brewassist-mode"] as CockpitMode) || "customer";
+  const currentPersona: Persona = requestPersona || (cockpitMode === "admin" ? "admin" : "customer"); // Determine persona
+  const normalizedTier: BrewTier = tier || "basic"; // Default to basic if not provided
 
   if (!input) {
     return res.status(400).json({
@@ -63,7 +68,17 @@ export default async function handler(
     });
   }
 
-  const intent = classifyIntent(input);
+  let commandCapabilityId: CapabilityId | undefined;
+
+  // Check if input is a command
+  if (input.startsWith('/')) {
+    const command = input.split(' ')[0] as CapabilityId;
+    if (CAPABILITY_REGISTRY[command] && CAPABILITY_REGISTRY[command].surfaces.includes("command")) {
+      commandCapabilityId = command;
+    }
+  }
+
+  const intent = classifyIntent(input, commandCapabilityId);
 
   // S4.10c.2 Patch: Brand Anchor - Detect identity/definition intents
   const lowerCaseInput = input.toLowerCase();
@@ -76,61 +91,75 @@ export default async function handler(
       text: BREWASSIST_CANONICAL_DEFINITION,
       truth: null,
       blockedByTruth: false,
-      policy: "LOCAL_ANSWER",
+      policy: {
+        ok: true,
+        route: "brewassist",
+        tier: normalizedTier,
+        reason: "Brand Anchor response",
+        capabilityId: "/identity", // Placeholder capability for identity
+      },
       route: "brewassist",
       scopeCategory: "PLATFORM_DEVOPS", // Identity is always platform devops
     });
     return;
   }
 
-  // Toolbelt enforcement applies if any tool-related field is present
-  if (mcpToolId || mcpAction || toolRequest) {
-    const handshakeDecision = evaluateHandshake({
-      intent,
-      tier: normalizedTier,
-      cockpitMode,
-      mcpToolId,
-      mcpAction,
-      toolRequest,
-      confirmApply,
-      gepHeaderPresent: !!req.headers['x-gemini-execution-protocol'],
-      // truthTier, truthScore, truthFlags are not available here yet, will be added later
-    });
+  let policyEnvelope: UnifiedPolicyEnvelope;
 
-    if (handshakeDecision.decision === "BLOCK") {
-      if (handshakeDecision.reason === 'TOOLBELT_GEP_REQUIRED') {
-        return res.status(412).json({
-          ok: false,
-          error: handshakeDecision.reason,
-          policy: "BLOCK",
-          route: "blocked",
-        });
-      }
-      return res.status(403).json({
-        ok: false,
-        error: handshakeDecision.reason,
-        policy: "BLOCK",
-        route: "blocked",
-      });
-    } else if (handshakeDecision.decision === "REQUIRE_CONFIRMATION") {
-      return res.status(409).json({
-        ok: false,
-        error: handshakeDecision.reason,
-        policy: "REQUIRE_CONFIRMATION",
-        route: "blocked",
-      });
-    } else if (handshakeDecision.decision === "ALLOWED") {
-      // For now, we'll mock a successful tool execution.
-      // In a real scenario, this would trigger the actual tool.
-      return res.status(200).json({
-        ok: true,
-        message: "Tool execution mocked successfully.",
-        policy: "ALLOWED",
-        route: "tool_executed",
-        toolResult: { status: "success", output: "Mocked tool output" },
-      });
+
+  // Evaluate Handshake for policy decision (for capabilities or general intent)
+  policyEnvelope = evaluateHandshake({
+    intent,
+    tier: normalizedTier,
+    persona: currentPersona,
+    cockpitMode,
+    capabilityId: capabilityId || commandCapabilityId, // Use capabilityId from body or derived command
+    action,
+    confirmApply,
+    gepHeaderPresent: !!req.headers['x-gemini-execution-protocol'],
+    truthScore,
+    truthFlags,
+  });
+
+  // Handle policy decisions
+  if (!policyEnvelope.ok) {
+    let statusCode = 403; // Forbidden
+    if (policyEnvelope.reason?.includes('TOOLBELT_GEP_REQUIRED')) {
+      statusCode = 412; // Precondition Failed
+    } else if (policyEnvelope.requiresConfirm) {
+      statusCode = 409; // Conflict (requires user action)
     }
-    return;
+
+    return res.status(statusCode).json({
+      ok: false,
+      error: policyEnvelope.reason,
+      policy: policyEnvelope,
+      route: policyEnvelope.route,
+    });
+  }
+
+  // If a command was identified and allowed by policy, execute it (mock for now)
+  if (commandCapabilityId && policyEnvelope.ok) {
+    // In a real scenario, this would trigger the actual command handler
+    return res.status(200).json({
+      ok: true,
+      message: `Command '${commandCapabilityId}' mocked successfully.`,
+      policy: policyEnvelope,
+      route: "command_executed",
+      commandResult: { status: "success", output: `Mocked output for ${commandCapabilityId}` },
+    });
+  }
+
+  // If a tool was identified and allowed by policy, execute it (mock for now)
+  if (capabilityId && policyEnvelope.ok) {
+    // In a real scenario, this would trigger the actual tool handler
+    return res.status(200).json({
+      ok: true,
+      message: `Tool '${capabilityId}' mocked successfully.`,
+      policy: policyEnvelope,
+      route: "tool_executed",
+      toolResult: { status: "success", output: `Mocked output for ${capabilityId}` },
+    });
   }
 
   if (cockpitMode === "customer" && intent === "GENERAL_KNOWLEDGE") {
@@ -141,8 +170,12 @@ export default async function handler(
       ok: true,
       text: redirectMessage,
       truth: null,
-      blockedByTruth: false,
-      policy: "BLOCK",
+      policy: {
+        ok: false,
+        route: "blocked",
+        tier: normalizedTier,
+        reason: "GENERAL_KNOWLEDGE_BLOCKED_CUSTOMER_MODE",
+      },
       route: "blocked",
       scopeCategory: "GENERAL_KNOWLEDGE",
     });
@@ -160,7 +193,6 @@ export default async function handler(
   let providerUsed: string | undefined;
   let modelUsed: string | undefined;
   let brewTruthReport: BrewTruthReport | null = null;
-  let policyDecisionReport: HandshakeDecision | null = null;
   let debugInfo: any | undefined; // Declare debugInfo here
 
   const sendEvent = (data: object) => {
@@ -174,19 +206,7 @@ export default async function handler(
     }
 
     // Evaluate Handshake for policy decision (even if not TOOL mode, for reporting)
-    policyDecisionReport = evaluateHandshake({
-      intent,
-      tier: normalizedTier,
-      cockpitMode,
-      mcpToolId,
-      mcpAction,
-      toolRequest,
-      confirmApply,
-      gepHeaderPresent: !!req.headers['x-gemini-execution-protocol'],
-      truthTier: brewTruthReport?.tier,
-      truthScore: brewTruthReport?.score,
-      truthFlags: brewTruthReport?.flags,
-    });
+    // policyEnvelope is already determined above, so we just use it here.
 
     let hasEngineCompleted = false; // Moved inside handler
 
@@ -244,7 +264,7 @@ export default async function handler(
         },
         text: message,
         truth: brewTruthReport,
-        policy: policyDecisionReport,
+        policy: policyEnvelope, // Use policyEnvelope
       });
     } else if (raceResult.status === "completed") {
       sendEvent({
@@ -258,7 +278,7 @@ export default async function handler(
         },
         text: accumulatedText,
         truth: brewTruthReport,
-        policy: policyDecisionReport,
+        policy: policyEnvelope, // Use policyEnvelope
       });
     }
   } catch (error) {
@@ -276,7 +296,7 @@ export default async function handler(
       },
       text: "An error occurred during processing.",
       truth: brewTruthReport,
-      policy: policyDecisionReport,
+      policy: policyEnvelope, // Use policyEnvelope
     });
   } finally {
     res.end();
