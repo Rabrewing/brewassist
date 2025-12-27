@@ -1,7 +1,8 @@
-import { CAPABILITY_REGISTRY, CapabilityId, RWX, BrewTruthPolicyType } from "@/lib/capabilities/registry";
+import { CAPABILITY_REGISTRY, RWX, BrewTruthPolicyType, UserRole } from "@/lib/capabilities/registry"; // Import UserRole
 import { BrewTier } from "@/lib/commands/types";
-import { Persona } from "@/lib/brewIdentityEngine";
+import { Persona, PersonaId } from "@/lib/brewIdentityEngine"; // Import PersonaId
 import { ScopeCategory } from "@/lib/intent-gatekeeper";
+import type { CockpitMode } from "@/lib/brewTypes"; // Import CockpitMode
 
 export type BrewIntent =
   | "GENERAL"
@@ -20,7 +21,7 @@ export type HandshakeDecisionType =
 
 export interface UnifiedPolicyEnvelope {
   ok: boolean;
-  capabilityId?: CapabilityId;
+  capabilityId?: string;
   route: "brewassist" | "wizard" | "blocked";
   tier: BrewTier;
   reason?: string;
@@ -30,12 +31,49 @@ export interface UnifiedPolicyEnvelope {
   brewTruth?: { tier: "gold" | "silver" | "bronze" | "red"; flags?: string[] };
 }
 
+/**
+ * Resolves the active Persona based on provided context.
+ * Priority: ctx.persona (full object) > ctx.cockpitMode > default 'customer'.
+ * @param ctx The context object containing potential persona information.
+ * @returns A full Persona object.
+ */
+function resolvePersona(ctx: {
+  persona?: Persona; // From direct argument
+  cockpitMode?: CockpitMode; // From cockpitMode
+}): Persona {
+  // a) ctx.persona (if provided)
+  if (ctx.persona && ctx.persona.id) {
+    return ctx.persona;
+  }
+
+  let resolvedPersonaId: PersonaId = 'customer'; // e) default persona = 'customer' (safe default)
+
+  // b) ctx.cockpitMode when mode is 'admin'|'customer'
+  if (ctx.cockpitMode === 'admin') {
+    resolvedPersonaId = 'admin';
+  } else if (ctx.cockpitMode === 'customer') {
+    resolvedPersonaId = 'customer';
+  }
+
+  // Construct a full Persona object with placeholder values for other properties
+  // as evaluateHandshake primarily uses persona.id.
+  return {
+    id: resolvedPersonaId,
+    label: `Resolved Persona: ${resolvedPersonaId}`,
+    tone: 'Neutral',
+    emotionTier: resolvedPersonaId === 'admin' ? 3 : 1,
+    safetyMode: resolvedPersonaId === 'admin' ? 'hard-stop' : 'soft-stop',
+    memoryWindow: resolvedPersonaId === 'admin' ? 3 : 1,
+    systemPrompt: `Persona derived from context: ${resolvedPersonaId}`,
+  };
+}
+
 export function evaluateHandshake(args: {
   intent: BrewIntent;
   tier: BrewTier; // Use BrewTier from commands/types
-  persona: Persona; // Add persona
+  persona?: Persona; // Make persona optional in args, as it will be resolved
   cockpitMode?: "admin" | "customer";
-  capabilityId?: CapabilityId; // Use capabilityId instead of mcpToolId
+  capabilityId?: string; // Use capabilityId instead of mcpToolId
   action?: RWX; // Use action instead of mcpAction
   confirmApply?: boolean;
   gepHeaderPresent?: boolean;
@@ -44,10 +82,11 @@ export function evaluateHandshake(args: {
   truthScore?: number; // 0-1
   truthFlags?: string[];
 }): UnifiedPolicyEnvelope {
+  const resolvedPersona = resolvePersona(args); // Resolve persona first
+
   const {
     intent,
     tier,
-    persona,
     cockpitMode,
     capabilityId,
     action,
@@ -75,12 +114,12 @@ export function evaluateHandshake(args: {
     }
 
     // 1. Persona check
-    if (!capability.personaAllowed.includes(persona)) {
+    if (!capability.personaAllowed.includes(resolvedPersona.id)) { // Use resolvedPersona.id
       return {
         ok: false,
         route: "blocked",
         tier,
-        reason: `TOOLBELT_FORBIDDEN: Persona '${persona}' not allowed for '${capabilityId}'.`,
+        reason: `TOOLBELT_FORBIDDEN: Persona '${resolvedPersona.id}' not allowed for '${capabilityId}'.`,
       };
     }
 

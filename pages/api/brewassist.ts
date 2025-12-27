@@ -2,7 +2,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { runBrewAssistEngineStream } from "@/lib/brewassist-engine";
 import { BrewTruthReport, runBrewTruth } from "@/lib/brewtruth";
-import { CAPABILITY_REGISTRY, CapabilityId, RWX } from "@/lib/capabilities/registry"; // Import CAPABILITY_REGISTRY, CapabilityId, RWX
+import { PersonaId, getActivePersona } from "@/lib/brewIdentityEngine"; // Import PersonaId and getActivePersona
+import { CAPABILITY_REGISTRY, RWX } from "@/lib/capabilities/registry"; // Import CAPABILITY_REGISTRY, RWX
 import { BrewTier } from "@/lib/commands/types"; // Import BrewTier
 import { evaluateHandshake, UnifiedPolicyEnvelope } from "@/lib/toolbelt/handshake"; // Import evaluateHandshake, UnifiedPolicyEnvelope
 import { classifyIntent, ScopeCategory } from "@/lib/intent-gatekeeper";
@@ -19,7 +20,7 @@ export type BrewAssistApiRequest = {
   useDeepReasoning?: boolean;
   useResearchModel?: boolean;
   dangerousAction?: boolean;
-  capabilityId?: CapabilityId; // Use capabilityId
+  capabilityId?: string; // Use capabilityId
   action?: RWX; // Use action
   toolRequest?: any;
   confirmApply?: boolean;
@@ -57,7 +58,7 @@ export default async function handler(
   }: BrewAssistApiRequest & { truthScore?: number; truthFlags?: string[] } = req.body;
 
   const cockpitMode = (req.headers["x-brewassist-mode"] as CockpitMode) || "customer";
-  const currentPersona: Persona = requestPersona || (cockpitMode === "admin" ? "admin" : "customer"); // Determine persona
+  const currentPersona: PersonaId = requestPersona?.id || (cockpitMode === "admin" ? "admin" : "customer"); // Determine persona
   const normalizedTier: BrewTier = tier || "basic"; // Default to basic if not provided
 
   if (!input) {
@@ -68,11 +69,11 @@ export default async function handler(
     });
   }
 
-  let commandCapabilityId: CapabilityId | undefined;
+  let commandCapabilityId: string | undefined;
 
   // Check if input is a command
   if (input.startsWith('/')) {
-    const command = input.split(' ')[0] as CapabilityId;
+    const command = input.split(' ')[0];
     if (CAPABILITY_REGISTRY[command] && CAPABILITY_REGISTRY[command].surfaces.includes("command")) {
       commandCapabilityId = command;
     }
@@ -107,11 +108,21 @@ export default async function handler(
   let policyEnvelope: UnifiedPolicyEnvelope;
 
 
+  const resolvedPersona: Persona = {
+    id: currentPersona,
+    label: `Resolved Persona: ${currentPersona}`, // Placeholder label
+    tone: 'Neutral', // Placeholder tone
+    emotionTier: 1, // Placeholder tier
+    safetyMode: 'soft-stop', // Placeholder safety mode
+    memoryWindow: 1, // Placeholder memory window
+    systemPrompt: `Persona derived from request: ${currentPersona}`, // Placeholder system prompt
+  };
+
   // Evaluate Handshake for policy decision (for capabilities or general intent)
   policyEnvelope = evaluateHandshake({
     intent,
     tier: normalizedTier,
-    persona: currentPersona,
+    persona: resolvedPersona,
     cockpitMode,
     capabilityId: capabilityId || commandCapabilityId, // Use capabilityId from body or derived command
     action,
@@ -202,7 +213,7 @@ export default async function handler(
   try {
     // Run BrewTruth if enabled
     if (process.env.BREWTRUTH_ENABLED === "true") {
-      brewTruthReport = await runBrewTruth(input);
+      brewTruthReport = await runBrewTruth({ prompt: input, response: "" });
     }
 
     // Evaluate Handshake for policy decision (even if not TOOL mode, for reporting)

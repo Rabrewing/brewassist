@@ -1,8 +1,29 @@
-import { CAPABILITY_REGISTRY, CapabilityId } from '../lib/capabilities/registry';
-import { evaluateHandshake } from '../lib/toolbelt/handshake';
-import { BrewTier } from '../../lib/brewIdentityEngine';
+import { jest } from '@jest/globals';
+import { CAPABILITY_REGISTRY } from '../lib/capabilities/registry';
+import { BrewTier } from '../../lib/commands/types';
+import { Persona } from '../lib/brewIdentityEngine'; // Keep Persona for type
+
+jest.doMock('../lib/brewIdentityEngine', () => ({
+  ...jest.requireActual('../lib/brewIdentityEngine'),
+  getActivePersona: jest.fn(() => {
+    const persona = {
+      id: 'customer',
+      label: 'Mock Customer User',
+      tone: 'Helpful',
+      emotionTier: 1,
+      safetyMode: 'soft-stop',
+      memoryWindow: 1,
+      systemPrompt: 'Mock customer persona',
+    };
+    return persona;
+  }),
+  setActivePersona: jest.fn(),
+}));
 
 describe('S4.10c.4 - BrewDocs Governance Capability (Tier-1)', () => {
+  const { evaluateHandshake } = require('../lib/toolbelt/handshake');
+  const { getActivePersona } = require('../lib/brewIdentityEngine');
+
   // Test Case 1: BrewDocs capabilities exist in the registry and are Tier 1, read-only.
   it('should have brewdocs.inspect, brewdocs.read, brewdocs.index capabilities defined as Tier 1, read-only', () => {
     const inspectCap = CAPABILITY_REGISTRY['brewdocs.inspect'];
@@ -43,14 +64,15 @@ describe('S4.10c.4 - BrewDocs Governance Capability (Tier-1)', () => {
 
   // Test Case 2: evaluateHandshake for brewdocs.read in customer mode.
   it('should allow brewdocs.read for a customer in Tier 1', () => {
-    const policyEnvelope = evaluateHandshake({
+    const argsForHandshake = {
       intent: CAPABILITY_REGISTRY['brewdocs.read'].intentCategory,
       tier: 1 as BrewTier,
-      persona: 'customer',
+      persona: getActivePersona(),
       cockpitMode: 'customer', // Assuming 'customer' mode for customer persona
-      capabilityId: 'brewdocs.read' as CapabilityId,
+      capabilityId: 'brewdocs.read' as string,
       action: 'R',
-    });
+    };
+    const policyEnvelope = evaluateHandshake(argsForHandshake);
 
     expect(policyEnvelope.ok).toBe(true);
     expect(policyEnvelope.reason).toBe('Capability check passed.');
@@ -75,14 +97,15 @@ describe('S4.10c.4 - BrewDocs Governance Capability (Tier-1)', () => {
     };
     CAPABILITY_REGISTRY['brewdocs.write'] = mockWriteCapability;
 
-    const policyEnvelope = evaluateHandshake({
+    const argsForHandshake = {
       intent: mockWriteCapability.intentCategory,
       tier: 1 as BrewTier,
-      persona: 'customer',
+      persona: getActivePersona(),
       cockpitMode: 'customer',
-      capabilityId: 'brewdocs.write' as CapabilityId,
+      capabilityId: 'brewdocs.write' as string,
       action: 'W',
-    });
+    };
+    const policyEnvelope = evaluateHandshake(argsForHandshake);
 
     expect(policyEnvelope.ok).toBe(false);
     expect(policyEnvelope.reason).toContain("Persona 'customer' not allowed");

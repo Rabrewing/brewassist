@@ -2,12 +2,36 @@
 import { evaluateHandshake } from '../lib/toolbelt/handshake';
 import { CAPABILITY_REGISTRY } from '../lib/capabilities/registry';
 import { BrewTier } from '../lib/commands/types';
-import { Persona } from '../lib/brewIdentityEngine';
+import { Persona } from '../lib/brewIdentityEngine'; // Import Persona type
 
 describe('Unified Policy Enforcement (S4.10c.4)', () => {
-  const adminPersona: Persona = 'admin';
-  const customerPersona: Persona = 'customer';
-  const devPersona: Persona = 'dev';
+  const adminPersona: Persona = {
+    id: 'admin',
+    label: 'Admin User',
+    tone: 'Authoritative',
+    emotionTier: 3,
+    safetyMode: 'full-override',
+    memoryWindow: 3,
+    systemPrompt: 'Admin persona for testing',
+  };
+  const customerPersona: Persona = {
+    id: 'customer',
+    label: 'Customer User',
+    tone: 'Helpful',
+    emotionTier: 1,
+    safetyMode: 'soft-stop',
+    memoryWindow: 1,
+    systemPrompt: 'Customer persona for testing',
+  };
+  const devPersona: Persona = {
+    id: 'dev',
+    label: 'Developer User',
+    tone: 'Technical',
+    emotionTier: 2,
+    safetyMode: 'strict',
+    memoryWindow: 2,
+    systemPrompt: 'Developer persona for testing',
+  };
 
   const basicTier: BrewTier = 'basic';
   const proTier: BrewTier = 'pro';
