@@ -1,4 +1,4 @@
-import { CAPABILITY_REGISTRY, BrewCommandId, IntentCategory } from "./capabilities/registry";
+import { CAPABILITY_REGISTRY, IntentCategory } from "./capabilities/registry";
 
 export type BrewIntent =
   | "ENGINEERING"
@@ -20,7 +20,7 @@ export type ScopeCategory = IntentCategory | "GENERAL_KNOWLEDGE" | "UNKNOWN";
  * @param command The command being executed, if any.
  * @returns A ScopeCategory representing the classified intent.
  */
-export function classifyIntent(prompt: string | undefined | null, command?: BrewCommandId): ScopeCategory {
+export function classifyIntent(prompt: string | undefined | null, command?: string): ScopeCategory {
   if (command && CAPABILITY_REGISTRY[command]) {
     return CAPABILITY_REGISTRY[command].intentCategory;
   }

@@ -1,6 +1,6 @@
 export type CapabilityCategory = 'fs' | 'git' | 'db' | 'research' | 'system' | 'platform_devops' | 'docs' | 'support';
 export type CapabilitySurface = 'wizard' | 'command' | 'assistant_auto';
-export type Persona = 'admin' | 'dev' | 'support' | 'customer';
+export type UserRole = 'admin' | 'dev' | 'support' | 'customer'; // Renamed Persona to UserRole
 export type IntentCategory = 'PLATFORM_DEVOPS' | 'DOCS_KB' | 'SUPPORT';
 export type BrewTruthPolicyType = "Yes (light)" | "Yes (strict)" | "No";
 
@@ -16,7 +16,7 @@ export interface Capability {
   category: CapabilityCategory;
   surfaces: CapabilitySurface[];
   tierRequired: number;
-  personaAllowed: Persona[];
+  personaAllowed: UserRole[]; // Updated to UserRole
   intentCategory: IntentCategory;
   confirmApplyRequired: boolean;
   sandboxRequired: boolean;
