@@ -1,5 +1,5 @@
 import { getModelProviders, BrewProviderId, BrewRoute, getModelRoutes, resolveRoute, BrewRouteType } from "../lib/model-router";
-import { BrewTier } from './commands/types'; // Import BrewTier from commands/types
+import { BrewTier } from '@/lib/commands/types'; // Import BrewTier from commands/types
 import type { CockpitMode } from "./brewTypes";
 import type { ScopeCategory } from "./intent-gatekeeper"; // Import ScopeCategory
 
@@ -9,7 +9,7 @@ export interface BrewAssistEngineOptions {
   prompt: string;
   mode: EngineBrewAssistMode;
   cockpitMode: CockpitMode;
-  tier: ToolbeltTier;
+  tier: BrewTier;
   intent: ScopeCategory; // Add intent here
   preferredProvider?: BrewProviderId;
   useResearchModel?: boolean;
@@ -35,6 +35,9 @@ async function callProviderStream(
   switch (provider) {
     case 'openai': {
       apiKey = providerConfig.apiKey;
+      if (!apiKey) {
+        throw new Error(`API key not set for provider: ${provider}`);
+      }
       const base = (providerConfig.baseUrl?.replace(/\/+$/, "") || "https://api.openai.com/v1");
       url = `${base}/chat/completions`;
       headers = {
@@ -46,6 +49,9 @@ async function callProviderStream(
     }
     case 'gemini': {
       apiKey = providerConfig.apiKey;
+      if (!apiKey) {
+        throw new Error(`API key not set for provider: ${provider}`);
+      }
       const base = (providerConfig.baseUrl || "https://generativelanguage.googleapis.com/v1beta/models").replace(/\/+$/, "");
       url = `${base}/${model}:streamGenerateContent?key=${apiKey}`; // Use streamGenerateContent for streaming
       headers = { "Content-Type": "application/json" };
@@ -60,9 +66,7 @@ async function callProviderStream(
     } // Added curly braces
   }
 
-  if (!apiKey && provider !== 'tinyllm') {
-    throw new Error(`API key not set for provider: ${provider}`);
-  }
+
 
   const res = await fetch(url, {
     method: "POST",
@@ -171,6 +175,15 @@ async function callProvider(
             break;
         }
 
+        case 'gemini': {
+            apiKey = providerConfig.apiKey;
+            const base = (providerConfig.baseUrl || "https://generativelanguage.googleapis.com/v1beta/models").replace(/\/+$/, "");
+            url = `${base}/${model}:generateContent?key=${apiKey}`; // Use generateContent for non-streaming
+            headers = { "Content-Type": "application/json" };
+            requestBody = { contents: messages.map(m => ({ role: m.role === 'system' ? 'user' : m.role, parts: [{ text: m.content }] })) };
+            break;
+        }
+
         case 'mistral': {
             apiKey = providerConfig.apiKey;
             const mistralBase = (providerConfig.baseUrl?.replace(/\/+$/, "") || "https://api.mistral.ai/v1");
@@ -202,10 +215,17 @@ async function callProvider(
     const data: any = await res.json();
     let rawContent: string | undefined;
 
-    if (provider === 'gemini') {
+    switch (provider) {
+      case 'gemini':
         rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    } else {
+        break;
+      case 'openai':
+      case 'mistral':
+      case 'tinyllm':
         rawContent = data.choices?.[0]?.message?.content ?? data.choices?.[0]?.text;
+        break;
+      default:
+        throw new Error(`Unsupported provider for content extraction: ${provider}`);
     }
 
     if (!rawContent) {
@@ -219,7 +239,7 @@ async function callProvider(
 export async function runBrewAssistEngineStream(
   opts: BrewAssistEngineOptions,
   onChunk: (chunk: string) => void,
-  onEnd: (result: { provider: BrewProviderId, model: string }) => void // Add onEnd callback
+  onEnd: (result: { provider: BrewProviderId, model: string, debugInfo?: any }) => void // Add onEnd callback
 ): Promise<void> {
   const { prompt, mode, cockpitMode, tier, useResearchModel, preferredProvider, intent } = opts; // Destructure intent
 
@@ -249,7 +269,7 @@ export async function runBrewAssistEngineStream(
     if (route.provider === "system") {
       const providersConfig = getModelProviders();
       const enabledFlags = Object.entries(providersConfig).reduce((acc, [key, value]) => {
-        acc[key] = value.enabled;
+        acc[key as BrewProviderId] = value.enabled;
         return acc;
       }, {} as Record<BrewProviderId, boolean>);
       const candidateProviders = getModelRoutes({ mode, cockpitMode, tier }).map(r => ({ provider: r.provider, model: r.model }));

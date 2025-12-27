@@ -1,17 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { BrewTruthReport } from "@/lib/brewtruth"; // Import BrewTruthReport
 import { ActionMenu } from "./ActionMenu";
-import type { BrewAssistApiResponse } from "@/pages/api/brewassist";
+import type { BrewAssistApiRequest } from "@/pages/api/brewassist"; // Import BrewAssistApiRequest
 import ReactMarkdown from "react-markdown";
 import { useToolbelt } from '@/contexts/ToolbeltContext'; // Import useToolbelt
-import type { ToolbeltBrewMode, ToolbeltTier } from '@/lib/toolbeltConfig'; // Import ToolbeltBrewMode and ToolbeltTier
+import { BrewTier } from '@/lib/commands/types'; // Import BrewTier
 import { useCockpitMode } from "@/contexts/CockpitModeContext";
 import { CockpitModeToggle } from "./CockpitModeToggle";
 import { CognitionState, assembleCognitionState, ReasoningMode, Intent, EmotionalState, RiskLevel } from "@/lib/brewCognition"; // Import CognitionState and assembleCognitionState
 import { ScopeCategory } from "@/lib/intent-gatekeeper"; // Import ScopeCategory
 import { getActivePersona, Persona } from "@/lib/brewIdentityEngine"; // Import getActivePersona and Persona
 import { getMessageText } from "@/lib/ui/messageText";
-import { HandshakeDecision } from "@/lib/toolbelt/handshake";
+import { UnifiedPolicyEnvelope } from "@/lib/toolbelt/handshake"; // Import UnifiedPolicyEnvelope
+
+type ToolbeltBrewMode = "HRM" | "LLM" | "AGENT" | "LOOP"; // Define ToolbeltBrewMode locally
 
 type UiMessageRole = "user" | "assistant" | "system";
 
@@ -21,7 +23,7 @@ interface UiMessage {
   content: string;
   truth?: BrewTruthReport | null; // Changed to BrewTruthReport
   blockedByTruth?: boolean;
-  cognition?: CognitionState; // Add cognition state to message
+  cognition?: CognitionState | null; // Allow null for cognition state
   route?: "brewassist" | "brewchat" | "brewcore" | "blocked"; // Add route to message
   scopeCategory?: ScopeCategory; // Add scopeCategory to message
 }
@@ -552,7 +554,7 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
           </span>
           <select
             value={tier}
-            onChange={(e) => setTier(e.target.value as ToolbeltTier)}
+            onChange={(e) => setTier(e.target.value as BrewTier)}
             className="brew-tier-dropdown"
           >
             <option value="T1_SAFE">Tier 1 — Safe</option>

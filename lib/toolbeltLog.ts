@@ -1,7 +1,8 @@
 // lib/toolbeltLog.ts
-import type { BrewTier } from '../commands/types'; // Use BrewTier from commands/types
+import type { BrewTier } from './commands/types'; // Use BrewTier from commands/types
 import type { CapabilitySurface } from './capabilities/registry'; // Use CapabilitySurface for mode
 import type { RiskLevel } from './brewCognition'; // RiskLevel is defined in brewCognition
+import type { ToolbeltBrewMode } from '@/contexts/ToolbeltContext'; // Import ToolbeltBrewMode
 
 export type ToolbeltEventType =
   | 'mode_changed'
@@ -12,10 +13,10 @@ export type ToolbeltEventType =
 
 export interface ToolbeltEvent {
   type: ToolbeltEventType;
-  mode: CapabilitySurface; // Use CapabilitySurface
+  mode: ToolbeltBrewMode; // Use ToolbeltBrewMode
   tier: BrewTier; // Use BrewTier
   timestamp: string;
-  message: string;
+  message?: string;
   details?: any;
 }
 

@@ -8,21 +8,22 @@ import DatabaseWizard from "./mcp/DatabaseWizard";
 import ResearchWizard from "./mcp/ResearchWizard";
 import McpWizardModal from "./mcp/McpWizardModal";
 import { useToolbelt } from '@/contexts/ToolbeltContext'; // Import useToolbelt
-import { CAPABILITY_REGISTRY, CapabilityId, RWX } from '@/lib/capabilities/registry'; // Import CAPABILITY_REGISTRY and CapabilityId
+import { CAPABILITY_REGISTRY, RWX } from '@/lib/capabilities/registry'; // Import CAPABILITY_REGISTRY and RWX
 import { evaluateHandshake, UnifiedPolicyEnvelope } from '@/lib/toolbelt/handshake'; // Import evaluateHandshake and UnifiedPolicyEnvelope
 import { useCockpitMode } from "@/contexts/CockpitModeContext";
-import { Persona } from "@/lib/brewIdentityEngine"; // Import Persona
+import { Persona, getActivePersona } from "@/lib/brewIdentityEngine"; // Import Persona and getActivePersona
 
 interface McpButtonProps {
-  capabilityId: CapabilityId;
+  capabilityId: string;
   label: string;
   smallText: string;
   onClick: () => void;
 }
 
 const McpButton: React.FC<McpButtonProps> = ({ capabilityId, label, smallText, onClick }) => {
-  const { tier, persona } = useToolbelt(); // Get tier and persona from ToolbeltContext
+  const { tier } = useToolbelt(); // Get tier from ToolbeltContext
   const { mode: cockpitMode } = useCockpitMode(); // Get cockpitMode from CockpitModeContext
+  const persona = getActivePersona(); // Get full Persona object
 
   const policyEnvelope = evaluateHandshake({
     intent: CAPABILITY_REGISTRY[capabilityId].intentCategory, // Use intentCategory from registry
@@ -53,7 +54,7 @@ const McpButton: React.FC<McpButtonProps> = ({ capabilityId, label, smallText, o
 
 export const WorkspaceSidebarLeft: React.FC = () => {
   const { mode: cockpitMode } = useCockpitMode();
-  const { tier, persona } = useToolbelt(); // Consume from context
+  const { tier } = useToolbelt(); // Consume from context
   const [fileWizardOpen, setFileWizardOpen] = useState(false);
   const [gitWizardOpen, setGitWizardOpen] = useState(false);
   const [dbWizardOpen, setDbWizardOpen] = useState(false);

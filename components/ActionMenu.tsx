@@ -1,7 +1,10 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useToolbelt } from '@/contexts/ToolbeltContext'; // Import useToolbelt
-import type { ToolPermission } from '@/lib/toolbeltConfig'; // Import ToolbeltPermission
 import { useCockpitMode } from "@/contexts/CockpitModeContext"; // Import useCockpitMode
+import { UnifiedPolicyEnvelope, evaluateHandshake } from '@/lib/toolbelt/handshake'; // Import UnifiedPolicyEnvelope and evaluateHandshake
+import { BrewTier } from '@/lib/commands/types'; // Import BrewTier
+import { Persona, getActivePersona } from '@/lib/brewIdentityEngine'; // Import Persona and getActivePersona
+import { CAPABILITY_REGISTRY } from '@/lib/capabilities/registry'; // Import CAPABILITY_REGISTRY
 
 
 interface ActionMenuProps {
@@ -22,13 +25,12 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   onTakePhoto,
   onImportFromGoogleDrive,
 }) => {
-  const { effectiveRules } = useToolbelt(); // Consume from context
   const { mode: cockpitMode } = useCockpitMode(); // Get cockpitMode from context
+  const { tier } = useToolbelt(); // Consume from context
+  const persona = getActivePersona(); // Get persona from getActivePersona()
   const [isOpen, setIsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-
-  const fileWritePermission = effectiveRules.actions.fileWrite;
 
   // Close on outside click
   useEffect(() => {
@@ -68,8 +70,16 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0 && onUploadFile) {
-      // Mark file upload as a dangerous action if permission is needs_confirm
-      const dangerousAction = fileWritePermission === 'needs_confirm';
+      const fileWritePolicy = evaluateHandshake({
+        intent: CAPABILITY_REGISTRY["fs_write"].intentCategory,
+        tier,
+        persona,
+        cockpitMode,
+        capabilityId: "fs_write",
+        action: "W",
+      });
+      // Mark file upload as a dangerous action if policy requires confirmation
+      const dangerousAction = fileWritePolicy.requiresConfirm;
       onUploadFile(files, dangerousAction);
     }
     // Reset input so same file can be selected twice
@@ -112,7 +122,14 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
               label="Upload File" // Changed label to be more generic for file upload
               description="Upload a file for analysis or modification"
               onClick={handleUploadClick} // Use handleUploadClick for the file input
-              permission={fileWritePermission} // Pass permission to the item
+              policy={evaluateHandshake({
+                intent: CAPABILITY_REGISTRY["fs_write"].intentCategory,
+                tier,
+                persona,
+                cockpitMode,
+                capabilityId: "fs_write",
+                action: "W",
+              })} // Pass policy to the item
             />
 
             <ActionMenuItem
@@ -123,7 +140,14 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
                 onUploadImage && onUploadImage();
                 setIsOpen(false);
               }}
-              permission={fileWritePermission} // Pass permission to the item
+              policy={evaluateHandshake({
+                intent: CAPABILITY_REGISTRY["fs_write"].intentCategory,
+                tier,
+                persona,
+                cockpitMode,
+                capabilityId: "fs_write",
+                action: "W",
+              })} // Pass policy to the item
             />
 
             <ActionMenuItem
@@ -134,7 +158,14 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
                 onTakePhoto && onTakePhoto();
                 setIsOpen(false);
               }}
-              permission={fileWritePermission} // Pass permission to the item
+              policy={evaluateHandshake({
+                intent: CAPABILITY_REGISTRY["fs_write"].intentCategory,
+                tier,
+                persona,
+                cockpitMode,
+                capabilityId: "fs_write",
+                action: "W",
+              })} // Pass policy to the item
             />
 
             <ActionMenuItem
@@ -145,7 +176,14 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
                 onImportFromGoogleDrive && onImportFromGoogleDrive();
                 setIsOpen(false);
               }}
-              permission={fileWritePermission} // Pass permission to the item
+              policy={evaluateHandshake({
+                intent: CAPABILITY_REGISTRY["fs_write"].intentCategory,
+                tier,
+                persona,
+                cockpitMode,
+                capabilityId: "fs_write",
+                action: "W",
+              })} // Pass policy to the item
             />
 
             <ActionMenuItem
@@ -156,7 +194,14 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
                 onSelectDeepReasoning && onSelectDeepReasoning();
                 setIsOpen(false);
               }}
-              permission={'allowed'} // HRM is always allowed for deep reasoning
+              policy={evaluateHandshake({
+                intent: CAPABILITY_REGISTRY["/hrm"].intentCategory,
+                tier,
+                persona,
+                cockpitMode,
+                capabilityId: "/hrm",
+                action: "R", // Assuming HRM is a read-only operation
+              })}
             />
 
             <ActionMenuItem
@@ -167,7 +212,14 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
                 onSelectNimsResearch && onSelectNimsResearch();
                 setIsOpen(false);
               }}
-              permission={'allowed'} // NIMs research is always allowed
+              policy={evaluateHandshake({
+                intent: CAPABILITY_REGISTRY["research_web"].intentCategory,
+                tier,
+                persona,
+                cockpitMode,
+                capabilityId: "research_web",
+                action: "R", // Assuming NIMs is a read-only operation
+              })}
             />
           </div>
         </div>
@@ -182,18 +234,13 @@ interface ActionMenuItemProps {
   label: string;
   description: string;
   onClick: () => void;
-  permission: ToolPermission; // Corrected type
+  policy: UnifiedPolicyEnvelope; // Use UnifiedPolicyEnvelope
 }
 
-const ActionMenuItem: React.FC<ActionMenuItemProps> = ({ kind, label, description, onClick, permission }) => {
-  const disabled = permission === 'blocked' || permission === 'admin_only';
+const ActionMenuItem: React.FC<ActionMenuItemProps> = ({ kind, label, description, onClick, policy }) => {
+  const disabled = !policy.ok;
 
-  const tooltip =
-    permission === 'blocked'
-      ? 'Disabled in current Mode/Tier'
-      : permission === 'admin_only'
-      ? 'Admin-only in this configuration'
-      : undefined;
+  const tooltip = policy.reason;
 
   const handleClick = () => {
     if (!disabled) {
@@ -216,7 +263,7 @@ const ActionMenuItem: React.FC<ActionMenuItemProps> = ({ kind, label, descriptio
   return (
     <button
       type="button"
-      className={`action-menu-item action-menu-item--${permission}`}
+      className={`action-menu-item action-menu-item--${policy.ok ? 'allowed' : 'blocked'}`}
       onClick={handleClick}
       disabled={disabled}
       title={tooltip}
@@ -227,8 +274,8 @@ const ActionMenuItem: React.FC<ActionMenuItemProps> = ({ kind, label, descriptio
       </div>
       <div className="action-menu-item-icon-wrapper">
         <span className="action-menu-item-icon">{getIcon(kind)}</span>
-        {permission === 'needs_confirm' && <span className="mcp-badge">⚠</span>}
-        {permission === 'admin_only' && <span className="mcp-badge">🔒</span>}
+        {policy.requiresConfirm && <span className="mcp-badge">⚠</span>}
+        {policy.requiresSandbox && <span className="mcp-badge"> sandbox </span>}
       </div>
     </button>
   );

@@ -1,9 +1,9 @@
 // brewassist/lib/brewConfig.ts
 
 import path from "path";
-import { BrewAssistPersona } from "./brewassist-engine";
+import { Persona } from "./brewIdentityEngine"; // Import Persona
 
-export const DEFAULT_PERSONA: BrewAssistPersona = {
+export const DEFAULT_PERSONA: any = {
   name: "BrewAssist",
   version: "S4.8c",
   role: "devops_copilot",

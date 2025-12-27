@@ -1,17 +1,20 @@
-import { Persona } from "./brewIdentityEngine"; // Import Persona from brewIdentityEngine
+import { Persona, PersonaId } from "./brewIdentityEngine"; // Import Persona and PersonaId from brewIdentityEngine
 import { CockpitMode } from "@/lib/brewTypes";
-import { BrewTier } from "./commands/types"; // Use BrewTier from commands/types
+import { BrewTier } from "@/lib/commands/types"; // Import BrewTier from registry
 import { UnifiedPolicyEnvelope } from "./toolbelt/handshake"; // Use UnifiedPolicyEnvelope
+import { BrewTruthReport } from "./brewtruth"; // Import BrewTruthReport
 
 export type ReasoningMode = "LLM" | "HRM" | "Agent" | "Loop";
 export type RiskLevel = "Low" | "Moderate" | "High" | "Critical";
 export type EmotionalState = "Neutral" | "Cautious" | "Uncertain" | "Confident";
 export type Intent = string; // This could be more structured later
 
+export type TruthValidationStatus = "Validated" | "Uncertain" | "Failed";
+
 export interface CognitionState {
-  persona: Persona;
+  persona: PersonaId;
   emotionalState: EmotionalState;
-  userRole: UserRole;
+  userRole: CockpitMode;
   toolbeltTier: BrewTier; // Use BrewTier
   intent: Intent;
   reasoningMode: ReasoningMode;
@@ -37,16 +40,15 @@ export interface CognitionState {
 export function assembleCognitionState(
   persona: Persona['id'], // Use Persona['id'] for persona
   cockpitMode: CockpitMode,
-  toolbeltTier: ToolbeltTier,
+  toolbeltTier: BrewTier,
   inferredIntent: Intent,
   currentReasoningMode: ReasoningMode,
   brewTruthReport: BrewTruthReport | null,
-  handshakeDecision: HandshakeDecision,
+  handshakeDecision: UnifiedPolicyEnvelope,
 ): CognitionState {
   let emotionalState: EmotionalState = "Neutral";
   let riskLevel: RiskLevel = "Low";
-  let truthValidationStatus: "Validated" | "Uncertain" | "Failed" = "Validated";
-
+  let truthValidationStatus: TruthValidationStatus = "Validated";
   if (brewTruthReport) {
     if (brewTruthReport.overallScore < 0.5) {
       emotionalState = "Uncertain";
@@ -74,7 +76,7 @@ export function assembleCognitionState(
   }
 
   // Adjust emotional state based on handshake decision
-  if (handshakeDecision.decision === "BLOCK" || handshakeDecision.decision === "REQUIRE_CONFIRMATION") {
+  if (!handshakeDecision.ok || handshakeDecision.requiresConfirm) {
     emotionalState = "Cautious";
     if (riskLevel === "Low") riskLevel = "Moderate"; // Elevate risk if not already high
   }

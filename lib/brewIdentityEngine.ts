@@ -11,7 +11,7 @@ const logIdentityEvent =
     : () => {}; // No-op for client-side
 
 // Define types for Persona, Emotion Tier, and Context Window
-export type PersonaId = 'rb' | 'default' | 'strict';
+export type PersonaId = 'admin' | 'dev' | 'support' | 'customer'; // Aligned with UserRole
 export type EmotionTier = 1 | 2 | 3 | 4 | 5; // Calm to Emergency
 
 export interface Persona {
@@ -33,7 +33,7 @@ export interface IdentityStatus {
 
 // Placeholder for active persona (will be loaded/managed)
 let activePersona: Persona = {
-  id: 'rb',
+  id: 'admin', // Updated to 'admin'
   label: 'RB Mode – BrewExec Architect',
   tone: 'Conversational, confident, and collaborative.',
   emotionTier: 3, // Default to Focused / Tactical
