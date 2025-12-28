@@ -55,9 +55,9 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   }, [isOpen]);
 
   // Render empty fragment in customer mode AFTER all hooks are called
-  if (cockpitMode === "customer") {
-    return <></>;
-  }
+  // if (cockpitMode === "customer") {
+  //   return <></>;
+  // }
 
 
   const handleUploadClick = () => {
