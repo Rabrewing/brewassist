@@ -21,23 +21,20 @@
   cursor: pointer;
   display: grid;
   place-items: center;
-  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, color 140ms ease; /* Added color transition */
   box-shadow:
     0 12px 26px rgba(0, 0, 0, 0.34),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.9); /* Explicitly set color for the + sign */
 }
 
 .brew-action-btn:hover {
   transform: translateY(-1px);
-  border-color: rgba(255, 215, 0, 0.38);
-  background: rgba(15, 22, 34, 0.62);
+  border-color: rgba(0, 150, 150, 0.4); /* Subtle BrewTeal border */
+  background: rgba(0, 10, 20, 0.7); /* Darker, more transparent navy */
+  color: rgba(0, 150, 150, 0.9); /* Ensure + sign is visible and teal */
 }
 
-.brew-action-btn:active {
-  transform: translateY(0) scale(0.98);
-}
-
-/* Dropdown menu panel */
 .brew-action-menu {
   position: absolute;
   left: 0;
@@ -49,8 +46,8 @@
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: linear-gradient(
     180deg,
-    rgba(12, 18, 28, 0.88),
-    rgba(10, 14, 22, 0.78)
+    rgba(0, 10, 20, 0.7), /* More transparent navy */
+    rgba(0, 10, 20, 0.6)  /* More transparent navy */
   );
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -89,8 +86,8 @@
 }
 
 .brew-action-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 215, 0, 0.20);
+  background: rgba(0, 10, 20, 0.4); /* More transparent navy on hover */
+  border-color: rgba(0, 150, 150, 0.3); /* Subtle BrewTeal border */
   transform: translateX(1px);
 }
 
@@ -98,62 +95,7 @@
   transform: translateY(0) scale(0.98);
 }
 
-/* Dropdown menu panel */
-.brew-action-menu {
-  position: absolute;
-  left: 0;
-  bottom: 46px; /* pops upward above input */
-  width: 320px;
-  z-index: 60;
 
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: linear-gradient(
-    180deg,
-    rgba(12, 18, 28, 0.88),
-    rgba(10, 14, 22, 0.78)
-  );
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-
-  box-shadow:
-    0 26px 70px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-
-  padding: 10px;
-  transform: translateY(10px);
-  opacity: 0;
-  animation: brewMenuIn 160ms ease forwards;
-}
-
- @keyframes brewMenuIn {
-  to { transform: translateY(0); opacity: 1; }
-}
-
-.brew-action-menu-section {
-  padding: 8px 8px 6px 8px;
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.brew-action-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 10px 10px;
-  border-radius: 14px;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
-}
-
-.brew-action-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 215, 0, 0.20);
-  transform: translateX(1px);
-}
 
 .brew-action-icon {
   width: 34px;
