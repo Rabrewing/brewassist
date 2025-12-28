@@ -1,7 +1,7 @@
 import { callBrewassist } from "./helpers/brewassistTestClient";
 import { CAPABILITY_REGISTRY, CapabilityId, RWX } from "../lib/capabilities/registry";
 import { BrewTier } from "../lib/commands/types";
-import { Persona } from "../lib/brewIdentityEngine";
+import { Persona } from "../lib/brewIdentityEngine"; // Import Persona type
 import { evaluateHandshake, UnifiedPolicyEnvelope } from "../lib/toolbelt/handshake";
 
 /**
@@ -10,6 +10,27 @@ import { evaluateHandshake, UnifiedPolicyEnvelope } from "../lib/toolbelt/handsh
  * Goal: ensure chat calls succeed deterministically without real API keys.
  */
 const MOCK_TEXT = "MOCK_STREAM_OK";
+
+// Define mock Persona objects
+const mockCustomerPersona: Persona = {
+  id: 'customer',
+  label: 'Customer User',
+  tone: 'Helpful',
+  emotionTier: 1,
+  safetyMode: 'soft-stop',
+  memoryWindow: 1,
+  systemPrompt: 'Mock customer persona for testing',
+};
+
+const mockAdminPersona: Persona = {
+  id: 'admin',
+  label: 'Admin User',
+  tone: 'Authoritative',
+  emotionTier: 3,
+  safetyMode: 'hard-stop', // Using 'hard-stop' as per recent fix
+  memoryWindow: 3,
+  systemPrompt: 'Mock admin persona for testing',
+};
 
 jest.mock("../lib/brewassist-engine", () => ({
   ...jest.requireActual("../lib/brewassist-engine"),
@@ -60,7 +81,7 @@ describe("BrewAssist Chain Gates (S4.8–S4.10)", () => {
       input: "create a file test.txt with hello",
       mode: "TOOL",
       tier: "basic", // Customer tier
-      persona: "customer",
+      persona: mockCustomerPersona,
       capabilityId: "fs_write", // Use fs_write capability
       action: "W",
       toolRequest: { type: "write_file", path: "test.txt", content: "hello" },
@@ -75,7 +96,7 @@ describe("BrewAssist Chain Gates (S4.8–S4.10)", () => {
       input: "apply a patch",
       mode: "TOOL",
       tier: "pro", // Pro tier for /patch
-      persona: "admin",
+      persona: mockAdminPersona,
       capabilityId: "/patch", // Use patch capability
       confirmApply: false, // Missing confirmation
       truthScore: 0.9, // Add truthScore
@@ -92,7 +113,7 @@ describe("BrewAssist Chain Gates (S4.8–S4.10)", () => {
       input: "apply a patch",
       mode: "TOOL",
       tier: "pro", // Pro tier for /patch
-      persona: "admin",
+      persona: mockAdminPersona,
       capabilityId: "/patch", // Use patch capability
       confirmApply: true,
       truthScore: 0.9,
@@ -129,7 +150,7 @@ describe("BrewAssist Chain Gates (S4.8–S4.10)", () => {
       input: "create a file test.txt with hello",
       mode: "TOOL",
       tier: "basic", // Customer tier
-      persona: "customer",
+      persona: mockCustomerPersona,
       capabilityId: "fs_write", // Use fs_write capability
       action: "W",
       toolRequest: { type: "write_file", path: "test.txt", content: "hello" },

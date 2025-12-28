@@ -1,12 +1,31 @@
-
 import { evaluateHandshake } from '@/lib/toolbelt/handshake';
+import { Persona } from '@/lib/brewIdentityEngine'; // Import Persona type
 
 describe('evaluateHandshake', () => {
+  const adminPersona: Persona = {
+    id: 'admin',
+    label: 'Admin User',
+    tone: 'Authoritative',
+    emotionTier: 3,
+    safetyMode: 'hard-stop', // Consistent with lib/toolbelt/handshake.ts
+    memoryWindow: 3,
+    systemPrompt: 'Admin persona for testing',
+  };
+  const customerPersona: Persona = {
+    id: 'customer',
+    label: 'Customer User',
+    tone: 'Helpful',
+    emotionTier: 1,
+    safetyMode: 'soft-stop',
+    memoryWindow: 1,
+    systemPrompt: 'Customer persona for testing',
+  };
+
   it('should deny customer access to /patch command', () => {
     const decision = evaluateHandshake({
       intent: 'PLATFORM_DEVOPS',
       tier: 'basic',
-      persona: 'customer',
+      persona: customerPersona,
       cockpitMode: 'customer',
       capabilityId: '/patch', // Updated
     });
@@ -17,7 +36,7 @@ describe('evaluateHandshake', () => {
     const decision = evaluateHandshake({
       intent: 'DOCS_KB',
       tier: 'basic',
-      persona: 'customer',
+      persona: customerPersona,
       cockpitMode: 'customer',
       capabilityId: '/doc', // Updated
       truthScore: 0.5, // Added to meet BrewTruth expectations
@@ -29,7 +48,7 @@ describe('evaluateHandshake', () => {
     const decision = evaluateHandshake({
       intent: 'PLATFORM_DEVOPS',
       tier: 'pro',
-      persona: 'admin',
+      persona: adminPersona,
       cockpitMode: 'admin',
       capabilityId: 'fs_write',
       confirmApply: false, // No confirmation
@@ -44,7 +63,7 @@ describe('evaluateHandshake', () => {
     const decision = evaluateHandshake({
       intent: 'PLATFORM_DEVOPS', // Updated from SUPPORT to PLATFORM_DEVOPS
       tier: 'basic',
-      persona: 'customer',
+      persona: customerPersona,
       cockpitMode: 'customer',
       capabilityId: 'fs_read',
     });

@@ -9,7 +9,7 @@ describe('S4.10c.4 Policy Enforcement Tests', () => {
     label: 'Admin User',
     tone: 'Authoritative',
     emotionTier: 3,
-    safetyMode: 'full-override',
+    safetyMode: 'hard-stop',
     memoryWindow: 3,
     systemPrompt: 'Admin persona for testing',
   };
