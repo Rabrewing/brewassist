@@ -91,7 +91,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
 
 
   return (
-    <div className="action-menu-root" ref={menuRef}>
+    <div className="brew-action-anchor" ref={menuRef}>
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -106,18 +106,17 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
       {/* + button */}
       <button
         type="button"
-        className="action-menu-trigger"
+        className="brew-action-btn"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Open BrewAssist action menu"
       >
-        <span className="action-menu-trigger-icon">+</span>
+        <span className="brew-action-btn-icon">+</span>
       </button>
 
 
       {isOpen && (
         <div className="brew-action-menu">
-          <div className="action-menu-popover">
-            <ActionMenuItem
+          <ActionMenuItem
               kind="upload"
               label="Upload File" // Changed label to be more generic for file upload
               description="Upload a file for analysis or modification"
@@ -221,7 +220,6 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
                 action: "R", // Assuming NIMs is a read-only operation
               })}
             />
-          </div>
         </div>
       )}
     </div>
@@ -263,16 +261,16 @@ const ActionMenuItem: React.FC<ActionMenuItemProps> = ({ kind, label, descriptio
   return (
     <button
       type="button"
-      className={`action-menu-item action-menu-item--${policy.ok ? 'allowed' : 'blocked'}`}
+      className="brew-action-item"
       onClick={handleClick}
       disabled={disabled}
       title={tooltip}
     >
-      <div className="action-menu-item-content">
-        <div className="action-menu-item-label">{label}</div>
-        <div className="action-menu-item-description">{description}</div>
+      <div className="brew-action-text">
+        <div className="brew-action-title">{label}</div>
+        <div className="brew-action-subtitle">{description}</div>
       </div>
-      <div className="action-menu-item-icon-wrapper">
+      <div className="brew-action-icon">
         <span className="action-menu-item-icon">{getIcon(kind)}</span>
         {policy.requiresConfirm && <span className="mcp-badge">⚠</span>}
         {policy.requiresSandbox && <span className="mcp-badge"> sandbox </span>}
