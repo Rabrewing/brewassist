@@ -12,6 +12,7 @@ import { ScopeCategory } from "@/lib/intent-gatekeeper"; // Import ScopeCategory
 import { getActivePersona, Persona } from "@/lib/brewIdentityEngine"; // Import getActivePersona and Persona
 import { getMessageText } from "@/lib/ui/messageText";
 import { UnifiedPolicyEnvelope } from "@/lib/toolbelt/handshake"; // Import UnifiedPolicyEnvelope
+import GlassTabRail from './right-rail/GlassTabRail'; // Import GlassTabRail
 
 type ToolbeltBrewMode = "HRM" | "LLM" | "AGENT" | "LOOP"; // Define ToolbeltBrewMode locally
 
@@ -586,6 +587,7 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
           </div>
         </div>
       )}
+      <GlassTabRail isAdmin={cockpitMode === 'admin'} />
     </div>
   );
 };

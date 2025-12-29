@@ -128,3 +128,76 @@ a {
 .brewassist-response > * + * {
   margin-top: 0.4rem;
 }
+
+/* Glass Overlay System */
+.glass-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000; /* High z-index to be on top */
+  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent dark background */
+  backdrop-filter: blur(12px); /* Glassmorphic blur */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.glass-overlay-panel {
+  background-color: rgba(15, 23, 42, 0.7); /* Translucent dark glass */
+  border: 1px solid rgba(148, 163, 184, 0.2); /* Subtle border */
+  border-radius: 8px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3); /* Soft shadow */
+  padding: 20px;
+  max-width: 600px; /* Adjust as needed */
+  max-height: 80vh;
+  overflow-y: auto;
+  color: var(--brew-text-main);
+  position: relative; /* For positioning title/close button if added */
+}
+
+.glass-overlay-header {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 15px;
+  color: var(--brew-gold-soft);
+}
+
+.glass-tab-rail {
+  position: fixed;
+  right: 0;
+  top: 50%; /* Center vertically */
+  transform: translateY(-50%);
+  z-index: 999; /* Below overlay, above chat */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 5px;
+  background-color: rgba(15, 23, 42, 0.5);
+  border-radius: 8px 0 0 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-right: none;
+}
+
+.glass-tab-item {
+  background: none;
+  border: none;
+  color: var(--brew-text-main);
+  font-size: 1.5rem;
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.glass-tab-item:hover {
+  background-color: rgba(148, 163, 184, 0.1);
+  color: var(--brew-gold-soft);
+}
+
+.glass-tab-item.active {
+  background-color: rgba(148, 163, 184, 0.2);
+  color: var(--brew-teal);
+  box-shadow: 0 0 8px rgba(0, 199, 183, 0.5); /* Subtle glow */
+}
