@@ -314,3 +314,64 @@ a {
   color: #020617;
   font-weight: bold;
 }
+
+/* DevOps 8 Panel */
+.devops8-panel {
+  padding: 1rem;
+}
+
+.devops8-header {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.devops8-header h2 {
+  font-size: 1.5rem;
+  color: var(--brew-gold-soft);
+  margin: 0;
+}
+
+.devops8-header p {
+  font-size: 0.9rem;
+  color: var(--brew-text-soft);
+  margin: 0;
+}
+
+.devops8-signals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.devops8-signal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid transparent;
+}
+
+.devops8-signal-row.status-ok {
+  border-left-color: #00c853; /* Green for OK */
+}
+
+.devops8-signal-row.status-warn {
+  border-left-color: #ffb300; /* Amber for warning */
+}
+
+.devops8-signal-row.status-error {
+  border-left-color: #ff5252; /* Red for error */
+}
+
+.devops8-principle {
+  font-weight: 600;
+  color: var(--brew-text-main);
+}
+
+.devops8-signal {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--brew-text-soft);
+}

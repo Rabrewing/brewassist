@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TabDefinition, customerTabs, adminTabs } from './tabs';
 import GlassOverlayPanel from './GlassOverlayPanel';
+import DevOps8Panel from './DevOps8Panel'; // Import DevOps8Panel
 
 interface GlassTabRailProps {
   isAdmin: boolean;
@@ -22,7 +23,7 @@ const GlassTabRail: React.FC<GlassTabRailProps> = ({ isAdmin }) => {
   const ActiveTabContent = () => {
     switch (activeTabId) {
       case 'guide':
-        return <div>Guide Content (DevOps 8 will go here)</div>;
+        return <DevOps8Panel />;
       case 'docs':
         return <div>Docs Content</div>;
       case 'help':
