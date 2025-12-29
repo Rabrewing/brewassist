@@ -147,7 +147,7 @@ a {
   border-radius: 8px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3); /* Soft shadow */
   padding: 20px;
-  max-width: 600px; /* Adjust as needed */
+  max-width: 1200px; /* Increased max-width */
   max-height: 80vh;
   overflow-y: auto;
   color: var(--brew-text-main);
