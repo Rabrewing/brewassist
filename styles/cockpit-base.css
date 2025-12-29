@@ -201,3 +201,116 @@ a {
   color: var(--brew-teal);
   box-shadow: 0 0 8px rgba(0, 199, 183, 0.5); /* Subtle glow */
 }
+
+/* ActionMenu CSS */
+.brew-action-anchor {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-right: 0.25rem;
+}
+
+.brew-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: radial-gradient(circle at top, #020617 0, #020617 60%, #000 100%);
+  color: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out,
+    transform 0.1s ease-out;
+}
+
+.brew-action-btn:hover {
+  border-color: #facc15; /* BrewGold */
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.35);
+  transform: translateY(-1px);
+}
+
+.brew-action-btn-icon {
+  line-height: 1;
+}
+
+.brew-action-menu {
+  position: absolute;
+  bottom: 40px; /* Anchor below the + button */
+  left: 0; /* Left-aligned with the chat box */
+  min-width: 280px;
+  padding: 0.4rem;
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.7); /* Translucent dark glass */
+  border: 1px solid rgba(148, 163, 184, 0.2); /* Subtle border */
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3); /* Soft shadow */
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* Space between items */
+}
+
+.brew-action-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  border-radius: 0.5rem; /* Slightly rounded corners for items */
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+
+.brew-action-item:hover {
+  background-color: rgba(148, 163, 184, 0.1); /* Subtle hover background */
+  box-shadow: 0 0 8px rgba(0, 199, 183, 0.2); /* Subtle teal glow on hover */
+}
+
+.brew-action-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.brew-action-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-grow: 1;
+  text-align: left;
+}
+
+.brew-action-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.brew-action-subtitle {
+  font-size: 0.75rem;
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.brew-action-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 1.1rem;
+  color: var(--brew-teal);
+}
+
+.action-menu-item-icon {
+  line-height: 1;
+}
+
+.mcp-badge {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background-color: #facc15; /* BrewGold for warning */
+  color: #020617;
+  font-weight: bold;
+}
