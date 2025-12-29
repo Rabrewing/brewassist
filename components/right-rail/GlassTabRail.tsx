@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { TabDefinition, customerTabs, adminTabs } from './tabs';
 import GlassOverlayPanel from './GlassOverlayPanel';
-import DevOps8Panel from './DevOps8Panel'; // Import DevOps8Panel
+import DevOps8Panel from './DevOps8Panel';
+import { CognitionSurface } from '../CognitionSurface'; // Import CognitionSurface
 
 interface GlassTabRailProps {
   isAdmin: boolean;
@@ -35,7 +36,7 @@ const GlassTabRail: React.FC<GlassTabRailProps> = ({ isAdmin }) => {
       case 'sandbox':
         return <div>Sandbox Content (Admin Only)</div>;
       case 'cognition':
-        return <div>Cognition Content (Admin Only)</div>;
+        return <CognitionSurface />;
       default:
         return null;
     }
