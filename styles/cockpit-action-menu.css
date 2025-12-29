@@ -64,31 +64,29 @@
 
 /* The + button */
 .brew-action-btn {
+.brew-action-btn {
   width: 34px;
   height: 34px;
   border-radius: 12px;
-
   background: rgba(10, 18, 30, 0.72);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-
   border: 1px solid var(--bv-gold); /* BrewGold trace */
   box-shadow:
     0 8px 18px rgba(0, 0, 0, 0.45),
     inset 0 0 0 1px rgba(120, 200, 255, 0.08);
-
   color: var(--bv-teal); /* BrewTeal + sign */
   font-size: 20px; /* Make the + sign visible */
-
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
-  transition: transform 120ms ease, box-shadow 140ms ease, border-color 140ms ease;
+  transition: transform 120ms ease, box-shadow 140ms ease, border-color 140ms ease, background 140ms ease, color 140ms ease;
 }
 
 .brew-action-btn:hover {
-  border-color: rgba(120, 200, 255, 0.45);
+  border-color: rgba(0, 150, 150, 0.4); /* Subtle BrewTeal border */
+  background: rgba(0, 10, 20, 0.7); /* Darker, more transparent navy */
+  color: rgba(0, 150, 150, 0.9); /* Ensure + sign is visible and teal */
   box-shadow:
     0 10px 22px rgba(0, 0, 0, 0.55),
     0 0 0 3px rgba(80, 160, 255, 0.12),
@@ -99,11 +97,6 @@
 .brew-action-btn:active {
   transform: translateY(0px);
 }
-
-/* Dropdown menu panel */
-.brew-action-menu {
-  position: absolute; /* anchor to + button wrapper */
-  z-index: 50;
 
   width: min(360px, 92vw);
   padding: var(--bv-pad-panel);
@@ -131,12 +124,29 @@
 .brew-action-menu::before {
   content: "";
   position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(600px 220px at 20% 10%, rgba(0, 199, 183, 0.06), transparent 60%),
-    radial-gradient(520px 220px at 80% 90%, rgba(255, 215, 0, 0.05), transparent 65%);
-  opacity: 0.9;
+  left: 0;
+  bottom: 46px; /* pops upward above input */
+  width: 320px;
+  z-index: 60;
+
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(
+    180deg,
+    rgba(0, 10, 20, 0.7), /* More transparent navy */
+    rgba(0, 10, 20, 0.6)  /* More transparent navy */
+  );
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  padding: 10px;
+  transform: translateY(10px);
+  opacity: 0;
+  animation: brewMenuIn 160ms ease forwards;
 }
 
 /* Animation: calm lift */
@@ -185,11 +195,9 @@
 
 /* Hover should be subtle, not loud */
 .brew-action-item:hover {
-  background: transparent; /* Remove background on hover */
-  border-color: transparent; /* Reset border-color */
-  border-left: 1px solid var(--bv-gold); /* Subtle BrewGold left trace */
-  border-right: 1px solid var(--bv-gold); /* Subtle BrewGold right trace */
-  transform: translateY(0); /* Remove transform on hover */
+  background: rgba(0, 10, 20, 0.4); /* More transparent navy on hover */
+  border-color: rgba(0, 150, 150, 0.3); /* Subtle BrewTeal border */
+  transform: translateX(1px);
 }
 
 /* Active state: restrained gold hint (NOT full gold fill) */
@@ -217,11 +225,6 @@
   border-right: none;
   transform: none;
 }
-
-/* --- 4) Icon container (no bubble pills) --- */
-.brew-action-icon {
-  width: 38px;
-  height: 38px;
   border-radius: var(--bv-radius-icon);
   display: grid;
   place-items: center;

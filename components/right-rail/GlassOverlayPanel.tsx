@@ -1,51 +1,96 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo } from "react";
+import { useCockpitMode } from "@/contexts/CockpitModeContext";
+import { ProjectTree } from "../ProjectTree";
+import { SandboxPanel } from "../SandboxPanel";
+import { CognitionSurface } from "../CognitionSurface";
+import { getTabsConfig } from "./tabs";
+import { DevOps8Panel } from "./DevOps8Panel"; // Corrected import to DevOps8Panel
 
 interface GlassOverlayPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-  title?: string;
+  activeTabId: string | null;
+  onClose: () => void; // Changed to onClose to match GlassTabRail's expectation
 }
 
-const GlassOverlayPanel: React.FC<GlassOverlayPanelProps> = ({ isOpen, onClose, children, title }) => {
-  const panelRef = useRef<HTMLDivElement>(null);
+export const GlassOverlayPanel: React.FC<GlassOverlayPanelProps> = ({
+  activeTabId,
+  onClose,
+}) => {
+  const { mode: cockpitMode } = useCockpitMode();
+  const tabsConfig = useMemo(() => getTabsConfig(cockpitMode), [cockpitMode]);
 
+  // Mock cognition state and highlighted principle for demonstration
+  const mockCognitionState = "Policy Enforcement";
+  const mockHighlightedPrinciple = "Make work visible";
+
+  // Close panel on ESC key press
   useEffect(() => {
-    if (!isOpen) return;
-
-    const handleEscape = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose();
       }
     };
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-    document.addEventListener('mousedown', handleClickOutside);
-
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [onClose]);
 
-  if (!isOpen) return null;
+  if (!activeTabId) return null;
+
+  const panelTitle = tabsConfig.find(tab => tab.id === activeTabId)?.label || 'Panel'; // Changed to label
 
   return (
-    <div className="glass-overlay-backdrop">
-      <div ref={panelRef} className="glass-overlay-panel">
-        {title && <div className="glass-overlay-header">{title}</div>}
+    <>
+      <div className="glass-overlay-backdrop" onClick={onClose}></div>
+      <div className="glass-overlay-panel">
+        <div className="glass-overlay-header">
+          <span className="glass-overlay-title">{panelTitle}</span>
+          <button className="glass-overlay-close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
         <div className="glass-overlay-content">
-          {children}
+          {activeTabId === 'files' && (
+            <div className="project-tree-scroll">
+              <div className="project-tree-guides">
+                <ProjectTree />
+              </div>
+            </div>
+          )}
+          {activeTabId === 'sandbox' && cockpitMode === 'admin' && (
+            <div className="sandbox-region">
+              <SandboxPanel />
+            </div>
+          )}
+          {activeTabId === 'cognition' && (
+            <CognitionSurface
+              currentCognitionState={mockCognitionState}
+              highlightedPrinciple={mockHighlightedPrinciple}
+            />
+          )}
+          {activeTabId === 'guide' && (
+            <DevOps8Panel />
+          )}
+          {activeTabId === 'docs' && (
+            <div>
+              <h3>Docs Content</h3>
+              <p>Documentation will appear here.</p>
+            </div>
+          )}
+          {activeTabId === 'help' && (
+            <div>
+              <h3>Help Content</h3>
+              <p>Help information will appear here.</p>
+            </div>
+          )}
+          {activeTabId === 'history' && (
+            <div>
+              <h3>History Content</h3>
+              <p>Session history will appear here.</p>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </>
   );
 };
-
-export default GlassOverlayPanel;

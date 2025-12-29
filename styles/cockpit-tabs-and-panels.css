@@ -90,7 +90,7 @@
 
 /* Overlay backdrop (click outside to close) */
 .brew-panel-backdrop {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 45;
   background: rgba(0, 0, 0, 0.10);
@@ -98,7 +98,7 @@
 
 /* Slide-out glass panel */
 .brew-glass-panel {
-  position: absolute;
+  position: fixed;
   top: 72px;            /* adjust for header */
   right: 64px;          /* leaves space for the rail */
   z-index: 50;

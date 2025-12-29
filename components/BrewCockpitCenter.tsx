@@ -587,7 +587,7 @@ export const BrewCockpitCenter: React.FC = () => { // Removed props
           </div>
         </div>
       )}
-      <GlassTabRail isAdmin={cockpitMode === 'admin'} />
+      <GlassTabRail />
     </div>
   );
 };

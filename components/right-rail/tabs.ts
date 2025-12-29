@@ -1,20 +1,31 @@
-export interface TabDefinition {
+import React from "react";
+import { useCockpitMode } from "@/contexts/CockpitModeContext";
+
+export interface TabConfig {
   id: string;
-  label: string;
-  icon: string; // Placeholder for icon, will be used later
-  adminOnly?: boolean;
+  icon: string;
+  label: string; // Changed from tooltip to label to match GlassTabRail
+  modes: ('customer' | 'admin' | 'dev')[];
+  contentComponent?: React.FC<any>; // Optional: for directly embedding components
 }
 
-export const customerTabs: TabDefinition[] = [
-  { id: 'guide', label: 'Guide', icon: '📖' },
-  { id: 'docs', label: 'Docs', icon: '📚' },
-  { id: 'help', label: 'Help', icon: '❓' },
-  { id: 'history', label: 'History', icon: '⏳' },
-];
+export const getTabsConfig = (cockpitMode: 'customer' | 'admin' | 'dev'): TabConfig[] => {
+  const baseTabs: TabConfig[] = [
+    { id: 'guide', icon: '🧭', label: 'Guide', modes: ['customer', 'admin', 'dev'] },
+    { id: 'docs', icon: '📄', label: 'Docs', modes: ['customer', 'admin', 'dev'] },
+    { id: 'help', icon: '❓', label: 'Help', modes: ['customer', 'admin', 'dev'] },
+    { id: 'history', icon: '🕒', label: 'History', modes: ['customer', 'admin', 'dev'] },
+  ];
 
-export const adminTabs: TabDefinition[] = [
-  ...customerTabs,
-  { id: 'files', label: 'Files', icon: '📁', adminOnly: true },
-  { id: 'sandbox', label: 'Sandbox', icon: '🏖️', adminOnly: true },
-  { id: 'cognition', label: 'Cognition', icon: '🧠', adminOnly: true },
-];
+  const adminDevTabs: TabConfig[] = [
+    { id: 'files', icon: '🗂', label: 'Files', modes: ['admin', 'dev'] },
+    { id: 'sandbox', icon: '🧪', label: 'Sandbox', modes: ['admin', 'dev'] },
+    { id: 'cognition', icon: '🧠', label: 'Cognition', modes: ['admin', 'dev'] },
+  ];
+
+  if (cockpitMode === 'customer') {
+    return baseTabs;
+  } else {
+    return [...baseTabs, ...adminDevTabs];
+  }
+};

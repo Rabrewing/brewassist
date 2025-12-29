@@ -1,52 +1,38 @@
-import React, { useState } from 'react';
-import { TabDefinition, customerTabs, adminTabs } from './tabs';
-import GlassOverlayPanel from './GlassOverlayPanel';
-import DevOps8Panel from './DevOps8Panel';
-import { CognitionSurface } from '../CognitionSurface'; // Import CognitionSurface
-import { SandboxPanel } from '../SandboxPanel'; // Import SandboxPanel
+import React, { useState, useEffect, useMemo } from "react";
+import { useCockpitMode } from "@/contexts/CockpitModeContext";
+import { getTabsConfig } from "./tabs";
+import { GlassOverlayPanel } from "./GlassOverlayPanel"; // Import GlassOverlayPanel
 
 interface GlassTabRailProps {
-  isAdmin: boolean;
+  // No props needed here, state will be managed internally
 }
 
-const GlassTabRail: React.FC<GlassTabRailProps> = ({ isAdmin }) => {
-  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+export const GlassTabRail: React.FC<GlassTabRailProps> = () => {
+  const { mode: cockpitMode } = useCockpitMode();
+  const tabsConfig = useMemo(() => getTabsConfig(cockpitMode), [cockpitMode]);
 
-  const tabsToRender = isAdmin ? adminTabs : customerTabs;
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
 
   const handleTabClick = (tabId: string) => {
-    setActiveTabId(prevId => (prevId === tabId ? null : tabId));
+    if (activeTabId === tabId) {
+      setIsPanelOpen(false);
+      setActiveTabId(null);
+    } else {
+      setActiveTabId(tabId);
+      setIsPanelOpen(true);
+    }
   };
 
   const handleCloseOverlay = () => {
+    setIsPanelOpen(false);
     setActiveTabId(null);
-  };
-
-  const ActiveTabContent = () => {
-    switch (activeTabId) {
-      case 'guide':
-        return <DevOps8Panel />;
-      case 'docs':
-        return <div>Docs Content</div>;
-      case 'help':
-        return <div>Help Content</div>;
-      case 'history':
-        return <div>History Content</div>;
-      case 'files':
-        return <div>Files Content (Admin Only)</div>;
-      case 'sandbox':
-        return <SandboxPanel />;
-      case 'cognition':
-        return <CognitionSurface />;
-      default:
-        return null;
-    }
   };
 
   return (
     <>
       <div className="glass-tab-rail">
-        {tabsToRender.map(tab => (
+        {tabsConfig.map((tab) => (
           <button
             key={tab.id}
             className={`glass-tab-item ${activeTabId === tab.id ? 'active' : ''}`}
@@ -58,12 +44,9 @@ const GlassTabRail: React.FC<GlassTabRailProps> = ({ isAdmin }) => {
         ))}
       </div>
       <GlassOverlayPanel
-        isOpen={activeTabId !== null}
+        activeTabId={activeTabId}
         onClose={handleCloseOverlay}
-        title={tabsToRender.find(tab => tab.id === activeTabId)?.label}
-      >
-        <ActiveTabContent />
-      </GlassOverlayPanel>
+      />
     </>
   );
 };
