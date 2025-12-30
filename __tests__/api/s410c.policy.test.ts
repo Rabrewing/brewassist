@@ -1,11 +1,11 @@
 import handler from "@/pages/api/brewassist";
 import { createMocks } from "node-mocks-http";
 import { parseSseEvents } from "../helpers/sseTestUtils";
-import { callProviderStream } from "@/lib/brewassist-engine"; // Import callProviderStream
+import { runBrewAssistEngineStream } from "@/lib/brewassist-engine"; // Import runBrewAssistEngineStream
 
 jest.mock("@/lib/brewassist-engine", () => ({
   ...jest.requireActual("@/lib/brewassist-engine"),
-  callProviderStream: jest.fn(),
+  runBrewAssistEngineStream: jest.fn(),
 }));
 
 describe("S4.10c API policy contract", () => {
@@ -37,35 +37,16 @@ describe("S4.10c API policy contract", () => {
     res.write = jest.fn();
     res.end = jest.fn();
 
-    (callProviderStream as jest.Mock).mockImplementation(
-      async (provider: any, model: any, messages: any, onChunk: (chunk: string) => void) => {
+    (runBrewAssistEngineStream as jest.Mock).mockImplementation(
+      async (params: any, onChunk: (chunk: string) => void, onEnd: (result: any) => void) => {
         // Simulate a chunk event
-        onChunk('data: {"type":"chunk","payload":"MOCK_RESPONSE_CHUNK"}\n\n');
+        onChunk({ type: "chunk", text: "MOCK_RESPONSE_CHUNK" });
         // Simulate an end event with truth and policy
-        onChunk(`data: ${JSON.stringify({
-          type: "end",
-          payload: {
-            provider: provider,
-            model: model,
-            route: "brewassist",
-            scopeCategory: "PLATFORM_DEVOPS"
-          },
-          text: "MOCK_RESPONSE_END",
-          truth: {
-            tier: "gold",
-            overallScore: 0.9,
-            scores: [],
-            flags: [],
-            summary: "Mock truth summary",
-            modelTrace: { provider: provider, model: model, routeType: "primary" },
-            evaluatedAt: new Date().toISOString(),
-            version: "bt-2.1"
-          },
-          policy: {
-            decision: "ALLOW",
-            reason: "Mock policy reason"
-          }
-        })}\n\n`);
+        onEnd({
+          provider: "mockProvider",
+          model: "mockModel",
+          debugInfo: {},
+        });
       }
     );
 
