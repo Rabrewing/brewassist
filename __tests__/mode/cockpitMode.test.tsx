@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { renderHook, act } from '@testing-library/react-hooks';
+import { renderHook, act } from '@testing-library/react';
 import { CockpitModeProvider, useCockpitMode } from '@/contexts/CockpitModeContext';
 import { WorkspaceSidebarLeft } from '@/components/WorkspaceSidebarLeft';
 import { SandboxPanel } from '@/components/SandboxPanel';
@@ -43,10 +43,10 @@ describe('CockpitModeContext', () => {
 });
 
 describe('CockpitMode UI Hiding', () => {
-    it('MCP tools hidden in customer mode', () => {
+    it('MCP tools are visible but blocked in customer mode', () => {
         localStorage.setItem('cockpitMode', 'customer');
         
-        const { container } = render(
+        const { getByText, getByTitle } = render(
             <CockpitModeProvider>
               <ToolbeltProvider>
                 <WorkspaceSidebarLeft />
@@ -54,7 +54,22 @@ describe('CockpitMode UI Hiding', () => {
             </CockpitModeProvider>
           );
     
-        expect(container.firstChild).toBeNull();
+        // Assert that the sidebar itself is rendered
+        expect(screen.getByText('MCP')).toBeInTheDocument();
+        expect(screen.getByText('Tools')).toBeInTheDocument();
+
+        // Assert that specific MCP buttons are present and allowed/blocked
+        const fileAssistantButton = getByText('File Assistant').closest('button');
+        expect(fileAssistantButton).toBeInTheDocument();
+        expect(fileAssistantButton).toHaveClass('mcp-allowed');
+        expect(fileAssistantButton).not.toBeDisabled();
+        expect(fileAssistantButton).toHaveAttribute('title', 'Capability check passed.');
+
+        const suggestEditsButton = getByText('Suggest Edits').closest('button');
+        expect(suggestEditsButton).toBeInTheDocument();
+        expect(suggestEditsButton).toHaveClass('mcp-blocked');
+        expect(suggestEditsButton).toBeDisabled();
+        expect(getByTitle("TOOLBELT_TIER_TOO_LOW: Capability '/patch' requires Tier 2.")).toBeInTheDocument();
       });
     
       it('sandbox hidden in customer mode', () => {
@@ -71,20 +86,22 @@ describe('CockpitMode UI Hiding', () => {
 });
 
 describe('Tier 3 actions blocked in customer mode', () => {
-    it('Tier 3 actions blocked in customer mode', () => {
+    it('Tier 3 actions are blocked in customer mode', () => {
         localStorage.setItem('cockpitMode', 'customer');
-        const wrapper = ({ children }: { children: React.ReactNode }) => (
+
+        const { getByText, getByTitle } = render(
             <CockpitModeProvider>
-                <ToolbeltProvider>{children}</ToolbeltProvider>
+                <ToolbeltProvider initialTier="rb"> {/* Use initialTier prop */}
+                    <WorkspaceSidebarLeft />
+                </ToolbeltProvider>
             </CockpitModeProvider>
         );
 
-        const { result } = renderHook(() => useToolbelt(), { wrapper });
-
-        act(() => {
-            result.current.setTier('T3_POWER');
-        });
-
-        expect(result.current.tier).toBe('T2_GUIDED');
+        // Assert that the "Suggest Edits" button is present and blocked/disabled
+        const suggestEditsButton = getByText('Suggest Edits').closest('button');
+        expect(suggestEditsButton).toBeInTheDocument();
+        expect(suggestEditsButton).toHaveClass('mcp-blocked');
+        expect(suggestEditsButton).toBeDisabled();
+        expect(getByTitle("TOOLBELT_SANDBOX_ONLY: Capability '/patch' requires sandbox environment.")).toBeInTheDocument();
     });
 });

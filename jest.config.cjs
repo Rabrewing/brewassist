@@ -2,6 +2,12 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
+  testEnvironmentOptions: {
+    customExportConditions: [''],
+    'jest-dom': {
+      version: '18', // Specify React 18 for @testing-library/react-hooks
+    },
+  },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.cjs'],
   testMatch: ["**/__tests__/**/*.test.{ts,tsx}"],
   moduleNameMapper: {

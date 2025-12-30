@@ -22,10 +22,10 @@ const ToolbeltContext = createContext<ToolbeltContextValue | null>(null);
 const DEFAULT_MODE: ToolbeltBrewMode = 'LLM';
 const DEFAULT_TIER: BrewTier = 'basic'; // Updated to BrewTier "basic"
 
-export const ToolbeltProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ToolbeltProvider: React.FC<{ children: React.ReactNode; initialTier?: BrewTier }> = ({ children, initialTier }) => {
   const { mode: cockpitMode } = useCockpitMode();
   const [mode, setModeState] = useState<ToolbeltBrewMode>(DEFAULT_MODE);
-  const [tier, setTierState] = useState<BrewTier>(DEFAULT_TIER);
+  const [tier, setTierState] = useState<BrewTier>(initialTier || DEFAULT_TIER);
 
   const value: ToolbeltContextValue = useMemo(() => {
     const effectiveTier = cockpitMode === 'customer' && tier === 'rb' ? 'pro' : tier; // Updated tier names 'T3_DANGEROUS' to 'rb', 'T2_PATCH' to 'pro'
