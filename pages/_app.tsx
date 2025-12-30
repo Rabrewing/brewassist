@@ -3,7 +3,6 @@ import { GuideProvider } from '@/contexts/GuideContext';
 import { CockpitModeProvider } from '@/contexts/CockpitModeContext';
 import '@/styles/globals.css'; // keep whatever you already had
 import '@/styles/cockpit-action-menu.css';
-import '@/styles/cockpit-tabs-and-panels.css';
 
 export default function MyApp({ Component, pageProps }: AppProps) {
   return (

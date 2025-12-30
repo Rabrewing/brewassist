@@ -4,7 +4,7 @@ import { ProjectTree } from "../ProjectTree";
 import { SandboxPanel } from "../SandboxPanel";
 import { CognitionSurface } from "../CognitionSurface";
 import { getTabsConfig } from "./tabs";
-import { DevOps8Panel } from "./DevOps8Panel"; // Corrected import to DevOps8Panel
+import DevOps8Panel from "./DevOps8Panel"; // Corrected import to DevOps8Panel
 
 interface GlassOverlayPanelProps {
   activeTabId: string | null;
@@ -41,11 +41,11 @@ export const GlassOverlayPanel: React.FC<GlassOverlayPanelProps> = ({
 
   return (
     <>
-      <div className="glass-overlay-backdrop" onClick={onClose}></div>
-      <div className="glass-overlay-panel">
-        <div className="glass-overlay-header">
-          <span className="glass-overlay-title">{panelTitle}</span>
-          <button className="glass-overlay-close" onClick={onClose}>
+      <div className="brew-panel-backdrop" onClick={onClose}></div>
+      <div className="brew-glass-panel">
+        <div className="brew-glass-panel-header">
+          <span className="brew-glass-panel-title">{panelTitle}</span>
+          <button className="brew-glass-panel-close" onClick={onClose}>
             ✕
           </button>
         </div>

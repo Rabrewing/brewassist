@@ -31,11 +31,11 @@ export const GlassTabRail: React.FC<GlassTabRailProps> = () => {
 
   return (
     <>
-      <div className="glass-tab-rail">
+      <div className="brew-tabs-rail">
         {tabsConfig.map((tab) => (
           <button
             key={tab.id}
-            className={`glass-tab-item ${activeTabId === tab.id ? 'active' : ''}`}
+            className={`brew-tab ${activeTabId === tab.id ? 'is-active' : ''}`}
             onClick={() => handleTabClick(tab.id)}
             title={tab.label}
           >

@@ -748,7 +748,7 @@
 }
 
 .brew-action-menu .action-menu-item:hover {
-  background: rgba(0, 199, 183, 0.12); /* BrewTeal hover background */
+  background: rgba(0, 199, 193, 0.12); /* BrewTeal hover background */
   box-shadow: none; /* Remove default shadow on hover */
   border-left: 2px solid #00C7B7; /* Left border accent */
   transform: none; /* Remove translateY effect */

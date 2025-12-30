@@ -41,12 +41,12 @@ function resolvePersona(ctx: {
   persona?: Persona; // From direct argument
   cockpitMode?: CockpitMode; // From cockpitMode
 }): Persona {
-  // a) ctx.persona (if provided)
+  // a) ctx.persona (if provided and valid)
   if (ctx.persona && ctx.persona.id) {
     return ctx.persona;
   }
 
-  let resolvedPersonaId: PersonaId = 'customer'; // e) default persona = 'customer' (safe default)
+  let resolvedPersonaId: PersonaId = 'customer'; // Default to 'customer'
 
   // b) ctx.cockpitMode when mode is 'admin'|'customer'
   if (ctx.cockpitMode === 'admin') {
@@ -75,6 +75,7 @@ export function evaluateHandshake(args: {
   cockpitMode?: "admin" | "customer";
   capabilityId?: string; // Use capabilityId instead of mcpToolId
   action?: RWX; // Use action instead of mcpAction
+  label?: string; // Add label for more specific policy checks
   confirmApply?: boolean;
   gepHeaderPresent?: boolean;
   // BrewTruth related args

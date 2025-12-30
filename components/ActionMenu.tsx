@@ -111,110 +111,118 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
 
       {isOpen && (
         <div className="brew-action-menu">
-          <ActionMenuItem
-              kind="upload"
-              label="Upload File" // Changed label to be more generic for file upload
-              description="Upload a file for analysis or modification"
-              onClick={handleUploadClick} // Use handleUploadClick for the file input
-              policy={evaluateHandshake({
-                intent: CAPABILITY_REGISTRY["fs_write"].intentCategory,
-                tier,
-                persona,
-                cockpitMode,
-                capabilityId: "fs_write",
-                action: "W",
-              })} // Pass policy to the item
-            />
-
+          <ul className="brew-action-list" aria-label="action menu items">
             <ActionMenuItem
-              kind="upload"
-              label="Upload Image / Screenshot"
-              description="Attach errors, logs, whiteboards"
-              onClick={() => {
-                onUploadImage && onUploadImage();
-                setIsOpen(false);
-              }}
-              policy={evaluateHandshake({
-                intent: CAPABILITY_REGISTRY["fs_write"].intentCategory,
-                tier,
-                persona,
-                cockpitMode,
-                capabilityId: "fs_write",
-                action: "W",
-              })} // Pass policy to the item
-            />
+                kind="upload"
+                label="Upload File" // Changed label to be more generic for file upload
+                description="Upload a file for analysis or modification"
+                onClick={handleUploadClick} // Use handleUploadClick for the file input
+                policy={evaluateHandshake({
+                  intent: CAPABILITY_REGISTRY["fs_write"].intentCategory,
+                  tier,
+                  persona,
+                  cockpitMode,
+                  capabilityId: "fs_write",
+                  action: "W",
+                  label: "Upload File",
+                })} // Pass policy to the item
+              />
 
-            <ActionMenuItem
-              kind="camera"
-              label="Take Photo"
-              description="Capture whiteboard or console"
-              onClick={() => {
-                onTakePhoto && onTakePhoto();
-                setIsOpen(false);
-              }}
-              policy={evaluateHandshake({
-                intent: CAPABILITY_REGISTRY["fs_write"].intentCategory,
-                tier,
-                persona,
-                cockpitMode,
-                capabilityId: "fs_write",
-                action: "W",
-              })} // Pass policy to the item
-            />
+              <ActionMenuItem
+                kind="upload"
+                label="Upload Image / Screenshot"
+                description="Attach errors, logs, whiteboards"
+                onClick={() => {
+                  onUploadImage && onUploadImage();
+                  setIsOpen(false);
+                }}
+                policy={evaluateHandshake({
+                  intent: CAPABILITY_REGISTRY["fs_write"].intentCategory,
+                  tier,
+                  persona,
+                  cockpitMode,
+                  capabilityId: "fs_write",
+                  action: "W",
+                  label: "Upload Image / Screenshot",
+                })} // Pass policy to the item
+              />
 
-            <ActionMenuItem
-              kind="drive"
-              label="Import from Drive"
-              description="Pick a file from Google Drive"
-              onClick={() => {
-                onImportFromGoogleDrive && onImportFromGoogleDrive();
-                setIsOpen(false);
-              }}
-              policy={evaluateHandshake({
-                intent: CAPABILITY_REGISTRY["fs_write"].intentCategory,
-                tier,
-                persona,
-                cockpitMode,
-                capabilityId: "fs_write",
-                action: "W",
-              })} // Pass policy to the item
-            />
+              <ActionMenuItem
+                kind="camera"
+                label="Take Photo"
+                description="Capture whiteboard or console"
+                onClick={() => {
+                  onTakePhoto && onTakePhoto();
+                  setIsOpen(false);
+                }}
+                policy={evaluateHandshake({
+                  intent: CAPABILITY_REGISTRY["fs_write"].intentCategory,
+                  tier,
+                  persona,
+                  cockpitMode,
+                  capabilityId: "fs_write",
+                  action: "W",
+                  label: "Take Photo",
+                })} // Pass policy to the item
+              />
 
-            <ActionMenuItem
-              kind="hrm"
-              label="Use HRM Deep Reasoning"
-              description="Think deeply before answering"
-              onClick={() => {
-                onSelectDeepReasoning && onSelectDeepReasoning();
-                setIsOpen(false);
-              }}
-              policy={evaluateHandshake({
-                intent: CAPABILITY_REGISTRY["/hrm"].intentCategory,
-                tier,
-                persona,
-                cockpitMode,
-                capabilityId: "/hrm",
-                action: "R", // Assuming HRM is a read-only operation
-              })}
-            />
+              <ActionMenuItem
+                kind="drive"
+                label="Import from Drive"
+                description="Pick a file from Google Drive"
+                onClick={() => {
+                  onImportFromGoogleDrive && onImportFromGoogleDrive();
+                  setIsOpen(false);
+                }}
+                policy={evaluateHandshake({
+                  intent: CAPABILITY_REGISTRY["fs_write"].intentCategory,
+                  tier,
+                  persona,
+                  cockpitMode,
+                  capabilityId: "fs_write",
+                  action: "W",
+                  label: "Import from Drive",
+                })} // Pass policy to the item
+              />
 
-            <ActionMenuItem
-              kind="nims"
-              label="Send to NIMs Research"
-              description="Compare with web / external intel"
-              onClick={() => {
-                onSelectNimsResearch && onSelectNimsResearch();
-                setIsOpen(false);
-              }}
-              policy={evaluateHandshake({
-                intent: CAPABILITY_REGISTRY["research_web"].intentCategory,
-                tier,
-                persona,
-                cockpitMode,
-                capabilityId: "research_web",
-                action: "R", // Assuming NIMs is a read-only operation
-              })}
-            />
+              <ActionMenuItem
+                kind="hrm"
+                label="Use HRM Deep Reasoning"
+                description="Think deeply before answering"
+                onClick={() => {
+                  onSelectDeepReasoning && onSelectDeepReasoning();
+                  setIsOpen(false);
+                }}
+                policy={evaluateHandshake({
+                  intent: CAPABILITY_REGISTRY["/hrm"].intentCategory,
+                  tier,
+                  persona,
+                  cockpitMode,
+                  capabilityId: "/hrm",
+                  action: "R", // Assuming HRM is a read-only operation
+                  label: "Use HRM Deep Reasoning",
+                })}
+              />
+
+              <ActionMenuItem
+                kind="nims"
+                label="Send to NIMs Research"
+                description="Compare with web / external intel"
+                onClick={() => {
+                  onSelectNimsResearch && onSelectNimsResearch();
+                  setIsOpen(false);
+                }}
+                policy={evaluateHandshake({
+                  intent: CAPABILITY_REGISTRY["research_web"].intentCategory,
+                  tier,
+                  persona,
+                  cockpitMode,
+                  capabilityId: "research_web",
+                  action: "R", // Assuming NIMs is a read-only operation
+                  label: "Send to NIMs Research",
+                })}
+              />
+          </ul>
         </div>
       )}
     </div>
@@ -254,22 +262,24 @@ const ActionMenuItem: React.FC<ActionMenuItemProps> = ({ kind, label, descriptio
   };
 
   return (
-    <button
-      type="button"
-      className="brew-action-item"
-      onClick={handleClick}
-      disabled={disabled}
-      title={tooltip}
-    >
-      <div className="brew-action-text">
-        <div className="brew-action-title">{label}</div>
-        <div className="brew-action-subtitle">{description}</div>
-      </div>
-      <div className="brew-action-icon">
-        <span className="action-menu-item-icon">{getIcon(kind)}</span>
-        {policy.requiresConfirm && <span className="mcp-badge">⚠</span>}
-        {policy.requiresSandbox && <span className="mcp-badge"> sandbox </span>}
-      </div>
-    </button>
+    <li className="brew-action-item">
+      <button
+        type="button"
+        className="brew-action-item-btn"
+        onClick={handleClick}
+        disabled={disabled}
+        title={tooltip}
+      >
+        <div className="brew-action-icon">
+          <span className="action-menu-item-icon">{getIcon(kind)}</span>
+          {policy.requiresConfirm && <span className="mcp-badge">⚠</span>}
+          {policy.requiresSandbox && <span className="mcp-badge"> sandbox </span>}
+        </div>
+        <div className="brew-action-text">
+          <div className="brew-action-title">{label}</div>
+          <div className="brew-action-subtitle">{description}</div>
+        </div>
+      </button>
+    </li>
   );
 };
