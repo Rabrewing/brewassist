@@ -10,6 +10,7 @@ import { classifyIntent, ScopeCategory } from "@/lib/intent-gatekeeper";
 import { BREWASSIST_CANONICAL_DEFINITION, BREWASSIST_IDENTITY_PROMPTS } from "@/lib/brand/brewassist.definition"; // Import brand definition
 import { Persona } from "@/lib/brewIdentityEngine"; // Import Persona
 import type { CockpitMode } from "@/lib/brewTypes"; // Import CockpitMode
+import { updateDevOpsFlowState, updateDevOpsFeedbackState, updateDevOpsMemoryState, getDevOpsFlowState, getDevOpsFeedbackState, getDevOpsMemoryState } from "@/lib/devops8/registry"; // Import update and getter functions
 
 export type BrewAssistApiRequest = {
   input: string;
@@ -30,6 +31,27 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // Initialize flow state for this request
+  updateDevOpsFlowState({
+    isStreaming: false,
+    plannerChurnCount: 0,
+    lastLatencyMs: 0,
+    interruptions: 0,
+  });
+  // Initialize feedback state for this request
+  updateDevOpsFeedbackState({
+    chunkCount: 0,
+    lastChunkTime: 0,
+    feedbackGaps: 0,
+  });
+  // Initialize memory state for this request
+  updateDevOpsMemoryState({
+    brewLastWrites: 0,
+    memorySkips: 0,
+    permissionGatingBlocks: 0,
+    conflicts: 0,
+  });
+
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({
@@ -141,6 +163,9 @@ export default async function handler(
       statusCode = 409; // Conflict (requires user action)
     }
 
+    // Record permission gating block
+    updateDevOpsMemoryState({ permissionGatingBlocks: getDevOpsMemoryState().permissionGatingBlocks + 1 });
+
     return res.status(statusCode).json({
       ok: false,
       error: policyEnvelope.reason,
@@ -200,11 +225,15 @@ export default async function handler(
     res.flushHeaders();
   }
 
+  // Update flow state: streaming is active
+  // updateDevOpsFlowState({ isStreaming: true });
+
   let accumulatedText = "";
   let providerUsed: string | undefined;
   let modelUsed: string | undefined;
   let brewTruthReport: BrewTruthReport | null = null;
   let debugInfo: any | undefined; // Declare debugInfo here
+  const startTime = process.hrtime.bigint(); // Start timer for latency
 
   const sendEvent = (data: object) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
@@ -214,6 +243,8 @@ export default async function handler(
     // Run BrewTruth if enabled
     if (process.env.BREWTRUTH_ENABLED === "true") {
       brewTruthReport = await runBrewTruth({ prompt: input, response: "" });
+      // Simulate BrewLast write
+      updateDevOpsMemoryState({ brewLastWrites: getDevOpsMemoryState().brewLastWrites + 1 });
     }
 
     // Evaluate Handshake for policy decision (even if not TOOL mode, for reporting)
@@ -236,6 +267,15 @@ export default async function handler(
           if (!text) return;
           accumulatedText += text;
           sendEvent({ type: "chunk", text });
+          // Simulate planner churn for demonstration
+          updateDevOpsFlowState({ plannerChurnCount: getDevOpsFlowState().plannerChurnCount + 1 });
+
+          // Update feedback state
+          const now = Date.now();
+          if (getDevOpsFeedbackState().lastChunkTime > 0 && (now - getDevOpsFeedbackState().lastChunkTime) > 1000) { // 1 second gap
+            updateDevOpsFeedbackState({ feedbackGaps: getDevOpsFeedbackState().feedbackGaps + 1 });
+          }
+          updateDevOpsFeedbackState({ chunkCount: getDevOpsFeedbackState().chunkCount + 1, lastChunkTime: now });
         },
         (result) => { // onEnd callback
           providerUsed = result.provider;
@@ -260,6 +300,10 @@ export default async function handler(
     });
 
     const raceResult = await Promise.race([engineRunPromise, timeoutPromise]);
+
+    const endTime = process.hrtime.bigint();
+    const durationMs = Number(endTime - startTime) / 1_000_000;
+    updateDevOpsFlowState({ lastLatencyMs: durationMs, isStreaming: false });
 
     if (raceResult.status === "timeout") {
       const message = `Agent/Loop mode is not fully wired yet. Please use HRM or LLM mode.`;
@@ -295,6 +339,10 @@ export default async function handler(
   } catch (error) {
     console.error("Error in brewassist-stream:", error);
     sendEvent({ type: "error", payload: { message: (error as Error).message } });
+    // Record interruption
+    updateDevOpsFlowState({ interruptions: getDevOpsFlowState().interruptions + 1, isStreaming: false });
+    // Update feedback state on error
+    updateDevOpsFeedbackState({ chunkCount: getDevOpsFeedbackState().chunkCount, feedbackGaps: getDevOpsFeedbackState().feedbackGaps + 1 });
     // Always send an end event on error to ensure client stream closes
     sendEvent({
       type: "end",
