@@ -34,6 +34,8 @@
     "s4:gate": "./scripts/s4-lock-gate.sh",
     "s4:manifest:verify": "tsx scripts/s4-manifest-verify.ts",
     "s4:manifest:update": "tsx scripts/s4-manifest-verify.ts --update",
+    "s5:brewdocs:verify": "./scripts/s5-brewdocs-verify.sh",
+    "s5:support:verify": "./scripts/s5-support-verify.sh",
     "audit:capabilities": "tsx scripts/audit-capabilities.ts",
     "sandbox:mirror": "tsx scripts/sandbox_build_mirror.ts",
     "smoke:sandbox": "curl -sS -X POST http://localhost:3000/api/sandbox -H \"Content-Type: application/json\" -d '{\"engine\":\"tiny\",\"prompt\":\"smoke\"}' | cat"
