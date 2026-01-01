@@ -11,31 +11,28 @@ This document serves as the single source of truth for defining the policy matri
 Defines the different user personas within the system, their inherent side, risk profile, and default cockpit mode.
 
 export const PERSONAS = [
-  { id: "admin", side: "admin", riskProfile: "normal", defaultCockpitMode: "admin" },
-  { id: "customer", side: "customer", riskProfile: "normal", defaultCockpitMode: "customer" },
-  { id: "dev", side: "admin", riskProfile: "normal", defaultCockpitMode: "admin" },
-  { id: "support", side: "admin", riskProfile: "normal", defaultCockpitMode: "admin" },
+{ id: "admin", side: "admin", riskProfile: "normal", defaultCockpitMode: "admin" },
+{ id: "customer", side: "customer", riskProfile: "normal", defaultCockpitMode: "customer" },
+{ id: "dev", side: "admin", riskProfile: "normal", defaultCockpitMode: "admin" },
+{ id: "support", side: "admin", riskProfile: "normal", defaultCockpitMode: "admin" },
 ] as const;
 
-/*
- * Inferences Made for Personas:
- * - `side`: Inferred 'admin' for 'admin', 'dev', 'support' and 'customer' for 'customer' based on common roles and the `CockpitMode` definition.
- * - `riskProfile`: Inferred 'normal' for personas with `safetyMode: 'soft-stop'` (from `lib/brewIdentityEngine.ts`). If a persona were to have `safetyMode: 'hard-stop'`, its `riskProfile` would be 'strict'. This needs explicit confirmation.
- * - `defaultCockpitMode`: Directly mapped from the `side` for now, as `CockpitMode` is defined as 'admin' | 'customer'. This assumes the UI defaults to the persona's side.
-*/
+// Updated: All personas have safetyMode: 'soft-stop', so riskProfile: 'normal'. Sides inferred from context.
+
+/\*
+
+- Inferences Made for Personas:
+- - `side`: Inferred 'admin' for 'admin', 'dev', 'support' and 'customer' for 'customer' based on common roles and the `CockpitMode` definition.
+- - `riskProfile`: Inferred 'normal' for personas with `safetyMode: 'soft-stop'` (from `lib/brewIdentityEngine.ts`). If a persona were to have `safetyMode: 'hard-stop'`, its `riskProfile` would be 'strict'. This needs explicit confirmation.
+- - `defaultCockpitMode`: Directly mapped from the `side` for now, as `CockpitMode` is defined as 'admin' | 'customer'. This assumes the UI defaults to the persona's side.
+    \*/
 
 ### B) Modes (how the system is operating)
 
-Defines the operational modes of the system and their policy implications.
+Defines the operational modes of the system. These currently influence behavioral context (how work is processed) rather than hard permission gates, but are included for future policy extensions.
 
 ```ts
-export const MODES = [
-  "LLM",
-  "HRM",
-  "AGENT",
-  "LOOP",
-  "TOOL",
-] as const;
+export const MODES = ['LLM', 'HRM', 'AGENT', 'LOOP', 'TOOL'] as const;
 ```
 
 ### C) Tiers (how much power is unlocked)
@@ -44,9 +41,18 @@ Defines the different capability tiers and their general implications.
 
 ```ts
 export const TIERS = {
-  basic: { name: "Basic", note: "Standard functionality, task creation, basic documentation. Access to /task, /doc commands." },
-  pro: { name: "Pro", note: "Advanced functionality, code suggestions, more powerful documentation generation. Access to /patch, extended /doc with file context." },
-  rb: { name: "RB", note: "High-level strategy, risk analysis, and future high-risk actions (auto-patch, repo-wide scans). RB Mode only, explicitly enabled and audited." },
+  1: {
+    name: 'Basic',
+    note: 'Standard functionality, task creation, basic documentation. Access to /task, /doc commands.',
+  },
+  2: {
+    name: 'Pro',
+    note: 'Advanced functionality, code suggestions, more powerful documentation generation. Access to /patch, extended /doc with file context.',
+  },
+  3: {
+    name: 'RB',
+    note: 'High-level strategy, risk analysis, and future high-risk actions (auto-patch, repo-wide scans). RB Mode only, explicitly enabled and audited.',
+  },
 } as const;
 ```
 
@@ -54,179 +60,46 @@ export const TIERS = {
 
 A comprehensive list of all capabilities within the system, detailing their intent category, allowed actions, minimum required tier, and specific policy flags.
 
-```ts
+_Note: This table is generated from `lib/capabilities/registry.ts` to prevent drift. Manual edits should be made to the registry._
+
+````ts
 export const CAPABILITIES = [
-  {
-    capabilityId: "/task",
-    intentCategory: "SUPPORT",
-    actions: ["W"], // Inferred from its nature (creating a task)
-    minTier: 1,
-    adminOnly: false, // personaAllowed includes customer
-    requiresSandbox: false,
-    requiresConfirm: false,
-  },
-  {
-    capabilityId: "/doc",
-    intentCategory: "DOCS_KB",
-    actions: ["W"], // Inferred from its nature (creating/updating docs)
-    minTier: 1,
-    adminOnly: false, // personaAllowed includes customer
-    requiresSandbox: false,
-    requiresConfirm: false,
-  },
-  {
-    capabilityId: "/patch",
-    intentCategory: "PLATFORM_DEVOPS",
-    actions: ["W"], // Explicitly "W" for write
-    minTier: 2,
-    adminOnly: true, // personaAllowed does not include customer
-    requiresSandbox: true,
-    requiresConfirm: true,
-  },
-  {
-    capabilityId: "/hrm",
-    intentCategory: "PLATFORM_DEVOPS",
-    actions: ["R"], // Inferred from its nature (strategy/analysis)
-    minTier: 1,
-    adminOnly: true, // personaAllowed does not include customer
-    requiresSandbox: false,
-    requiresConfirm: false,
-  },
-  {
-    capabilityId: "/registry",
-    intentCategory: "PLATFORM_DEVOPS",
-    actions: ["R"], // Inferred from its nature (inspecting registry)
-    minTier: 1,
-    adminOnly: true, // personaAllowed does not include customer
-    requiresSandbox: false,
-    requiresConfirm: false,
-  },
-  {
-    capabilityId: "/git",
-    intentCategory: "PLATFORM_DEVOPS",
-    actions: ["RWX"], // Inferred from its nature (git operations can be R, W, X)
-    minTier: 2,
-    adminOnly: true, // personaAllowed does not include customer
-    requiresSandbox: true,
-    requiresConfirm: true,
-  },
-  {
-    capabilityId: "/fs",
-    intentCategory: "PLATFORM_DEVOPS",
-    actions: ["RWX"], // Inferred from its nature (file system operations)
-    minTier: 1,
-    adminOnly: false, // personaAllowed includes customer
-    requiresSandbox: false,
-    requiresConfirm: false,
-  },
-  {
-    capabilityId: "brewdocs.inspect",
-    intentCategory: "DOCS_KB",
-    actions: ["R"], // Explicitly "R"
-    minTier: 1,
-    adminOnly: false, // personaAllowed includes customer
-    requiresSandbox: false,
-    requiresConfirm: false,
-  },
-  {
-    capabilityId: "brewdocs.read",
-    intentCategory: "DOCS_KB",
-    actions: ["R"], // Explicitly "R"
-    minTier: 1,
-    adminOnly: false, // personaAllowed includes customer
-    requiresSandbox: false,
-    requiresConfirm: false,
-  },
-  {
-    capabilityId: "brewdocs.index",
-    intentCategory: "DOCS_KB",
-    actions: ["R"], // Explicitly "R"
-    minTier: 1,
-    adminOnly: false, // personaAllowed includes customer
-    requiresSandbox: false,
-    requiresConfirm: false,
-  },
-  {
-    capabilityId: "fs_read",
-    intentCategory: "PLATFORM_DEVOPS",
-    actions: ["R"], // Explicitly "R"
-    minTier: 1,
-    adminOnly: false, // personaAllowed includes customer
-    requiresSandbox: false,
-    requiresConfirm: false,
-  },
-  {
-    capabilityId: "fs_tree",
-    intentCategory: "PLATFORM_DEVOPS",
-    actions: ["R"], // Explicitly "R"
-    minTier: 1,
-    adminOnly: false, // personaAllowed includes customer
-    requiresSandbox: false,
-    requiresConfirm: false,
-  },
-  {
-    capabilityId: "fs_write",
-    intentCategory: "PLATFORM_DEVOPS",
-    actions: ["W"], // Explicitly "W"
-    minTier: 2,
-    adminOnly: true, // personaAllowed does not include customer
-    requiresSandbox: true,
-    requiresConfirm: true,
-  },
-  {
-    capabilityId: "fs_edit",
-    intentCategory: "PLATFORM_DEVOPS",
-    actions: ["W"], // Explicitly "W"
-    minTier: 2,
-    adminOnly: true, // personaAllowed does not include customer
-    requiresSandbox: true,
-    requiresConfirm: true,
-  },
-  {
-    capabilityId: "git_status",
-    intentCategory: "PLATFORM_DEVOPS",
-    actions: ["R"], // Explicitly "R"
-    minTier: 1,
-    adminOnly: true, // personaAllowed does not include customer
-    requiresSandbox: false,
-    requiresConfirm: false,
-  },
-  {
-    capabilityId: "git_commit",
-    intentCategory: "PLATFORM_DEVOPS",
-    actions: ["W"], // Explicitly "W"
-    minTier: 3,
-    adminOnly: true, // personaAllowed does not include customer
-    requiresSandbox: true,
-    requiresConfirm: true,
-  },
-  {
-    capabilityId: "db_read",
-    intentCategory: "PLATFORM_DEVOPS",
-    actions: ["R"], // Explicitly "R"
-    minTier: 1,
-    adminOnly: true, // personaAllowed does not include customer
-    requiresSandbox: false,
-    requiresConfirm: false,
-  },
-  {
-    capabilityId: "db_write",
-    intentCategory: "PLATFORM_DEVOPS",
-    actions: ["W"], // Explicitly "W"
-    minTier: 3,
-    adminOnly: true, // personaAllowed does not include customer
-    requiresSandbox: true,
-    requiresConfirm: true,
-  },
-  {
-    capabilityId: "research_web",
-    intentCategory: "SUPPORT",
-    actions: ["R"], // Explicitly "R"
-    minTier: 1,
-    adminOnly: false, // personaAllowed includes customer
-    requiresSandbox: false,
-    requiresConfirm: false,
-  },
+  // Command capabilities
+  { capabilityId: "/task", intentCategory: "SUPPORT", actions: ["W"], minTier: 1, adminOnly: false, requiresSandbox: false, requiresConfirm: false },
+  { capabilityId: "/doc", intentCategory: "DOCS_KB", actions: ["W"], minTier: 1, adminOnly: false, requiresSandbox: false, requiresConfirm: false },
+  { capabilityId: "/patch", intentCategory: "PLATFORM_DEVOPS", actions: ["W"], minTier: 2, adminOnly: true, requiresSandbox: true, requiresConfirm: true },
+  { capabilityId: "/hrm", intentCategory: "PLATFORM_DEVOPS", actions: ["R"], minTier: 1, adminOnly: true, requiresSandbox: false, requiresConfirm: false },
+  { capabilityId: "/registry", intentCategory: "PLATFORM_DEVOPS", actions: ["R"], minTier: 1, adminOnly: true, requiresSandbox: false, requiresConfirm: false },
+  { capabilityId: "/git", intentCategory: "PLATFORM_DEVOPS", actions: ["RWX"], minTier: 2, adminOnly: true, requiresSandbox: true, requiresConfirm: true },
+  { capabilityId: "/fs", intentCategory: "PLATFORM_DEVOPS", actions: ["RWX"], minTier: 1, adminOnly: false, requiresSandbox: false, requiresConfirm: false },
+
+  // BrewDocs capabilities
+  { capabilityId: "brewdocs.inspect", intentCategory: "DOCS_KB", actions: ["R"], minTier: 1, adminOnly: false, requiresSandbox: false, requiresConfirm: false },
+  { capabilityId: "brewdocs.read", intentCategory: "DOCS_KB", actions: ["R"], minTier: 1, adminOnly: false, requiresSandbox: false, requiresConfirm: false },
+  { capabilityId: "brewdocs.index", intentCategory: "DOCS_KB", actions: ["R"], minTier: 1, adminOnly: false, requiresSandbox: false, requiresConfirm: false },
+
+  // FS capabilities
+  { capabilityId: "fs_read", intentCategory: "PLATFORM_DEVOPS", actions: ["R"], minTier: 1, adminOnly: false, requiresSandbox: false, requiresConfirm: false },
+  { capabilityId: "fs_write", intentCategory: "PLATFORM_DEVOPS", actions: ["W"], minTier: 2, adminOnly: true, requiresSandbox: true, requiresConfirm: true },
+  { capabilityId: "fs_tree", intentCategory: "PLATFORM_DEVOPS", actions: ["R"], minTier: 1, adminOnly: false, requiresSandbox: false, requiresConfirm: false },
+  { capabilityId: "fs_edit", intentCategory: "PLATFORM_DEVOPS", actions: ["W"], minTier: 2, adminOnly: true, requiresSandbox: true, requiresConfirm: true },
+
+  // Git capabilities
+  { capabilityId: "git_status", intentCategory: "PLATFORM_DEVOPS", actions: ["R"], minTier: 1, adminOnly: true, requiresSandbox: false, requiresConfirm: false },
+  { capabilityId: "git_commit", intentCategory: "PLATFORM_DEVOPS", actions: ["W"], minTier: 3, adminOnly: true, requiresSandbox: true, requiresConfirm: true },
+
+  // DB capabilities
+  { capabilityId: "db_read", intentCategory: "PLATFORM_DEVOPS", actions: ["R"], minTier: 1, adminOnly: true, requiresSandbox: false, requiresConfirm: false },
+  { capabilityId: "db_write", intentCategory: "PLATFORM_DEVOPS", actions: ["W"], minTier: 3, adminOnly: true, requiresSandbox: true, requiresConfirm: true },
+
+  // Research capabilities
+  { capabilityId: "research_web", intentCategory: "SUPPORT", actions: ["R"], minTier: 1, adminOnly: false, requiresSandbox: false, requiresConfirm: false },
+
+  // Gemini Toolbelt capabilities (absorbed)
+  { capabilityId: "capability.file.read.analyze", intentCategory: "PLATFORM_DEVOPS", actions: ["R"], minTier: 1, adminOnly: false, requiresSandbox: false, requiresConfirm: false },
+  { capabilityId: "capability.code.explain", intentCategory: "DOCS_KB", actions: ["R"], minTier: 1, adminOnly: false, requiresSandbox: false, requiresConfirm: false },
+  { capabilityId: "capability.research.external", intentCategory: "SUPPORT", actions: ["R"], minTier: 1, adminOnly: false, requiresSandbox: false, requiresConfirm: false },
+  { capabilityId: "capability.plan.assist", intentCategory: "PLATFORM_DEVOPS", actions: ["R"], minTier: 2, adminOnly: true, requiresSandbox: false, requiresConfirm: false },
 ] as const;
 
 /*
@@ -241,45 +114,16 @@ export const CAPABILITIES = [
 Explicitly states what capabilities are available to Admin and Customer personas at each tier.
 
 *   **Customer Persona:**
-    *   **Tier Basic (minTier 1, adminOnly: false):**
-        *   `/task` (W)
-        *   `/doc` (W)
-        *   `/fs` (RWX)
-        *   `brewdocs.inspect` (R)
-        *   `brewdocs.read` (R)
-        *   `brewdocs.index` (R)
-        *   `fs_read` (R)
-        *   `fs_tree` (R)
-        *   `research_web` (R)
-    *   **Tier Pro (minTier 1 or 2, adminOnly: false):**
-        *   Same as Tier Basic. (No additional capabilities for customers at Tier Pro based on current registry).
-    *   **Tier RB (minTier 1, 2, or 3, adminOnly: false):**
-        *   Same as Tier Basic. (No additional capabilities for customers at Tier RB based on current registry).
+    *   **Tier 1 (minTier 1, adminOnly: false):**
+        *   `/task`, `/doc`, `/fs`, `brewdocs.*`, `fs_read`, `fs_tree`, `research_web`, `capability.*`
+    *   **Tier 2/3:** No additional (customers capped at read operations)
 *   **Admin Persona:**
-    *   **Tier Basic (minTier 1):**
-        *   `/task` (W)
-        *   `/doc` (W)
-        *   `/hrm` (R)
-        *   `/registry` (R)
-        *   `/fs` (RWX)
-        *   `brewdocs.inspect` (R)
-        *   `brewdocs.read` (R)
-        *   `brewdocs.index` (R)
-        *   `fs_read` (R)
-        *   `fs_tree` (R)
-        *   `git_status` (R)
-        *   `db_read` (R)
-        *   `research_web` (R)
-    *   **Tier Pro (minTier 1 or 2):**
-        *   All Basic Tier capabilities, plus:
-        *   `/patch` (W, requiresSandbox, requiresConfirm)
-        *   `/git` (RWX, requiresSandbox, requiresConfirm)
-        *   `fs_write` (W, requiresSandbox, requiresConfirm)
-        *   `fs_edit` (W, requiresSandbox, requiresConfirm)
-    *   **Tier RB (minTier 1, 2, or 3):**
-        *   All Pro Tier capabilities, plus:
-        *   `git_commit` (W, requiresSandbox, requiresConfirm)
-        *   `db_write` (W, requiresSandbox, requiresConfirm)
+    *   **Tier 1 (minTier 1):**
+        *   All customer capabilities + `/hrm`, `/registry`, `git_status`, `db_read`
+    *   **Tier 2 (minTier 2):**
+        *   All Tier 1 + `/patch`, `/git`, `fs_write`, `fs_edit`, `capability.plan.assist`
+    *   **Tier 3 (minTier 3):**
+        *   All Tier 2 + `git_commit`, `db_write`
 
 
 ---
@@ -333,15 +177,15 @@ Explicitly states what capabilities are available to Admin and Customer personas
 
 The following modules are displayed in the DevOps 8 Panel, with their visibility controlled by the `cockpitMode`.
 
-*   **Base Tabs (available to `customer`, `admin`, `dev`):**
-    *   `id`: `guide`, `label`: `Guide`, `modes`: [`customer`, `admin`, `dev`]
-    *   `id`: `docs`, `label`: `Docs`, `modes`: [`customer`, `admin`, `dev`]
-    *   `id`: `help`, `label`: `Help`, `modes`: [`customer`, `admin`, `dev`]
-    *   `id`: `history`, `label`: `History`, `modes`: [`customer`, `admin`, `dev`]
-*   **Admin/Dev Tabs (available to `admin`, `dev`):**
-    *   `id`: `files`, `label`: `Files`, `modes`: [`admin`, `dev`]
-    *   `id`: `sandbox`, `label`: `Sandbox`, `modes`: [`admin`, `dev`]
-    *   `id`: `cognition`, `label`: `Cognition`, `modes`: [`admin`, `dev`]
+*   **Base Tabs (available to all personas):**
+    *   `id`: `guide`, `label`: `Guide` (DevOps 8 principles)
+    *   `id`: `docs`, `label`: `Docs`
+    *   `id`: `help`, `label`: `Help`
+    *   `id`: `history`, `label`: `History`
+*   **Admin-only Tabs (available to `admin`, `dev`, `support`):**
+    *   `id`: `files`, `label`: `Files` (project tree)
+    *   `id`: `sandbox`, `label`: `Sandbox`
+    *   `id`: `cognition`, `label`: `Cognition` (operational states)
 
 /*
  * Inferences Made for DevOps 8 Panel Modules:
@@ -350,15 +194,9 @@ The following modules are displayed in the DevOps 8 Panel, with their visibility
 
 ### Tier Definitions
 
-*   **Tier Basic:**
-    *   **"safe"**: Operations are generally considered safe, primarily read-only or low-impact write actions (e.g., creating tasks/docs). Capabilities requiring explicit confirmation (`requiresConfirm: true`) or a sandbox (`requiresSandbox: true`) are typically not available or are heavily restricted.
-    *   **"sandbox available"**: Sandbox is generally not required for basic operations. If a capability requires a sandbox, it would be blocked or require a higher tier.
-*   **Tier Pro:**
-    *   **"safe"**: Allows more impactful write actions (e.g., `/patch`, `fs_write`, `fs_edit`). Safety for these actions is managed by often requiring explicit user confirmation (`requiresConfirm: true`) and execution within a sandbox (`requiresSandbox: true`). This implies a higher level of inherent risk, mitigated by these policy controls.
-    *   **"sandbox available"**: Sandbox is available and frequently required for "pro" level write capabilities.
-*   **Tier RB:**
-    *   **"safe"**: Provides the highest level of access, including potentially high-risk actions. Safety is managed through explicit auditing (`auditLevel: 'full'`) and the "RB Mode only" restriction. Capabilities at this tier often require both `requiresSandbox: true` and `requiresConfirm: true`.
-    *   **"sandbox available"**: Sandbox is available and frequently required for high-risk "RB" level capabilities.
+*   **Tier 1:** Read operations, basic writes (tasks/docs). No sandbox/confirm required.
+*   **Tier 2:** Moderate writes (patches, edits). Requires sandbox and confirm.
+*   **Tier 3:** High-risk writes (commits, DB). Requires sandbox, confirm, full audit.
 
 ### Mode Meaning
 
@@ -369,3 +207,4 @@ The operational modes (`LLM`, `HRM`, `AGENT`, `LOOP`, `TOOL`) primarily dictate 
 ## 5) Next Step
 
 Please provide the details for the sections above, starting with **A) Personas** using the provided `PERSONAS` template.
+````

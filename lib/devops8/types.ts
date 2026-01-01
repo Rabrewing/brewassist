@@ -33,4 +33,5 @@ export interface DevOps8Snapshot {
   signals: DevOpsSignal[];
   timestamp: string;
   version: string;
+  snapshotId: string;
 }

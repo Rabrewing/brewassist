@@ -23,11 +23,15 @@
     "build": "next build",
     "start": "next start -p 3000",
     "test": "jest",
+    "test:ui": "jest __tests__/ui/ tests/ui/",
     "test:chain": "jest __tests__/brewassist.chain.gates.test.ts",
+    "typecheck": "tsc --noEmit",
     "prepare": "husky",
     "lint": "eslint pages components lib contexts --ext .ts,.tsx,.js,.jsx",
     "format": "prettier --write .",
     "lint:staged": "lint-staged",
+    "s4:lock-check": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:ui && tsx scripts/audit-capabilities.ts && pnpm build",
+    "audit:capabilities": "tsx scripts/audit-capabilities.ts",
     "sandbox:mirror": "tsx scripts/sandbox_build_mirror.ts",
     "smoke:sandbox": "curl -sS -X POST http://localhost:3000/api/sandbox -H \"Content-Type: application/json\" -d '{\"engine\":\"tiny\",\"prompt\":\"smoke\"}' | cat"
   },
@@ -41,7 +45,6 @@
     "@next/eslint-plugin-next": "^16.0.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
-
     "@types/jest": "^30.0.0",
     "@types/node": "24.10.1",
     "@types/react": "19.2.3",

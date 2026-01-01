@@ -2,7 +2,8 @@
 
 /* ===== ROOT SHELL: HEADER + BODY + FOOTER ===== */
 
-.cockpit-shell, .brew-shell {
+.cockpit-shell,
+.brew-shell {
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -12,7 +13,8 @@
 
 /* ===== HEADER ===== */
 
-.cockpit-header, .brew-header {
+.cockpit-header,
+.brew-header {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -20,13 +22,19 @@
   padding: 0.85rem 1.75rem;
   border-bottom: 1px solid rgba(30, 64, 175, 0.6);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.9);
-  background: radial-gradient(circle at top left, #020617 0, #020617 40%, #020617 100%);
+  background: radial-gradient(
+    circle at top left,
+    #020617 0,
+    #020617 40%,
+    #020617 100%
+  );
   position: sticky;
   top: 0;
   z-index: 30;
 }
 
-.cockpit-header-left, .brew-header-left {
+.cockpit-header-left,
+.brew-header-left {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
@@ -38,7 +46,7 @@
   letter-spacing: 0.24em;
   text-transform: uppercase;
   font-weight: 700;
-  color: #00E4CF; /* Updated BrewTeal color */
+  color: #00e4cf; /* Updated BrewTeal color */
 }
 
 .cockpit-brand-wordmark:hover {
@@ -54,7 +62,8 @@
   font-weight: 600;
 }
 
-.cockpit-header-right, .brew-header-right {
+.cockpit-header-right,
+.brew-header-right {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -64,7 +73,7 @@
 
 .cockpit-body {
   flex: 1 1 auto;
-  min-height: 0;           /* allow children to use flex scroll */
+  min-height: 0; /* allow children to use flex scroll */
   display: flex;
 }
 
@@ -76,7 +85,12 @@
   min-width: 220px;
   border-right: 1px solid rgba(30, 64, 175, 0.6);
   box-shadow: 4px 0 18px rgba(15, 23, 42, 0.9);
-  background: radial-gradient(circle at top left, #020617 0, #020617 45%, #020617 100%);
+  background: radial-gradient(
+    circle at top left,
+    #020617 0,
+    #020617 45%,
+    #020617 100%
+  );
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -138,7 +152,12 @@
   min-width: 260px;
   border-left: 1px solid rgba(30, 64, 175, 0.6);
   box-shadow: -4px 0 18px rgba(15, 23, 42, 0.9);
-  background: radial-gradient(circle at top, #020617 0, #020617 40%, #020617 100%);
+  background: radial-gradient(
+    circle at top,
+    #020617 0,
+    #020617 40%,
+    #020617 100%
+  );
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -155,7 +174,8 @@
 
 /* ===== FOOTER ===== */
 
-.cockpit-footer, .brew-footer {
+.cockpit-footer,
+.brew-footer {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -202,7 +222,7 @@
 
 /* ===== RESPONSIVE SAFETY ===== */
 
- @media (max-width: 1200px) {
+@media (max-width: 1200px) {
   .workspace-sidebar-left {
     flex-basis: 230px;
     max-width: 230px;
@@ -213,7 +233,7 @@
   }
 }
 
- @media (max-width: 1024px) {
+@media (max-width: 1024px) {
   .workspace-sidebar-right {
     display: none; /* temporary: hide right pane on small screens */
   }
@@ -226,7 +246,12 @@
   gap: 0.5rem;
   padding: 0.75rem 1.5rem; /* Standardized vertical padding */
   border-top: 1px solid rgba(30, 64, 175, 0.6);
-  background: radial-gradient(circle at bottom, #020617 0, #020617 40%, #000 100%);
+  background: radial-gradient(
+    circle at bottom,
+    #020617 0,
+    #020617 40%,
+    #000 100%
+  );
 }
 
 .cockpit-input-row input,
@@ -354,7 +379,12 @@
   width: 22px;
   height: 48px;
   border: 1px solid rgba(250, 204, 21, 0.7);
-  background: radial-gradient(circle at left, #020617 0, #020617 60%, #000 100%);
+  background: radial-gradient(
+    circle at left,
+    #020617 0,
+    #020617 60%,
+    #000 100%
+  );
   color: #facc15;
   cursor: pointer;
   display: flex;
@@ -377,7 +407,7 @@
 .workspace-scroll-zone,
 .project-tree-scroll,
 .sandbox-region {
-  scrollbar-width: thin;           /* Firefox: keep it minimal */
+  scrollbar-width: thin; /* Firefox: keep it minimal */
   scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
 }
 
@@ -404,7 +434,7 @@
   min-height: 0;
   overflow-y: auto;
 }
- 
+
 .sandbox-region {
   flex: 0 1 45%; /* Allow it to shrink, but prefer its content size */
   min-height: 0;
@@ -427,7 +457,9 @@
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
 }
 
 .cockpit-nav-link:hover {
@@ -443,7 +475,11 @@
   padding: 0.25rem 0.6rem;
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.8);
-  background: radial-gradient(circle at top left, rgba(0, 199, 183, 0.35), transparent);
+  background: radial-gradient(
+    circle at top left,
+    rgba(0, 199, 183, 0.35),
+    transparent
+  );
 }
 
 /* Sign-in button */
@@ -464,7 +500,9 @@
     text-shadow: 0 0 4px rgba(255, 255, 255, 0.7);
   }
   50% {
-    text-shadow: 0 0 10px rgba(255, 255, 255, 1), 0 0 20px rgba(255, 255, 255, 0.8);
+    text-shadow:
+      0 0 10px rgba(255, 255, 255, 1),
+      0 0 20px rgba(255, 255, 255, 0.8);
   }
   100% {
     text-shadow: 0 0 4px rgba(255, 255, 255, 0.7);
@@ -520,12 +558,11 @@
   animation: cockpit-spin 0.75s linear infinite;
 }
 
- @keyframes cockpit-spin {
+@keyframes cockpit-spin {
   to {
     transform: rotate(360deg);
   }
 }
-
 
 /* ===========================================================
    BUBBLE COLOR SYSTEM — BREWGOLD, BREWTEAL, SYSTEM SILVER
@@ -546,17 +583,19 @@
 .log-user .cosmic-bubble {
   border-color: #00e5d4; /* BrewTeal outline */
   color: #00e5d4; /* BrewTeal text */
-  box-shadow: 0 0 10px rgba(0, 229, 212, 0.35),
-              inset 0 0 8px rgba(0, 229, 212, 0.15);
+  box-shadow:
+    0 0 10px rgba(0, 229, 212, 0.35),
+    inset 0 0 8px rgba(0, 229, 212, 0.15);
   background: transparent; /* Outlined */
 }
 
 /* BrewAssist — BrewGold, left side */
 .log-assistant .cosmic-bubble {
-  border-color: #FFD700; /* BrewGold outline */
-  color: #FFD700; /* BrewGold text */
-  box-shadow: 0 0 15px rgba(255, 215, 0, 0.60),
-              inset 0 0 8px rgba(255, 215, 0, 0.25);
+  border-color: #ffd700; /* BrewGold outline */
+  color: #ffd700; /* BrewGold text */
+  box-shadow:
+    0 0 15px rgba(255, 215, 0, 0.6),
+    inset 0 0 8px rgba(255, 215, 0, 0.25);
   background: transparent; /* Outlined */
   animation: brewassist-shimmer 2.4s linear infinite; /* Keep shimmer */
 }
@@ -566,13 +605,13 @@
   border-color: rgba(180, 190, 205, 0.65);
   color: rgba(210, 220, 230, 0.95);
   background: transparent; /* Outlined */
-  box-shadow: 0 0 8px rgba(160,170,185,0.30);
+  box-shadow: 0 0 8px rgba(160, 170, 185, 0.3);
 }
 
 /* S4.9c.1: Ensure markdown content keeps paragraphs & line breaks */
 .log-user .bubble-content,
 .log-assistant .bubble-content {
-  white-space: pre-wrap;   /* preserve \n and wrap nicely */
+  white-space: pre-wrap; /* preserve \n and wrap nicely */
   word-break: break-word;
   line-height: 1.45;
 }
@@ -601,31 +640,30 @@
    =========================================================== */
 
 /* Subtle gold shimmer for BrewAssist messages */
- @keyframes brewassist-shimmer {
+@keyframes brewassist-shimmer {
   0% {
-    box-shadow: 0 0 12px rgba(255, 215, 0, 0.40);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
   }
   50% {
     box-shadow: 0 0 16px rgba(255, 215, 0, 0.55);
   }
   100% {
-    box-shadow: 0 0 12px rgba(255, 215, 0, 0.40);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
   }
 }
 
 /* HRM Architect pulse — slow, authoritative */
- @keyframes brewarchitect-pulse {
+@keyframes brewarchitect-pulse {
   0% {
-    box-shadow: 0 0 16px rgba(224,179,0,0.40);
+    box-shadow: 0 0 16px rgba(224, 179, 0, 0.4);
   }
   50% {
-    box-shadow: 0 0 22px rgba(224,179,0,0.60);
+    box-shadow: 0 0 22px rgba(224, 179, 0, 0.6);
   }
   100% {
-    box-shadow: 0 0 16px rgba(224,179,0,0.40);
+    box-shadow: 0 0 16px rgba(224, 179, 0, 0.4);
   }
 }
-
 
 /* ===========================================================
    BUBBLE ALIGNMENT SYSTEM
@@ -686,10 +724,11 @@
   justify-content: center;
   font-size: 1.1rem;
   cursor: pointer;
-  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out,
+  transition:
+    border-color 0.15s ease-out,
+    box-shadow 0.15s ease-out,
     transform 0.1s ease-out;
 }
-
 
 .action-menu-trigger:hover {
   border-color: #facc15; /* BrewGold */
@@ -697,11 +736,9 @@
   transform: translateY(-1px);
 }
 
-
 .action-menu-trigger-icon {
   line-height: 1;
 }
-
 
 .action-menu-popover {
   position: absolute;
@@ -722,9 +759,9 @@
   bottom: 40px; /* Anchor below the + button */
   left: 0; /* Left-aligned with the chat box */
   max-width: 320px;
-  background: var(--brew-bg-elevated); /* deep gray / #232323 */
-  border: 1px solid var(--brew-border-soft); /* subtle teal */
-  box-shadow: 0 0 18px rgba(0, 199, 183, 0.18); /* soft glow */
+  background: #020617; /* Navy background */
+  border: 1px solid rgba(0, 199, 183, 0.4); /* Subtle BrewTeal border */
+  box-shadow: 0 0 18px rgba(0, 199, 183, 0.18); /* Soft BrewTeal glow */
   border-radius: 24px;
   padding: 10px 8px;
   z-index: 40; /* Ensure it's above other elements */
@@ -740,7 +777,10 @@
   border-radius: 18px; /* More rounded corners for items */
   padding: 0 12px; /* Adjust padding */
   margin-bottom: 4px; /* Space between items */
-  transition: background 0.15s ease-out, box-shadow 0.15s ease-out, border-color 0.15s ease-out;
+  transition:
+    background 0.15s ease-out,
+    box-shadow 0.15s ease-out,
+    border-color 0.15s ease-out;
 }
 
 .brew-action-menu .action-menu-item:last-child {
@@ -750,7 +790,8 @@
 .brew-action-menu .action-menu-item:hover {
   background: rgba(0, 199, 193, 0.12); /* BrewTeal hover background */
   box-shadow: none; /* Remove default shadow on hover */
-  border-left: 2px solid #00C7B7; /* Left border accent */
+  border-left: 2px solid #00c7b7; /* Left BrewTeal border accent */
+  border-right: 2px solid #00c7b7; /* Right BrewTeal border accent */
   transform: none; /* Remove translateY effect */
 }
 
@@ -787,7 +828,6 @@
   line-height: 1;
 }
 
-
 .action-menu-item {
   width: 100%;
   padding: 0.4rem 0.6rem;
@@ -800,22 +840,25 @@
   flex-direction: column;
   gap: 0.05rem;
   margin-bottom: 0.15rem;
-  transition: background 0.12s ease-out, box-shadow 0.12s ease-out,
+  transition:
+    background 0.12s ease-out,
+    box-shadow 0.12s ease-out,
     transform 0.08s ease-out;
 }
-
 
 .action-menu-item:last-child {
   margin-bottom: 0;
 }
 
-
 .action-menu-item:hover {
-  background: radial-gradient(circle at left, rgba(250, 204, 21, 0.12) 0, transparent 55%);
+  background: radial-gradient(
+    circle at left,
+    rgba(250, 204, 21, 0.12) 0,
+    transparent 55%
+  );
   box-shadow: 0 0 12px rgba(15, 23, 42, 0.9);
   transform: translateY(-0.5px);
 }
-
 
 .action-menu-item-title {
   font-size: 0.8rem;
@@ -823,14 +866,18 @@
   color: #e5e7eb; /* Changed to black */
 }
 
-
 /* S4.9c.1: Brew Input Area Layout Polish */
 .brew-input-area {
   display: flex;
   flex-direction: column; /* Stack toolbar and input vertically */
   padding: 0.75rem 1.5rem 1rem; /* Match cockpit-input-row padding */
   border-top: 1px solid rgba(30, 64, 175, 0.6);
-  background: radial-gradient(circle at bottom, #020617 0, #020617 40%, #000 100%);
+  background: radial-gradient(
+    circle at bottom,
+    #020617 0,
+    #020617 40%,
+    #000 100%
+  );
 }
 
 .brew-input-area .cockpit-input-row {
@@ -868,8 +915,8 @@
 }
 
 .format-btn:hover {
-  border-color: #00C7B7; /* BrewTeal highlight */
-  color: #FFD700;        /* BrewGold text pop */
+  border-color: #00c7b7; /* BrewTeal highlight */
+  color: #ffd700; /* BrewGold text pop */
 }
 
 /* S4.9c: BrewTruth Badge Styles */
@@ -926,7 +973,12 @@
 }
 
 .confirmation-modal {
-  background: radial-gradient(circle at top left, #020617 0, #020617 60%, #000 100%);
+  background: radial-gradient(
+    circle at top left,
+    #020617 0,
+    #020617 60%,
+    #000 100%
+  );
   border: 1px solid rgba(30, 64, 175, 0.6);
   border-radius: 0.75rem;
   padding: 1.5rem;
@@ -1004,15 +1056,106 @@
 .hud-badge.admin-mode {
   border: 1px solid #facc15; /* BrewGold border */
   color: #facc15; /* BrewGold text */
-  background: radial-gradient(circle at top, rgba(250, 204, 21, 0.15) 0%, rgba(250, 204, 21, 0.05) 55%, transparent 100%);
+  background: radial-gradient(
+    circle at top,
+    rgba(250, 204, 21, 0.15) 0%,
+    rgba(250, 204, 21, 0.05) 55%,
+    transparent 100%
+  );
   box-shadow: 0 0 12px rgba(250, 204, 21, 0.3); /* BrewGold glow */
 }
 
 .hud-badge.customer-mode {
   border: 1px solid rgba(148, 163, 184, 0.6); /* Muted border */
   color: rgba(148, 163, 184, 0.9); /* Muted text */
-  background: radial-gradient(circle at top, rgba(148, 163, 184, 0.08) 0%, rgba(148, 163, 184, 0.02) 55%, transparent 100%);
+  background: radial-gradient(
+    circle at top,
+    rgba(148, 163, 184, 0.08) 0%,
+    rgba(148, 163, 184, 0.02) 55%,
+    transparent 100%
+  );
   box-shadow: 0 0 8px rgba(148, 163, 184, 0.15); /* Subtle glow */
+}
+
+/* Right Sidebar Tabs */
+.workspace-sidebar-right-tabs {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: transparent; /* Make background transparent */
+  overflow-x: auto; /* Allow horizontal scrolling if needed */
+}
+
+.workspace-sidebar-right-tab-item {
+  width: 48px; /* Slightly bigger */
+  height: 48px; /* Slightly bigger */
+  border-radius: 12px;
+  border: 1px solid rgba(250, 204, 21, 0.4); /* BrewGold border */
+  background: transparent; /* Transparent background */
+  color: #e5e7eb; /* LED White text */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem; /* Bigger icons */
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.workspace-sidebar-right-tab-item:hover {
+  border-color: #00c7b7; /* BrewTeal on hover */
+  color: #00c7b7; /* BrewTeal text on hover */
+  transform: scale(1.05);
+}
+
+.workspace-sidebar-right-tab-item.is-active {
+  border-color: #ffd700; /* BrewGold for active */
+  color: #ffd700; /* BrewGold text for active */
+  background: rgba(255, 215, 0, 0.1); /* Subtle gold background for active */
+}
+
+.workspace-sidebar-right-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+}
+
+.flow-skip-btn {
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #00c7b7;
+  background: transparent;
+  color: #00c7b7;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.flow-skip-btn:hover {
+  background: rgba(0, 199, 183, 0.1);
+}
+
+/* Tighten markdown spacing for professional look */
+.cosmic-bubble p {
+  margin: 0.5rem 0;
+}
+
+.cosmic-bubble ul,
+.cosmic-bubble ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.cosmic-bubble li {
+  margin: 0.25rem 0;
+}
+
+.cosmic-bubble h1,
+.cosmic-bubble h2,
+.cosmic-bubble h3 {
+  margin: 0.75rem 0 0.5rem 0;
 }
 
 /* Cognition Surface Styles */
@@ -1046,7 +1189,9 @@
   padding: 0.3rem 0.5rem;
   margin-bottom: 0.2rem;
   border-radius: 4px;
-  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+  transition:
+    background-color 0.2s ease-in-out,
+    color 0.2s ease-in-out;
 }
 
 .cognition-surface-container li.highlighted {

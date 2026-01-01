@@ -1,19 +1,19 @@
 /* styles/globals.css */
 
-@import "./cockpit-fonts.css";
+@import './cockpit-fonts.css';
 
 /* Existing cockpit imports – keep these */
-@import "./cockpit-base.css";
-@import "./cockpit-layout.css";
-@import "./cockpit-mcp.css";
-@import "./cockpit-tree.css";
-@import "./cockpit-sandbox.css";
-@import "./cockpit-modal.css";
+@import './cockpit-base.css';
+@import './cockpit-layout.css';
+@import './cockpit-mcp.css';
+@import './cockpit-tree.css';
+@import './cockpit-sandbox.css';
+@import './cockpit-modal.css';
 
 :root {
-  --brew-bg: #020617;              /* main background - navy */
-  --brew-bg-elevated: #020617;     /* cards, bubbles - navy */
-  --brew-bg-panel: #020617;        /* side panels - navy */
+  --brew-bg: #020617; /* main background - navy */
+  --brew-bg-elevated: #020617; /* cards, bubbles - navy */
+  --brew-bg-panel: #020617; /* side panels - navy */
   --brew-border-soft: rgba(30, 64, 175, 0.6); /* subtle blue border */
 
   --brew-gold: #ffd700;
@@ -27,6 +27,22 @@
 
   --brew-shadow-gold: 0 0 18px rgba(250, 204, 21, 0.35);
   --brew-shadow-teal: 0 0 18px rgba(34, 211, 238, 0.4);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: var(--brew-bg); /* Navy background */
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 199, 183, 0.3); /* BrewTeal with light opacity */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 199, 183, 0.5); /* Slightly more opaque on hover */
 }
 
 html,
@@ -48,9 +64,9 @@ body {
 
 .cosmic-bubble .bubble-content ul,
 .cosmic-bubble .bubble-content ol {
-  margin-top: 0.5em;    /* Reduce space before lists */
+  margin-top: 0.5em; /* Reduce space before lists */
   margin-bottom: 0.5em; /* Reduce space after lists */
-  padding-left: 1.5em;  /* Adjust indentation */
+  padding-left: 1.5em; /* Adjust indentation */
 }
 
 .cosmic-bubble .bubble-content li {
@@ -63,6 +79,6 @@ body {
 .cosmic-bubble .bubble-content h4,
 .cosmic-bubble .bubble-content h5,
 .cosmic-bubble .bubble-content h6 {
-  margin-top: 1em;      /* Keep some space above headings */
+  margin-top: 1em; /* Keep some space above headings */
   margin-bottom: 0.5em; /* Reduce space below headings */
 }

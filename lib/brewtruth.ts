@@ -1,7 +1,12 @@
 // brewtruth.ts (v2.1 - deterministic, no web)
 
-export type BrewTruthTier = "gold" | "silver" | "bronze" | "red";
-export type BrewTruthDimension = "factuality" | "relevance" | "clarity" | "safety" | "structure";
+export type BrewTruthTier = 'gold' | 'silver' | 'bronze' | 'red';
+export type BrewTruthDimension =
+  | 'factuality'
+  | 'relevance'
+  | 'clarity'
+  | 'safety'
+  | 'structure';
 
 export interface BrewTruthScore {
   dim: BrewTruthDimension;
@@ -10,19 +15,32 @@ export interface BrewTruthScore {
 }
 
 export type BrewTruthFlagType =
-  | "low_confidence"
-  | "speculative"
-  | "missing_context"
-  | "possible_hallucination"
-  | "safety_concern"
-  | "partial_answer"
-  | "tool_failure"
-  | "fallback_used";
+  | 'low_confidence'
+  | 'speculative'
+  | 'missing_context'
+  | 'possible_hallucination'
+  | 'safety_concern'
+  | 'partial_answer'
+  | 'tool_failure'
+  | 'fallback_used';
 
 export interface BrewTruthModelTrace {
-  provider: "openai" | "gemini" | "mistral" | "nims" | "tinyllm" | "unknown" | "system";
+  provider:
+    | 'openai'
+    | 'gemini'
+    | 'mistral'
+    | 'nims'
+    | 'tinyllm'
+    | 'unknown'
+    | 'system';
   model: string;
-  routeType: "primary" | "fallback" | "research" | "preferred" | "unknown" | "system-block";
+  routeType:
+    | 'primary'
+    | 'fallback'
+    | 'research'
+    | 'preferred'
+    | 'unknown'
+    | 'system-block';
   latencyMs?: number;
 }
 
@@ -40,7 +58,7 @@ export interface BrewTruthReport {
 export interface BrewTruthInput {
   prompt: string;
   response: string;
-  mode?: "llm" | "hrm" | "agent" | "loop";
+  mode?: 'llm' | 'hrm' | 'agent' | 'loop';
   providerTrace?: BrewTruthModelTrace;
 }
 
@@ -50,7 +68,7 @@ function clamp01(n: number) {
 }
 
 function normalizeText(s: string) {
-  return (s || "").trim();
+  return (s || '').trim();
 }
 
 function hasBulletsOrSteps(s: string) {
@@ -66,7 +84,7 @@ function overlapScore(prompt: string, response: string) {
   // Simple keyword overlap (deterministic, cheap)
   const p = prompt.toLowerCase().match(/[a-z0-9]+/g) || [];
   const r = response.toLowerCase().match(/[a-z0-9]+/g) || [];
-  const pSet = new Set(p.filter(w => w.length >= 4));
+  const pSet = new Set(p.filter((w) => w.length >= 4));
   if (pSet.size === 0) return 0.7; // neutral
   let hit = 0;
   for (const w of r) if (pSet.has(w)) hit++;
@@ -80,29 +98,43 @@ function detectFlags(prompt: string, response: string): BrewTruthFlagType[] {
   const r = response.toLowerCase();
 
   // speculative language
-  if (/\b(probably|maybe|might|could|likely|i think|i guess)\b/.test(r)) flags.push("speculative");
+  if (/\b(probably|maybe|might|could|likely|i think|i guess)\b/.test(r))
+    flags.push('speculative');
 
   // hallucination markers (claims of actions the assistant couldn't have done)
-  if (/\b(i ran|i executed|i checked your repo|i opened your file|i looked at your logs)\b/.test(r))
-    flags.push("possible_hallucination");
+  if (
+    /\b(i ran|i executed|i checked your repo|i opened your file|i looked at your logs)\b/.test(
+      r
+    )
+  )
+    flags.push('possible_hallucination');
 
   // missing context markers
-  if (/\b(need|share|paste|provide)\b/.test(r) && /\b(log|error|stack trace|file|env|config)\b/.test(r))
-    flags.push("missing_context");
+  if (
+    /\b(need|share|paste|provide)\b/.test(r) &&
+    /\b(log|error|stack trace|file|env|config)\b/.test(r)
+  )
+    flags.push('missing_context');
 
   // partial answer markers
-  if (/\b(can't|cannot|unable)\b/.test(r) && /\b(without|unless)\b/.test(r)) flags.push("partial_answer");
+  if (/\b(can't|cannot|unable)\b/.test(r) && /\b(without|unless)\b/.test(r))
+    flags.push('partial_answer');
 
   // safety concerns
-  if (/\b(rm\s+-rf|delete\s+all|wipe|drop\s+database|disable\s+security|exfiltrate|leak)\b/.test(r))
-    flags.push("safety_concern");
+  if (
+    /\b(rm\s+-rf|delete\s+all|wipe|drop\s+database|disable\s+security|exfiltrate|leak)\b/.test(
+      r
+    )
+  )
+    flags.push('safety_concern');
 
   return [...new Set(flags)];
 }
 
 function scoreSafety(flags: BrewTruthFlagType[]) {
-  if (flags.includes("safety_concern")) return { score: 0.2, notes: "High-risk operational guidance detected." };
-  return { score: 0.9, notes: "No obvious dangerous operations." };
+  if (flags.includes('safety_concern'))
+    return { score: 0.2, notes: 'High-risk operational guidance detected.' };
+  return { score: 0.9, notes: 'No obvious dangerous operations.' };
 }
 
 function scoreStructure(response: string) {
@@ -112,9 +144,13 @@ function scoreStructure(response: string) {
 
   if (w >= 40) score += 0.15;
   if (hasSteps) score += 0.2;
-  if (/\b(next steps|acceptance criteria|checklist)\b/i.test(response)) score += 0.1;
+  if (/\b(next steps|acceptance criteria|checklist)\b/i.test(response))
+    score += 0.1;
 
-  return { score: clamp01(score), notes: hasSteps ? "Contains steps/bullets." : "Could use clearer steps." };
+  return {
+    score: clamp01(score),
+    notes: hasSteps ? 'Contains steps/bullets.' : 'Could use clearer steps.',
+  };
 }
 
 function scoreClarity(response: string) {
@@ -122,31 +158,39 @@ function scoreClarity(response: string) {
   let score = 0.75;
   if (w < 12) score -= 0.25;
   if (/\b(\?\?\?|idk|whatever)\b/i.test(response)) score -= 0.2;
-  return { score: clamp01(score), notes: "Heuristic clarity score." };
+  return { score: clamp01(score), notes: 'Heuristic clarity score.' };
 }
 
 function scoreRelevance(prompt: string, response: string) {
   const s = overlapScore(prompt, response);
-  return { score: s, notes: "Keyword overlap heuristic." };
+  return { score: s, notes: 'Keyword overlap heuristic.' };
 }
 
 function scoreFactuality(flags: BrewTruthFlagType[]) {
   // Without web, we treat hallucination/speculation as factuality risk
   let score = 0.8;
-  if (flags.includes("possible_hallucination")) score -= 0.35;
-  if (flags.includes("speculative")) score -= 0.15;
-  return { score: clamp01(score), notes: "Heuristic factuality (no evidence mode)." };
+  if (flags.includes('possible_hallucination')) score -= 0.35;
+  if (flags.includes('speculative')) score -= 0.15;
+  return {
+    score: clamp01(score),
+    notes: 'Heuristic factuality (no evidence mode).',
+  };
 }
 
-function tierFromScoreAndSafety(overallScore: number, flags: BrewTruthFlagType[]): BrewTruthTier {
-  if (flags.includes("safety_concern")) return "red";
-  if (overallScore >= 0.9) return "gold";
-  if (overallScore >= 0.78) return "silver";
-  if (overallScore >= 0.6) return "bronze";
-  return "red";
+function tierFromScoreAndSafety(
+  overallScore: number,
+  flags: BrewTruthFlagType[]
+): BrewTruthTier {
+  if (flags.includes('safety_concern')) return 'red';
+  if (overallScore >= 0.9) return 'gold';
+  if (overallScore >= 0.78) return 'silver';
+  if (overallScore >= 0.6) return 'bronze';
+  return 'red';
 }
 
-export async function runBrewTruth(input: BrewTruthInput): Promise<BrewTruthReport> {
+export async function runBrewTruth(
+  input: BrewTruthInput
+): Promise<BrewTruthReport> {
   const prompt = normalizeText(input.prompt);
   const response = normalizeText(input.response);
 
@@ -159,7 +203,7 @@ export async function runBrewTruth(input: BrewTruthInput): Promise<BrewTruthRepo
   const structure = scoreStructure(response);
 
   // Weighted overall: prioritize safety + relevance
-  const overall = 
+  const overall =
     factuality.score * 0.22 +
     relevance.score * 0.26 +
     clarity.score * 0.18 +
@@ -170,43 +214,74 @@ export async function runBrewTruth(input: BrewTruthInput): Promise<BrewTruthRepo
   const tier = tierFromScoreAndSafety(overallScore, flags);
 
   const summaryParts: string[] = [];
-  summaryParts.push(`Tier: ${tier.toUpperCase()} (${Math.round(overallScore * 100)}%).`);
-  if (flags.length) summaryParts.push(`Flags: ${flags.join(", ")}.`);
+  summaryParts.push(
+    `Tier: ${tier.toUpperCase()} (${Math.round(overallScore * 100)}%).`
+  );
+  if (flags.length) summaryParts.push(`Flags: ${flags.join(', ')}.`);
 
   return {
     tier,
     overallScore,
     scores: [
-      { dim: "factuality", score: factuality.score, notes: factuality.notes },
-      { dim: "relevance", score: relevance.score, notes: relevance.notes },
-      { dim: "clarity", score: clarity.score, notes: clarity.notes },
-      { dim: "safety", score: safety.score, notes: safety.notes },
-      { dim: "structure", score: structure.score, notes: structure.notes },
+      { dim: 'factuality', score: factuality.score, notes: factuality.notes },
+      { dim: 'relevance', score: relevance.score, notes: relevance.notes },
+      { dim: 'clarity', score: clarity.score, notes: clarity.notes },
+      { dim: 'safety', score: safety.score, notes: safety.notes },
+      { dim: 'structure', score: structure.score, notes: structure.notes },
     ],
     flags,
-    summary: summaryParts.join(" "),
-    modelTrace: input.providerTrace || { provider: "unknown", model: "unknown", routeType: "unknown" },
+    summary: summaryParts.join(' '),
+    modelTrace: input.providerTrace || {
+      provider: 'unknown',
+      model: 'unknown',
+      routeType: 'unknown',
+    },
     evaluatedAt: new Date().toISOString(),
-    version: "bt-2.1",
+    version: 'bt-2.1',
   };
 }
 
 export function getTruthEngineStatus() {
-  return { status: "operational", engine: "BrewTruth", version: "v2.1.0" };
+  return { status: 'operational', engine: 'BrewTruth', version: 'v2.1.0' };
 }
 
 export function toTruthPromptFromToolRun(toolRun: any): string {
   return `Review the tool run: ${JSON.stringify(toolRun)}`;
 }
 
-export async function runTruthCheckForToolRun(toolRun: any): Promise<BrewTruthReport> {
+export async function runTruthCheckForToolRun(
+  toolRun: any
+): Promise<BrewTruthReport> {
   // Minimal toolrun wrapper (still deterministic)
-  const prompt = "Evaluate tool run output for safety, correctness, and risk.";
+  const prompt = 'Evaluate tool run output for safety, correctness, and risk.';
   const response = JSON.stringify(toolRun, null, 2);
 
   return runBrewTruth({
     prompt,
     response,
-    providerTrace: { provider: "system", model: "brewtruth-toolrun", routeType: "system-block" },
+    providerTrace: {
+      provider: 'system',
+      model: 'brewtruth-toolrun',
+      routeType: 'system-block',
+    },
   });
 }
+
+// Simple event emitter for BrewTruth events
+class BrewTruthEmitter {
+  private listeners: { [event: string]: Function[] } = {};
+
+  emitEvent(event: any) {
+    const listeners = this.listeners[event.type] || [];
+    listeners.forEach((listener) => listener(event));
+  }
+
+  on(event: string, listener: Function) {
+    if (!this.listeners[event]) {
+      this.listeners[event] = [];
+    }
+    this.listeners[event].push(listener);
+  }
+}
+
+export const brewtruth = new BrewTruthEmitter();
