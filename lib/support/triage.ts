@@ -13,11 +13,12 @@ export interface TriagedEvent extends SupportEvent {
 }
 
 export function triageSupportEvent(event: SupportEvent): TriagedEvent {
+  const triageResult = determineTriage(event);
   const triaged: TriagedEvent = {
     ...event,
-    triageResult: determineTriage(event),
+    triageResult,
     confidence: calculateConfidence(event),
-    suggestedActions: generateActions(event),
+    suggestedActions: generateActions(triageResult),
   };
 
   return triaged;
@@ -51,10 +52,10 @@ function calculateConfidence(event: SupportEvent): number {
   return Math.min(score, 1.0);
 }
 
-function generateActions(event: SupportEvent): string[] {
+function generateActions(triageResult: TriageResult): string[] {
   const actions: string[] = [];
 
-  switch (event.triageResult) {
+  switch (triageResult) {
     case 'immediate_fix':
       actions.push('Escalate to engineering team');
       actions.push('Create hotfix branch');

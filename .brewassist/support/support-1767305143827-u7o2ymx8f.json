@@ -1,0 +1,11 @@
+{
+  "persona": "admin",
+  "intent": "error",
+  "severity": "critical",
+  "context": {
+    "involvesSecurity": true
+  },
+  "description": "Security vulnerability",
+  "id": "support-1767305143827-u7o2ymx8f",
+  "timestamp": "2026-01-01T22:05:43.827Z"
+}

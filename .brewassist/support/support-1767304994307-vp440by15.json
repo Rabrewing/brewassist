@@ -1,0 +1,11 @@
+{
+  "persona": "customer",
+  "intent": "help",
+  "severity": "low",
+  "context": {
+    "privateData": "secret"
+  },
+  "description": "Need help",
+  "id": "support-1767304994307-vp440by15",
+  "timestamp": "2026-01-01T22:03:14.307Z"
+}

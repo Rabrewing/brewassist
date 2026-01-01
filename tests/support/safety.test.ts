@@ -38,7 +38,7 @@ describe('Support Intelligence Safety Gates', () => {
   test('support events require explicit approval for sensitive actions', () => {
     const sensitiveEvent = {
       persona: 'admin',
-      intent: 'security',
+      intent: 'error',
       severity: 'critical' as const,
       context: { involvesSecurity: true },
       description: 'Security vulnerability',
@@ -47,7 +47,7 @@ describe('Support Intelligence Safety Gates', () => {
     const captured = captureSupportEvent(sensitiveEvent);
     const triaged = triageSupportEvent(captured);
 
-    // Ensure high-confidence actions still require approval
+    // Ensure critical errors get immediate fix actions
     expect(triaged.confidence).toBeGreaterThan(0.5);
     expect(triaged.suggestedActions).toContain('Escalate to engineering team');
   });

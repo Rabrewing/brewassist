@@ -1,0 +1,9 @@
+{
+  "persona": "admin",
+  "intent": "bug fix",
+  "severity": "high",
+  "context": {},
+  "description": "Critical bug",
+  "id": "support-1767304994321-kw9wy0clm",
+  "timestamp": "2026-01-01T22:03:14.321Z"
+}
