@@ -1,9 +1,17 @@
-import { getModelProviders, BrewProviderId, BrewRoute, getModelRoutes, resolveRoute, BrewRouteType } from "../lib/model-router";
+import {
+  getModelProviders,
+  BrewProviderId,
+  BrewRoute,
+  getModelRoutes,
+  resolveRoute,
+  BrewRouteType,
+} from '../lib/model-router';
 import { BrewTier } from '@/lib/commands/types'; // Import BrewTier from commands/types
-import type { CockpitMode } from "./brewTypes";
-import type { ScopeCategory } from "./intent-gatekeeper"; // Import ScopeCategory
+import type { CockpitMode } from './brewTypes';
+import type { ScopeCategory } from './intent-gatekeeper'; // Import ScopeCategory
+import { writeBrewLast } from './brewlast/write';
 
-export type EngineBrewAssistMode = "hrm" | "llm" | "agent" | "loop";
+export type EngineBrewAssistMode = 'hrm' | 'llm' | 'agent' | 'loop';
 
 export interface BrewAssistEngineOptions {
   prompt: string;
@@ -38,10 +46,12 @@ async function callProviderStream(
       if (!apiKey) {
         throw new Error(`API key not set for provider: ${provider}`);
       }
-      const base = (providerConfig.baseUrl?.replace(/\/+$/, "") || "https://api.openai.com/v1");
+      const base =
+        providerConfig.baseUrl?.replace(/\/+$/, '') ||
+        'https://api.openai.com/v1';
       url = `${base}/chat/completions`;
       headers = {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       };
       requestBody = { model, messages, temperature: 0.7, stream: true };
@@ -52,13 +62,22 @@ async function callProviderStream(
       if (!apiKey) {
         throw new Error(`API key not set for provider: ${provider}`);
       }
-      const base = (providerConfig.baseUrl || "https://generativelanguage.googleapis.com/v1beta/models").replace(/\/+$/, "");
+      const base = (
+        providerConfig.baseUrl ||
+        'https://generativelanguage.googleapis.com/v1beta/models'
+      ).replace(/\/+$/, '');
       url = `${base}/${model}:streamGenerateContent?key=${apiKey}`; // Use streamGenerateContent for streaming
-      headers = { "Content-Type": "application/json" };
-      requestBody = { contents: messages.map(m => ({ role: m.role === 'system' ? 'user' : m.role, parts: [{ text: m.content }] })) };
+      headers = { 'Content-Type': 'application/json' };
+      requestBody = {
+        contents: messages.map((m) => ({
+          role: m.role === 'system' ? 'user' : m.role,
+          parts: [{ text: m.content }],
+        })),
+      };
       break;
     }
-    default: { // Added curly braces
+    default: {
+      // Added curly braces
       // For non-streaming providers, simulate a single chunk
       const response = await callProvider(provider, model, messages);
       onChunk(response);
@@ -66,24 +85,24 @@ async function callProviderStream(
     } // Added curly braces
   }
 
-
-
   const res = await fetch(url, {
-    method: "POST",
+    method: 'POST',
     headers,
     body: JSON.stringify(requestBody),
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Provider ${provider} returned status ${res.status}: ${text}`);
+    const text = await res.text().catch(() => '');
+    throw new Error(
+      `Provider ${provider} returned status ${res.status}: ${text}`
+    );
   }
 
   if (res.body) {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = ""; // Buffer to accumulate partial JSON data
-    let jsonBuffer = ""; // Buffer for partial JSON objects
+    let buffer = ''; // Buffer to accumulate partial JSON data
+    let jsonBuffer = ''; // Buffer for partial JSON objects
 
     while (true) {
       const { done, value } = await reader.read();
@@ -107,7 +126,7 @@ async function callProviderStream(
           if (jsonBuffer.startsWith('{') && jsonBuffer.endsWith('}')) {
             try {
               const json = JSON.parse(jsonBuffer); // Try parsing the accumulated data
-              jsonBuffer = ""; // Clear buffer on successful parse
+              jsonBuffer = ''; // Clear buffer on successful parse
               let content;
 
               if (provider === 'openai') {
@@ -121,13 +140,16 @@ async function callProviderStream(
               }
               // Add other providers here if they have different streaming formats
 
-              let chunkText = "";
-              if (typeof content === "string") {
+              let chunkText = '';
+              if (typeof content === 'string') {
                 chunkText = content;
-              } else if (content && typeof content === "object") {
-                if (typeof (content as any).text === "string") chunkText = (content as any).text;
-                else if (typeof (content as any).content === "string") chunkText = (content as any).content;
-                else if (typeof (content as any).message?.content === "string") chunkText = (content as any).message.content;
+              } else if (content && typeof content === 'object') {
+                if (typeof (content as any).text === 'string')
+                  chunkText = (content as any).text;
+                else if (typeof (content as any).content === 'string')
+                  chunkText = (content as any).content;
+                else if (typeof (content as any).message?.content === 'string')
+                  chunkText = (content as any).message.content;
                 else chunkText = JSON.stringify(content);
               }
 
@@ -154,97 +176,146 @@ async function callProvider(
   model: string,
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
 ): Promise<string> {
-    const providers = getModelProviders();
-    const providerConfig = providers[provider];
-    if (!providerConfig || !providerConfig.enabled) {
-        throw new Error(`Provider ${provider} is not enabled or configured.`);
+  const providers = getModelProviders();
+  const providerConfig = providers[provider];
+  if (!providerConfig || !providerConfig.enabled) {
+    throw new Error(`Provider ${provider} is not enabled or configured.`);
+  }
+
+  let url: string;
+  let headers: Record<string, string>;
+  let requestBody: any;
+  let apiKey: string | undefined;
+
+  switch (provider) {
+    case 'openai': {
+      apiKey = providerConfig.apiKey;
+      const base =
+        providerConfig.baseUrl?.replace(/\/+$/, '') ||
+        'https://api.openai.com/v1';
+      url = `${base}/chat/completions`;
+      headers = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      };
+      requestBody = { model, messages, temperature: 0.7 };
+      break;
     }
 
-    let url: string;
-    let headers: Record<string, string>;
-    let requestBody: any;
-    let apiKey: string | undefined;
-
-    switch (provider) {
-        case 'openai': {
-            apiKey = providerConfig.apiKey;
-            const base = (providerConfig.baseUrl?.replace(/\/+$/, "") || "https://api.openai.com/v1");
-            url = `${base}/chat/completions`;
-            headers = { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` };
-            requestBody = { model, messages, temperature: 0.7 };
-            break;
-        }
-
-        case 'gemini': {
-            apiKey = providerConfig.apiKey;
-            const base = (providerConfig.baseUrl || "https://generativelanguage.googleapis.com/v1beta/models").replace(/\/+$/, "");
-            url = `${base}/${model}:generateContent?key=${apiKey}`; // Use generateContent for non-streaming
-            headers = { "Content-Type": "application/json" };
-            requestBody = { contents: messages.map(m => ({ role: m.role === 'system' ? 'user' : m.role, parts: [{ text: m.content }] })) };
-            break;
-        }
-
-        case 'mistral': {
-            apiKey = providerConfig.apiKey;
-            const mistralBase = (providerConfig.baseUrl?.replace(/\/+$/, "") || "https://api.mistral.ai/v1");
-            url = `${mistralBase}/chat/completions`;
-            headers = { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` };
-            requestBody = { model, messages, temperature: 0.7 };
-            break;
-        }
-        case 'tinyllm':
-            url = providerConfig.baseUrl || "http://localhost:8000/chat/completions";
-            headers = { "Content-Type": "application/json" };
-            requestBody = { model, messages, temperature: 0.7 };
-            break;
-        default:
-            throw new Error(`Unsupported provider: ${provider}`);
+    case 'gemini': {
+      apiKey = providerConfig.apiKey;
+      const base = (
+        providerConfig.baseUrl ||
+        'https://generativelanguage.googleapis.com/v1beta/models'
+      ).replace(/\/+$/, '');
+      url = `${base}/${model}:generateContent?key=${apiKey}`; // Use generateContent for non-streaming
+      headers = { 'Content-Type': 'application/json' };
+      requestBody = {
+        contents: messages.map((m) => ({
+          role: m.role === 'system' ? 'user' : m.role,
+          parts: [{ text: m.content }],
+        })),
+      };
+      break;
     }
 
-    if (!apiKey && provider !== 'tinyllm') {
-        throw new Error(`API key not set for provider: ${provider}`);
+    case 'mistral': {
+      apiKey = providerConfig.apiKey;
+      const mistralBase =
+        providerConfig.baseUrl?.replace(/\/+$/, '') ||
+        'https://api.mistral.ai/v1';
+      url = `${mistralBase}/chat/completions`;
+      headers = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      };
+      requestBody = { model, messages, temperature: 0.7 };
+      break;
     }
+    case 'tinyllm':
+      url = providerConfig.baseUrl || 'http://localhost:8000/chat/completions';
+      headers = { 'Content-Type': 'application/json' };
+      requestBody = { model, messages, temperature: 0.7 };
+      break;
+    default:
+      throw new Error(`Unsupported provider: ${provider}`);
+  }
 
-    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(requestBody) });
+  if (!apiKey && provider !== 'tinyllm') {
+    throw new Error(`API key not set for provider: ${provider}`);
+  }
 
-    if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`Provider ${provider} returned status ${res.status}: ${text}`);
-    }
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(requestBody),
+  });
 
-    const data: any = await res.json();
-    let rawContent: string | undefined;
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(
+      `Provider ${provider} returned status ${res.status}: ${text}`
+    );
+  }
 
-    switch (provider) {
-      case 'gemini':
-        rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        break;
-      case 'openai':
-      case 'mistral':
-      case 'tinyllm':
-        rawContent = data.choices?.[0]?.message?.content ?? data.choices?.[0]?.text;
-        break;
-      default:
-        throw new Error(`Unsupported provider for content extraction: ${provider}`);
-    }
+  const data: any = await res.json();
+  let rawContent: string | undefined;
 
-    if (!rawContent) {
-        throw new Error(`Response from ${provider} missing content`);
-    }
+  switch (provider) {
+    case 'gemini':
+      rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      break;
+    case 'openai':
+    case 'mistral':
+    case 'tinyllm':
+      rawContent =
+        data.choices?.[0]?.message?.content ?? data.choices?.[0]?.text;
+      break;
+    default:
+      throw new Error(
+        `Unsupported provider for content extraction: ${provider}`
+      );
+  }
 
-    return rawContent;
+  if (!rawContent) {
+    throw new Error(`Response from ${provider} missing content`);
+  }
+
+  return rawContent;
 }
-
 
 export async function runBrewAssistEngineStream(
   opts: BrewAssistEngineOptions,
   onChunk: (chunk: string) => void,
-  onEnd: (result: { provider: BrewProviderId, model: string, debugInfo?: any }) => void // Add onEnd callback
+  onEnd: (result: {
+    provider: BrewProviderId;
+    model: string;
+    debugInfo?: any;
+  }) => void // Add onEnd callback
 ): Promise<void> {
-  const { prompt, mode, cockpitMode, tier, useResearchModel, preferredProvider, intent } = opts; // Destructure intent
+  const {
+    prompt,
+    mode,
+    cockpitMode,
+    tier,
+    useResearchModel,
+    preferredProvider,
+    intent,
+  } = opts; // Destructure intent
+
+  // S5-01: Record session start in BrewLast
+  writeBrewLast({
+    lastMode: cockpitMode,
+    lastTier: tier,
+  });
 
   const messages = [{ role: 'user' as const, content: prompt }];
-  const initialRoute = resolveRoute(mode, { preferredProvider, useResearchModel, cockpitMode, tier });
+  const initialRoute = resolveRoute(mode, {
+    preferredProvider,
+    useResearchModel,
+    cockpitMode,
+    tier,
+  });
   const allPossibleRoutes = getModelRoutes({ mode, cockpitMode, tier });
 
   const routesToTry: BrewRoute[] = [];
@@ -252,7 +323,10 @@ export async function runBrewAssistEngineStream(
     routesToTry.push(initialRoute);
   }
   for (const route of allPossibleRoutes) {
-    if (route.provider === initialRoute?.provider && route.model === initialRoute?.model) {
+    if (
+      route.provider === initialRoute?.provider &&
+      route.model === initialRoute?.model
+    ) {
       continue;
     }
     routesToTry.push(route);
@@ -260,23 +334,32 @@ export async function runBrewAssistEngineStream(
 
   if (routesToTry.length === 0) {
     // This case should ideally be caught by resolveRoute returning "system"
-    throw new Error("No valid routes found for the given options.");
+    throw new Error('No valid routes found for the given options.');
   }
 
   let lastError: unknown;
 
   for (const route of routesToTry) {
-    if (route.provider === "system") {
+    if (route.provider === 'system') {
       const providersConfig = getModelProviders();
-      const enabledFlags = Object.entries(providersConfig).reduce((acc, [key, value]) => {
-        acc[key as BrewProviderId] = value.enabled;
-        return acc;
-      }, {} as Record<BrewProviderId, boolean>);
-      const candidateProviders = getModelRoutes({ mode, cockpitMode, tier }).map(r => ({ provider: r.provider, model: r.model }));
+      const enabledFlags = Object.entries(providersConfig).reduce(
+        (acc, [key, value]) => {
+          acc[key as BrewProviderId] = value.enabled;
+          return acc;
+        },
+        {} as Record<BrewProviderId, boolean>
+      );
+      const candidateProviders = getModelRoutes({
+        mode,
+        cockpitMode,
+        tier,
+      }).map((r) => ({ provider: r.provider, model: r.model }));
 
-      onChunk("No active LLM providers found for this request, or the request was blocked by system policy.");
+      onChunk(
+        'No active LLM providers found for this request, or the request was blocked by system policy.'
+      );
       onEnd({
-        provider: "system",
+        provider: 'system',
         model: route.model,
         debugInfo: {
           mode,

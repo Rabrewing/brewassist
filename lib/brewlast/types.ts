@@ -1,8 +1,11 @@
 // lib/brewlast/types.ts
 
+import { BrewTier } from '../commands/types';
+
 export interface BrewLastData {
   // Last session info
   lastMode?: 'admin' | 'customer';
+  lastTier?: BrewTier;
   lastPane?: string; // e.g., "flow", "quality"
   lastTab?: string;
   lastSessionId?: string;
