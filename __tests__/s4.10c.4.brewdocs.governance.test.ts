@@ -83,7 +83,7 @@ describe('S4.10c.4 - BrewDocs Governance Capability (Tier-1)', () => {
     // Temporarily add a mock brewdocs.write capability for testing purposes
     const mockWriteCapability = {
       capabilityId: 'brewdocs.write',
-      category: 'docs',
+      category: 'docs' as const,
       surfaces: ['command', 'assistant_auto'],
       tierRequired: 2, // Tier 2, so customer (Tier 1) should be blocked
       personaAllowed: ['admin', 'dev'], // Customer not allowed

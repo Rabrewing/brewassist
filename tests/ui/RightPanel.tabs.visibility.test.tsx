@@ -6,7 +6,7 @@ import { ToolbeltProvider } from '../../contexts/ToolbeltContext';
 describe('Right Panel Tabs Visibility', () => {
   const renderRightPanel = (mode: 'admin' | 'customer' = 'customer') => {
     render(
-      <CockpitModeProvider>
+      <CockpitModeProvider initialMode={mode}>
         <ToolbeltProvider>
           <WorkspaceSidebarRight />
         </ToolbeltProvider>
@@ -16,24 +16,24 @@ describe('Right Panel Tabs Visibility', () => {
 
   test('customer sees only non-admin tabs', () => {
     renderRightPanel('customer');
-    expect(screen.getByText('Guide')).toBeInTheDocument();
-    expect(screen.getByText('Docs')).toBeInTheDocument();
-    expect(screen.getByText('Help')).toBeInTheDocument();
-    expect(screen.getByText('History')).toBeInTheDocument();
+    expect(screen.getByTitle('Guide')).toBeInTheDocument();
+    expect(screen.getByTitle('Docs')).toBeInTheDocument();
+    expect(screen.getByTitle('Help')).toBeInTheDocument();
+    expect(screen.getByTitle('History')).toBeInTheDocument();
 
-    expect(screen.queryByText('Files')).not.toBeInTheDocument();
-    expect(screen.queryByText('Sandbox')).not.toBeInTheDocument();
-    expect(screen.queryByText('Cognition')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Files')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Sandbox')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Cognition')).not.toBeInTheDocument();
   });
 
   test('admin sees all tabs', () => {
     renderRightPanel('admin');
-    expect(screen.getByText('Guide')).toBeInTheDocument();
-    expect(screen.getByText('Docs')).toBeInTheDocument();
-    expect(screen.getByText('Help')).toBeInTheDocument();
-    expect(screen.getByText('History')).toBeInTheDocument();
-    expect(screen.getByText('Files')).toBeInTheDocument();
-    expect(screen.getByText('Sandbox')).toBeInTheDocument();
-    expect(screen.getByText('Cognition')).toBeInTheDocument();
+    expect(screen.getByTitle('Guide')).toBeInTheDocument();
+    expect(screen.getByTitle('Docs')).toBeInTheDocument();
+    expect(screen.getByTitle('Help')).toBeInTheDocument();
+    expect(screen.getByTitle('History')).toBeInTheDocument();
+    expect(screen.getByTitle('Files')).toBeInTheDocument();
+    expect(screen.getByTitle('Sandbox')).toBeInTheDocument();
+    expect(screen.getByTitle('Cognition')).toBeInTheDocument();
   });
 });

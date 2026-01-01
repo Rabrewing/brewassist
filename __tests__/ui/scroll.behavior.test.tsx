@@ -1,3 +1,11 @@
+jest.mock('react-markdown', () => {
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: React.forwardRef(() => null),
+  };
+});
+
 import { render, screen } from '@testing-library/react';
 import { BrewCockpitCenter } from '../../components/BrewCockpitCenter';
 import { CockpitModeProvider } from '../../contexts/CockpitModeContext';

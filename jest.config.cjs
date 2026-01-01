@@ -10,6 +10,7 @@ module.exports = {
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.cjs'],
   testMatch: ['**/__tests__/**/*.test.{ts,tsx}', '**/tests/**/*.test.{ts,tsx}'],
+  testPathIgnorePatterns: ['node_modules', '.next'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1', // Map @/ to rootDir for imports
     '^@lib/(.*)$': '<rootDir>/lib/$1', // Map @lib/ to lib/ for imports

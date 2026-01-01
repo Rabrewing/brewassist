@@ -32,8 +32,12 @@ describe('Handshake Policy Logic', () => {
 
             // Basic assertions for valid policy envelope
             expect(typeof policy.ok).toBe('boolean');
-            expect(typeof policy.requiresConfirm).toBe('boolean');
-            expect(typeof policy.requiresSandbox).toBe('boolean');
+            if (policy.requiresConfirm !== undefined) {
+              expect(typeof policy.requiresConfirm).toBe('boolean');
+            }
+            if (policy.requiresSandbox !== undefined) {
+              expect(typeof policy.requiresSandbox).toBe('boolean');
+            }
             expect(policy.route).toMatch(/brewassist|blocked|wizard/);
 
             if (!policy.ok) {

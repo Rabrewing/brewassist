@@ -28,7 +28,7 @@ describe('Unified Policy Enforcement (S4.10c.4)', () => {
     label: 'Developer User',
     tone: 'Technical',
     emotionTier: 2,
-    safetyMode: 'strict',
+    safetyMode: 'hard-stop',
     memoryWindow: 2,
     systemPrompt: 'Developer persona for testing',
   };
@@ -49,7 +49,9 @@ describe('Unified Policy Enforcement (S4.10c.4)', () => {
 
     expect(policy.ok).toBe(false);
     expect(policy.route).toBe('blocked');
-    expect(policy.reason).toContain("Persona 'customer' not allowed for '/patch'");
+    expect(policy.reason).toContain(
+      "Persona 'customer' not allowed for '/patch'"
+    );
   });
 
   // Test 2: Command policy allows customer /doc

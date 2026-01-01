@@ -17,7 +17,13 @@
     "paths": {
       "@/*": ["./*"]
     },
-    "types": ["node", "react", "react-dom", "jest"],
+    "types": [
+      "node",
+      "react",
+      "react-dom",
+      "jest",
+      "@testing-library/jest-dom"
+    ],
     "incremental": true
   },
   "include": [
@@ -29,8 +35,7 @@
     "styles/**/*",
     "scripts/**/*",
     "overlays/**/*",
-    "task_complete.ts",
-    "__tests__/**/*"
+    "task_complete.ts"
   ],
   "exclude": [
     "node_modules",

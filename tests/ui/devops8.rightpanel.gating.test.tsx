@@ -1,23 +1,28 @@
 import { render, screen } from '@testing-library/react';
 import { WorkspaceSidebarRight } from '../../components/WorkspaceSidebarRight';
 import { CockpitModeProvider } from '../../contexts/CockpitModeContext';
+import { ToolbeltProvider } from '../../contexts/ToolbeltContext';
 
 describe('DevOps8 Panel Permissions', () => {
   it('shows base tabs for customer', () => {
     render(
       <CockpitModeProvider initialMode="customer">
-        <WorkspaceSidebarRight />
+        <ToolbeltProvider>
+          <WorkspaceSidebarRight />
+        </ToolbeltProvider>
       </CockpitModeProvider>
     );
-    expect(screen.getByText('Guide')).toBeInTheDocument();
+    expect(screen.getByTitle('Guide')).toBeInTheDocument();
   });
 
   it('shows admin tabs for admin', () => {
     render(
       <CockpitModeProvider initialMode="admin">
-        <WorkspaceSidebarRight />
+        <ToolbeltProvider>
+          <WorkspaceSidebarRight />
+        </ToolbeltProvider>
       </CockpitModeProvider>
     );
-    // Check admin-only tabs are present
+    expect(screen.getByTitle('Files')).toBeInTheDocument();
   });
 });
