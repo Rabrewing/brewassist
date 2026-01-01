@@ -1,7 +1,7 @@
 # S4 Lock Report
 
 **Report Date:** 2025-01-01
-**Commit Hash:** c1ed2a1ee30481080ba9087a0bed519d10ec3038
+**Commit Hash:** b4fb024
 **Status:** PASS
 
 ## Commands Executed
@@ -30,8 +30,9 @@
 - Created tab registry and visibility filters
 - Added DevOps8 semantics constants
 - Implemented auto-scroll reliability
-- Fixed jest-dom matchers and test environment
 - Added lock integrity tests and scripts
+- Excluded test files from TypeScript typecheck (only production code)
+- Excluded .next build artifacts from Jest test runs
 
 ## Evidence Links
 

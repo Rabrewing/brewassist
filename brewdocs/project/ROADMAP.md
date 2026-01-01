@@ -3,9 +3,9 @@
 ## S4: Foundation Lock
 
 **Status:** LOCKED ✅
-**Evidence:** [S4 Lock Manifest](S4_LOCK_MANIFEST.md) | [S4 Lock Report](S4_LOCK_REPORT.md)
-**Completion:** Persona matrix, capability registry, cockpit structure, DevOps8 semantics frozen.
-**No Changes:** Without breaking lock tests.
+**Evidence:** [S4 Lock Manifest](S4_LOCK_MANIFEST.md) | [S4 Lock Report](S4_LOCK_REPORT.md) | Integrity Guards Active
+**Completion:** Persona matrix, capability registry, cockpit structure, DevOps8 semantics frozen. Automated integrity checks in place.
+**No Changes:** Without breaking lock tests and gates.
 
 ## S5: Intelligence Layer (Next Phase)
 

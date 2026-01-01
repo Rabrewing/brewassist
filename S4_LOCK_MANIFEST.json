@@ -1,0 +1,17 @@
+{
+  "commitHash": "b4fb024",
+  "lockedFiles": {
+    "lib/capabilities/registry.ts": "3a4432d7d26154dfffdf6d89313026a26d25c899fedbdf567dec359bfe2e2a67",
+    "lib/toolbelt/handshake.ts": "daf1c633de6c582873ac808e6352d66d00b131c743758fb704aeabe748a88095",
+    "lib/brewIdentityEngine.ts": "dd6bd5b340092903d1c473347cd27483b86a00d77cf47b901a5f2ee13998159d",
+    "components/WorkspaceSidebarRight.tsx": "4076e43b192f78a5904ac8c25439adb953324698991771b37e626ea822ec73df",
+    "lib/devops/tabs/DevOpsTabRegistry.ts": "afebdb94af1a85f0685ab9ae7a13de27d36f5e98205b6aa412813af32fdf638b",
+    "lib/devops8/semantics.ts": "f2de1cfb4a916be284f2c98647486e697fb3c3b120eacab8198e7b43b92a849e"
+  },
+  "frozenSurfaces": [
+    "personas",
+    "capability semantics",
+    "devops8 meanings",
+    "cockpit structure"
+  ]
+}

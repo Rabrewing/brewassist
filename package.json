@@ -31,6 +31,9 @@
     "format": "prettier --write .",
     "lint:staged": "lint-staged",
     "s4:lock-check": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:ui && tsx scripts/audit-capabilities.ts && pnpm build",
+    "s4:gate": "./scripts/s4-lock-gate.sh",
+    "s4:manifest:verify": "tsx scripts/s4-manifest-verify.ts",
+    "s4:manifest:update": "tsx scripts/s4-manifest-verify.ts --update",
     "audit:capabilities": "tsx scripts/audit-capabilities.ts",
     "sandbox:mirror": "tsx scripts/sandbox_build_mirror.ts",
     "smoke:sandbox": "curl -sS -X POST http://localhost:3000/api/sandbox -H \"Content-Type: application/json\" -d '{\"engine\":\"tiny\",\"prompt\":\"smoke\"}' | cat"
