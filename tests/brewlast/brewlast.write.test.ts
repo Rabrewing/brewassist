@@ -3,8 +3,7 @@ import { writeBrewLast } from '../../lib/brewlast/write';
 describe('BrewLast Write', () => {
   const testData = {
     lastMode: 'admin' as const,
-    lastPersona: 'admin',
-    lastTier: 2,
+    lastTier: 'pro' as const,
     lastToolbelt: ['/task', '/doc'],
     lastSessionId: 'test-session',
     lastBuildOutcome: {
@@ -35,7 +34,11 @@ describe('BrewLast Write', () => {
   });
 
   test('customer mode skip with reason', () => {
-    const customerData = { ...testData, lastMode: 'customer' as const };
+    const customerData = {
+      ...testData,
+      lastMode: 'customer' as const,
+      lastTier: 'basic' as const,
+    };
     const result = writeBrewLast(customerData);
     expect(result).toBe(true);
 
