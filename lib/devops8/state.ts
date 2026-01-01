@@ -1,24 +1,17 @@
 // lib/devops8/state.ts
-import {
-  DevOpsSignalId,
-  DevOpsSignalReading,
-  DevOpsSignalDefinition,
-  DevOpsSignalRegistry,
-  SignalLevel,
-  ViewerRole,
-  DEVOPS_SIGNAL_REGISTRY,
-} from "./registry";
+import type { DevOpsSignal, DevOpsSignalId } from './types';
+import { DEVOPS_SIGNAL_REGISTRY, ViewerRole } from './registry';
 
 // Define the aggregated DevOps 8 State object
 export interface DevOps8State {
-  flow_integrity: DevOpsSignalReading;
-  feedback_velocity: DevOpsSignalReading;
-  learning_memory_integrity: DevOpsSignalReading;
-  build_change_quality: DevOpsSignalReading;
-  scope_containment: DevOpsSignalReading;
-  safety_policy_enforcement: DevOpsSignalReading;
-  reasoning_visibility: DevOpsSignalReading;
-  execution_efficiency: DevOpsSignalReading;
+  flow_integrity: DevOpsSignal;
+  feedback_velocity: DevOpsSignal;
+  learning_memory_integrity: DevOpsSignal;
+  build_change_quality: DevOpsSignal;
+  scope_containment: DevOpsSignal;
+  safety_policy_enforcement: DevOpsSignal;
+  reasoning_visibility: DevOpsSignal;
+  execution_efficiency: DevOpsSignal;
   timestamp: string;
   sources: string[]; // To track where the state was last updated from
 }
@@ -32,22 +25,26 @@ let currentDevOps8State: DevOps8State | null = null;
  * @returns The newly computed DevOps8State.
  */
 export async function computeDevOps8State(): Promise<DevOps8State> {
-  const signalReadings: Partial<Record<DevOpsSignalId, DevOpsSignalReading>> = {};
+  const signalReadings: Partial<Record<DevOpsSignalId, DevOpsSignal>> = {};
   const sources: string[] = [];
 
   for (const signalId in DEVOPS_SIGNAL_REGISTRY) {
     const definition = DEVOPS_SIGNAL_REGISTRY[signalId as DevOpsSignalId];
     try {
-      const reading = await Promise.resolve(definition.compute()); // Ensure async compute is awaited
+      const reading = definition.compute(); // Compute is sync now
       signalReadings[signalId as DevOpsSignalId] = reading;
       sources.push(`Computed ${signalId}`);
     } catch (error) {
       console.error(`Error computing DevOps signal ${signalId}:`, error);
       signalReadings[signalId as DevOpsSignalId] = {
         id: signalId as DevOpsSignalId,
-        level: "bad",
-        summary: `Error computing signal: ${(error as Error).message}`,
-        meta: { ts: new Date().toISOString() },
+        label: 'Error',
+        status: 'stalled',
+        value: 0,
+        source: 'error',
+        timestamp: new Date().toISOString(),
+        confidence: 0,
+        notes: `Error computing signal: ${(error as Error).message}`,
       };
       sources.push(`Error computing ${signalId}`);
     }
@@ -74,7 +71,7 @@ export async function computeDevOps8State(): Promise<DevOps8State> {
  * @param id The ID of the signal to retrieve.
  * @returns The DevOpsSignalReading if found, otherwise null.
  */
-export function getSignal(id: DevOpsSignalId): DevOpsSignalReading | null {
+export function getSignal(id: DevOpsSignalId): DevOpsSignal | null {
   if (!currentDevOps8State) {
     return null;
   }
@@ -82,28 +79,30 @@ export function getSignal(id: DevOpsSignalId): DevOpsSignalReading | null {
 }
 
 /**
- * Retrieves all DevOpsSignalReadings from the current state.
- * @returns An array of all DevOpsSignalReadings.
+ * Retrieves all DevOpsSignals from the current state.
+ * @returns An array of all DevOpsSignals.
  */
-export function getAllSignals(): DevOpsSignalReading[] {
+export function getAllSignals(): DevOpsSignal[] {
   if (!currentDevOps8State) {
     return [];
   }
-  return Object.values(DEVOPS_SIGNAL_REGISTRY).map(def => currentDevOps8State![def.id]);
+  return Object.values(DEVOPS_SIGNAL_REGISTRY).map(
+    (def) => currentDevOps8State![def.id]
+  );
 }
 
 /**
- * Retrieves DevOpsSignalReadings relevant to a specific pane.
+ * Retrieves DevOpsSignals relevant to a specific pane.
  * @param paneId The ID of the pane (e.g., "flow", "quality").
- * @returns An array of relevant DevOpsSignalReadings.
+ * @returns An array of relevant DevOpsSignals.
  */
-export function getSignalsForPane(paneId: string): DevOpsSignalReading[] {
+export function getSignalsForPane(paneId: string): DevOpsSignal[] {
   if (!currentDevOps8State) {
     return [];
   }
   return Object.values(DEVOPS_SIGNAL_REGISTRY)
-    .filter(def => def.defaultPane === paneId)
-    .map(def => currentDevOps8State![def.id]);
+    .filter((def) => def.defaultPane === paneId)
+    .map((def) => currentDevOps8State![def.id]);
 }
 
 /**
@@ -112,43 +111,40 @@ export function getSignalsForPane(paneId: string): DevOpsSignalReading[] {
  * @param role The ViewerRole (customer, admin, dev).
  * @returns A redacted DevOpsSignalReading suitable for the given role.
  */
-export function renderSignalForRole(reading: DevOpsSignalReading, role: ViewerRole): DevOpsSignalReading {
+export function renderSignalForRole(
+  reading: DevOpsSignal,
+  role: ViewerRole
+): DevOpsSignal {
   const definition = DEVOPS_SIGNAL_REGISTRY[reading.id];
   if (!definition) {
-    return { ...reading, summary: "Unknown signal definition." };
+    return { ...reading, notes: 'Unknown signal definition.' };
   }
 
   const visibility = definition.visibility[role];
 
-  if (visibility === "hidden") {
+  if (visibility === 'hidden') {
     return {
       id: reading.id,
-      level: "off",
-      summary: "Hidden for this role.",
-      meta: { ts: reading.meta.ts },
+      label: reading.label,
+      status: 'unknown',
+      value: 0,
+      source: reading.source,
+      timestamp: reading.timestamp,
+      confidence: 0,
+      notes: 'Hidden for this role.',
     };
   }
 
-  const redactedReading: DevOpsSignalReading = {
-    ...reading,
-    details: undefined, // Default to no details
-  };
-
-  if (visibility === "summary") {
-    // Only summary and basic info visible
-    return redactedReading;
+  if (visibility === 'summary') {
+    // Only basic info visible, strip adminDebugInfo
+    return {
+      ...reading,
+      adminDebugInfo: undefined,
+    };
   }
 
   // "full" visibility
-  return {
-    ...reading,
-    // Ensure sensitive details are not leaked if not explicitly allowed
-    details: {
-      ...reading.details,
-      // Further redaction logic can be added here if specific fields within details
-      // need to be hidden for certain "full" roles (e.g., customer "full" vs admin "full")
-    },
-  };
+  return reading;
 }
 
 /**
@@ -156,7 +152,7 @@ export function renderSignalForRole(reading: DevOpsSignalReading, role: ViewerRo
  */
 export async function initializeDevOps8State(): Promise<void> {
   await computeDevOps8State();
-  console.log("DevOps 8 State initialized.");
+  console.log('DevOps 8 State initialized.');
 }
 
 // Optionally, re-compute state periodically or on specific events
