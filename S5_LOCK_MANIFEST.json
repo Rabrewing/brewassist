@@ -1,0 +1,50 @@
+{
+  "phase": "S5",
+  "project": "BrewAssist",
+  "lockType": "INTELLIGENCE_LAYER",
+  "lockDate": "2026-01-01",
+  "commitHash": "804d1133a8649a685cab72025190d7a9dfb9e163",
+  "status": "LOCKED",
+
+  "frozenSurfaces": {
+    "supportIntelligence": [
+      "lib/support/intake.ts",
+      "lib/support/evaluate.ts",
+      "lib/support/triage.ts",
+      "lib/support/store.ts",
+      "lib/support/digest.ts",
+      "lib/support/brewdocs-bridge.ts"
+    ],
+    "brewDocsGovernance": [
+      "lib/brewdocs/proposals",
+      "lib/brewdocs/apply",
+      "lib/brewdocs/ledger.ts"
+    ],
+    "schemas": ["SupportTrace", "BrewDocsProposal"]
+  },
+
+  "verificationCommands": [
+    "pnpm lint",
+    "pnpm typecheck",
+    "pnpm test",
+    "pnpm test:ui",
+    "pnpm audit:capabilities",
+    "pnpm build",
+    "pnpm s4:gate",
+    "pnpm s4:manifest:verify",
+    "pnpm s5:support:verify"
+  ],
+
+  "invariants": {
+    "noAutoExecution": true,
+    "noCustomerVisibility": true,
+    "humanInTheLoopEnforced": true,
+    "lockGuardsActive": true
+  },
+
+  "signOff": {
+    "approvedBy": "Grok.E.P",
+    "role": "Admin",
+    "timestamp": "2026-01-01T00:00:00Z"
+  }
+}
