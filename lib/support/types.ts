@@ -1,11 +1,21 @@
-export interface SupportEvent {
-  id: string;
+import type { CockpitMode } from '@/lib/brewTypes';
+
+export interface SupportTrace {
   persona: string;
-  intent: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  context: Record<string, any>;
-  description: string;
+  cockpitMode: CockpitMode;
+  activeMode: 'LLM' | 'HRM' | 'AGENT' | 'LOOP';
+  capabilityIds: string[];
+  input: string;
+  response: string;
+  devOps8Snapshot: any; // Type to be defined based on DevOps8
+  brewTruthScore: number;
+  flags: string[];
   timestamp: string;
-  resolution?: string;
-  resolvedAt?: string;
+}
+
+export interface SupportEvaluation {
+  trustScore: number;
+  riskTier: 'low' | 'medium' | 'high';
+  confidenceDelta: number;
+  flags: string[];
 }

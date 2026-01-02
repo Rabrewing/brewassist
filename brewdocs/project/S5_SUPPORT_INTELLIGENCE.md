@@ -1,125 +1,145 @@
-# Support Intelligence Engine
+# S5.6 Support Intelligence Hardening
 
 ## Overview
 
-The Support Intelligence Engine transforms support interactions into actionable intelligence, bridging user feedback with system improvement through automated triage, documentation proposals, and operational insights.
+The Support Intelligence system provides observational-only intelligence from support interactions. It captures, evaluates, and triages support traces for human review, generating read-only insights without any automated execution or fixes. All actions are deferred to human operators and S6+ phases.
 
 ## Components
 
-### 1. Intake Capture (`lib/support/intake.ts`)
+### 1. Support Trace Intake (`lib/support/intake.ts`)
 
-Captures all support interactions from multiple sources:
+Captures every support/help interaction and normalizes into SupportTrace format.
 
-- User chat interactions
-- Admin notes and escalations
-- Error events and system failures
-- Audit findings and warnings
+**Responsibilities:**
 
-**Data Captured:**
+- Normalize support interactions
+- Sanitize PII
+- Validate required fields
+- Append-only, deterministic
 
-- Persona context
-- Intent classification
-- Severity assessment
-- Full context snapshot
-- Timestamp and metadata
+**Required Fields:**
 
-### 2. Triage Engine (`lib/support/triage.ts`)
+- persona, cockpitMode, activeMode, capabilityIds[], input, response, devOps8Snapshot, brewTruthScore, flags, timestamp
 
-Automatically classifies and routes support events:
+### 2. BrewTruth Evaluation (`lib/support/evaluate.ts`)
 
-**Routes:**
+Attaches quality evaluation to each SupportTrace for support assessment only.
 
-- `immediate_fix`: Critical issues requiring urgent engineering attention
-- `sandbox_patch`: Code-level issues suitable for automated patch generation
-- `future_roadmap`: Feature requests and enhancement suggestions
-- `documentation_gap`: Missing or unclear documentation issues
+**Outputs:**
 
-**Features:**
+- trustScore (0-1)
+- riskTier (low/medium/high)
+- confidenceDelta
+- flags[]
 
-- Confidence scoring
-- Suggested action generation
-- Persona-aware routing
+### 3. Support Triage Engine (`lib/support/triage.ts`)
 
-### 3. BrewDocs Bridge (`lib/support/brewdocs-bridge.ts`)
+Classifies traces into exactly one category with confidence threshold.
 
-Converts documentation-related issues into BrewDocs proposals:
+**Categories (EXACTLY ONE):**
+
+- DAILY_RESOLVABLE
+- SANDBOX_MAINTENANCE_CANDIDATE
+- PHASE_RELEASE_CANDIDATE
+- RISK_BLOCKER
+
+**Rules:**
+
+- No overlap
+- No automation
+- Confidence >= 0.6 required
+
+### 4. Filesystem Persistence (`lib/support/store.ts`)
+
+Stores triaged traces in append-only logs.
+
+**Targets:**
+
+- /support-intel/daily.log
+- /support-intel/unresolved.log
+- /support-intel/candidates.log
+- /support-intel/deferred.log
+
+### 5. BrewDocs Proposal Bridge (`lib/support/brewdocs-bridge.ts`)
+
+Converts PHASE_RELEASE_CANDIDATE traces into read-only Tier 2 proposals.
 
 **Process:**
 
-1. Identify documentation gaps from support events
-2. Generate structured proposals with rationale
-3. Submit to BrewDocs Tier 2 proposal system
-4. Track proposal lifecycle
+- Generate proposal objects only
+- No writes to docs
+- Admin-only visibility
 
-### 4. Daily Fix Digest (`lib/support/digest.ts`)
+### 6. Daily Digest Generator (`lib/support/digest.ts`)
 
-Provides operational visibility for support teams:
+Creates deterministic daily summaries for human review.
 
 **Contents:**
 
-- Daily event summary
-- Critical issue alerts
-- Recurring theme analysis
-- Generated proposal counts
-- Suggested actions for the day
+- Critical risks
+- Recurring issues
+- Suggested actions (non-executing)
 
-## Safety and Privacy
+## Safety and Governance
 
-### Isolation Guarantees
+### Observational Only
 
-- **Persona Scoping**: Customer events never leak to other personas
-- **PII Protection**: Automatic detection and masking of sensitive data
-- **Access Control**: Admin/dev/support only access to full event details
+- **No Auto-Fix**: Zero automated execution or fixes
+- **Human-in-the-Loop**: All insights require explicit human action
+- **Read-Only Operations**: No mutations to system state
+- **Deferred Execution**: All actions postponed until S6+
 
-### No Auto-Execution
+### Isolation and Privacy
 
-- **Human-in-the-Loop**: All triage results require human validation
-- **Approval Gates**: Critical actions need explicit approval
-- **Audit Trail**: All intelligence generation is logged
+- **Persona Scoping**: Strict isolation between personas
+- **PII Sanitization**: Automatic redaction of sensitive data
+- **No Customer Visibility**: Support traces never exposed to customers
+- **Append-Only Persistence**: Immutable log storage
 
 ## Integration Points
 
-### BrewDocs Tiers
+### BrewDocs (Read-Only)
 
-- **Tier 2**: Generates documentation improvement proposals
-- **Tier 3**: Suggests documentation updates for approval
+- **Tier 2 Proposals**: Generated but not applied
+- **No Direct Writes**: Proposals remain in memory/objects
 
-### BrewLast
+### Filesystem Storage
 
-- Records support event processing
-- Tracks resolution outcomes
-- Maintains historical context
+- **Append-Only Logs**: /support-intel/ directory
+- **Survives Restart**: Persistent across sessions
+- **No Database**: Filesystem-based only
 
-### DevOps8
+### DevOps8 Compatibility
 
-- Surfaces support intelligence in cognition panel
-- Provides real-time triage status
-- Shows daily digest summaries
+- **Snapshot Integration**: Includes DevOps8 data in traces
+- **No Direct Coupling**: Observational data only
 
-### S4 Lock Compatibility
+### S4 + S5 Lock Guards
 
-- Respects all frozen surfaces
-- Uses approved capability channels
-- Maintains persona isolation
+- **Frozen Surfaces Untouched**: No modifications to locked areas
+- **Guard Compliance**: Cannot bypass existing protections
 
 ## Operational Flow
 
-1. **Intake**: Events captured from all sources
-2. **Triage**: Automatic classification and routing
-3. **Bridge**: Documentation issues become proposals
-4. **Digest**: Daily operational summary generated
-5. **Resolution**: Human-guided action and follow-up
+1. **Intake**: Capture and normalize support traces
+2. **Evaluate**: Attach BrewTruth quality assessment
+3. **Triage**: Classify into governance categories
+4. **Store**: Persist in filesystem logs
+5. **Bridge**: Generate read-only BrewDocs proposals
+6. **Digest**: Create daily human-readable summaries
+7. **Review**: Human operators assess and act (deferred to S6+)
 
-## Success Metrics
+## Governance Metrics
 
-- **Triage Accuracy**: >90% correct classification
-- **Resolution Time**: <50% reduction through automation
-- **Documentation Coverage**: >80% issues result in improved docs
-- **User Satisfaction**: Improved support experience
+- **Trace Coverage**: 100% of support interactions captured
+- **PII Protection**: Zero PII leaks in logs
+- **Triage Consistency**: Deterministic classification
+- **Proposal Quality**: Human-validated proposal generation
 
-## Future Enhancements
+## S6+ Deferred Actions
 
-- ML-based triage improvement
-- Predictive issue detection
-- Cross-system correlation
-- Automated resolution for common issues
+- Execution of RISK_BLOCKER resolutions
+- Application of SANDBOX_MAINTENANCE_CANDIDATE patches
+- Implementation of DAILY_RESOLVABLE fixes
+- Activation of PHASE_RELEASE_CANDIDATE features
+- Automated proposal application to BrewDocs

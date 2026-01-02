@@ -1,22 +1,26 @@
-import { TriagedEvent } from './triage';
+import { TriagedSupportTrace } from './triage';
 
 export interface DailyDigest {
   date: string;
   totalEvents: number;
-  criticalIssues: TriagedEvent[];
+  criticalIssues: TriagedSupportTrace[];
   recurringThemes: { theme: string; count: number }[];
   suggestedActions: string[];
   generatedProposals: number;
 }
 
-export function generateDailyDigest(events: TriagedEvent[]): DailyDigest {
+export function generateDailyDigest(
+  events: TriagedSupportTrace[]
+): DailyDigest {
   const today = new Date().toISOString().split('T')[0];
 
-  const criticalIssues = events.filter((e) => e.severity === 'critical');
+  const criticalIssues = events.filter(
+    (e) => e.triageResult === 'RISK_BLOCKER'
+  );
   const themes = analyzeThemes(events);
   const actions = generateSuggestedActions(events);
   const proposals = events.filter(
-    (e) => e.triageResult === 'documentation_gap'
+    (e) => e.triageResult === 'PHASE_RELEASE_CANDIDATE' // Assuming this leads to proposals
   ).length;
 
   return {
@@ -30,12 +34,12 @@ export function generateDailyDigest(events: TriagedEvent[]): DailyDigest {
 }
 
 function analyzeThemes(
-  events: TriagedEvent[]
+  events: TriagedSupportTrace[]
 ): { theme: string; count: number }[] {
   const themeMap = new Map<string, number>();
 
   events.forEach((event) => {
-    const theme = extractTheme(event.description);
+    const theme = extractTheme(event.input);
     themeMap.set(theme, (themeMap.get(theme) || 0) + 1);
   });
 
@@ -45,35 +49,30 @@ function analyzeThemes(
     .slice(0, 5);
 }
 
-function extractTheme(description: string): string {
-  // Simple keyword extraction
-  if (description.includes('error')) return 'Error Handling';
-  if (description.includes('performance')) return 'Performance';
-  if (description.includes('ui') || description.includes('interface'))
-    return 'UI/UX';
-  if (description.includes('documentation')) return 'Documentation';
+function extractTheme(input: string): string {
+  // Simple keyword extraction from input
+  if (input.includes('error')) return 'Error Handling';
+  if (input.includes('performance')) return 'Performance';
+  if (input.includes('ui') || input.includes('interface')) return 'UI/UX';
+  if (input.includes('documentation')) return 'Documentation';
   return 'General';
 }
 
-function generateSuggestedActions(events: TriagedEvent[]): string[] {
+function generateSuggestedActions(events: TriagedSupportTrace[]): string[] {
   const actions: string[] = [];
 
-  const immediateFixes = events.filter(
-    (e) => e.triageResult === 'immediate_fix'
+  const riskBlockers = events.filter(
+    (e) => e.triageResult === 'RISK_BLOCKER'
   ).length;
-  if (immediateFixes > 0) {
-    actions.push(
-      `Address ${immediateFixes} critical issues requiring immediate fixes`
-    );
+  if (riskBlockers > 0) {
+    actions.push(`Address ${riskBlockers} risk blockers immediately`);
   }
 
-  const docGaps = events.filter(
-    (e) => e.triageResult === 'documentation_gap'
+  const dailyResolvables = events.filter(
+    (e) => e.triageResult === 'DAILY_RESOLVABLE'
   ).length;
-  if (docGaps > 0) {
-    actions.push(
-      `Review ${docGaps} documentation gaps and create BrewDocs proposals`
-    );
+  if (dailyResolvables > 0) {
+    actions.push(`Resolve ${dailyResolvables} daily resolvable issues`);
   }
 
   return actions;

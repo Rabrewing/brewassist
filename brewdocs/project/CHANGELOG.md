@@ -16,24 +16,27 @@
   - Immutable audit ledger with hash verification
   - Multi-step approval process
 
-- **Support Intelligence Engine**: Automated support event processing
-  - Intake capture from multiple sources
-  - Intelligent triage and routing
-  - BrewDocs proposal generation from support issues
-  - Daily digest with operational insights
+- **Support Intelligence Hardening**: Observational support trace processing
+  - SupportTrace intake and normalization
+  - BrewTruth evaluation for quality assessment
+  - Deterministic triage into governance categories
+  - Filesystem-based append-only persistence
+  - Read-only BrewDocs Tier 2 proposal generation
+  - Daily digest for human review
 
 - **Safety & Governance**:
-  - Persona isolation and privacy protection
-  - No auto-execution guarantees
-  - S4 lock compatibility verification
-  - CI hooks for integrity checking
+  - Observational-only operations (no execution)
+  - Human-in-the-loop enforcement
+  - PII sanitization and persona isolation
+  - S4/S5 lock compatibility guards
+  - CI verification for silent writes and governance
 
 ### Technical Details
 
-- New modules: `lib/brewdocs/`, `lib/support/`
-- Storage: `.brewdocs/`, `.brewassist/support/`
-- Scripts: `s5-brewdocs-verify.sh`, `s5-support-verify.sh`
-- Tests: Comprehensive safety and compatibility suites
+- New modules: `lib/support/` (evaluate.ts, store.ts, etc.)
+- Storage: `support-intel/` (daily.log, unresolved.log, etc.)
+- Scripts: `s5-support-verify.sh` (updated for governance)
+- Tests: Safety guards and lock compatibility suites
 
 ### Breaking Changes
 
@@ -42,8 +45,9 @@
 ### Migration Notes
 
 - Existing documentation remains unchanged
-- Support events now automatically processed
-- New proposal workflow available for documentation improvements
+- Support traces now captured observationally
+- Proposals generated read-only for human review
+- All execution deferred to S6+ phases
 
 ---
 

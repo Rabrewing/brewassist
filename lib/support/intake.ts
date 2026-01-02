@@ -1,28 +1,40 @@
-import { writeFileSync, mkdirSync } from 'fs';
-import { join } from 'path';
-import { SupportEvent } from './types';
+import { SupportTrace } from './types';
 
-const SUPPORT_DIR = '.brewassist/support';
-
-export function captureSupportEvent(
-  event: Omit<SupportEvent, 'id' | 'timestamp'>
-): SupportEvent {
-  mkdirSync(SUPPORT_DIR, { recursive: true });
-
-  const supportEvent: SupportEvent = {
-    ...event,
-    id: `support-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+export function intakeSupportTrace(
+  traceData: Omit<SupportTrace, 'timestamp'>
+): SupportTrace {
+  // Normalize and validate the trace
+  const normalizedTrace: SupportTrace = {
+    ...traceData,
     timestamp: new Date().toISOString(),
   };
 
-  const filePath = join(SUPPORT_DIR, `${supportEvent.id}.json`);
-  writeFileSync(filePath, JSON.stringify(supportEvent, null, 2));
+  // Ensure deterministic ordering and no PII
+  normalizedTrace.input = sanitizeInput(normalizedTrace.input);
+  normalizedTrace.response = sanitizeInput(normalizedTrace.response);
 
-  return supportEvent;
+  // Validate required fields
+  validateSupportTrace(normalizedTrace);
+
+  return normalizedTrace;
 }
 
-export function resolveSupportEvent(id: string, resolution: string): boolean {
-  // Find and update the event
-  // Simplified - in practice, read and update
-  return true;
+function sanitizeInput(input: string): string {
+  // Remove potential PII and normalize
+  return input
+    .replace(/\b\d{10,}\b/g, '[REDACTED_PHONE]')
+    .replace(
+      /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+      '[REDACTED_EMAIL]'
+    );
+}
+
+function validateSupportTrace(trace: SupportTrace): void {
+  if (!trace.persona) throw new Error('Persona required');
+  if (!['LLM', 'HRM', 'AGENT', 'LOOP'].includes(trace.activeMode))
+    throw new Error('Invalid activeMode');
+  if (!trace.input || !trace.response)
+    throw new Error('Input and response required');
+  if (trace.brewTruthScore < 0 || trace.brewTruthScore > 1)
+    throw new Error('Invalid brewTruthScore');
 }

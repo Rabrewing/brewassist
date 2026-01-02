@@ -1,78 +1,64 @@
-import { SupportEvent } from './types';
+import { SupportTrace } from './types';
 
 export type TriageResult =
-  | 'immediate_fix'
-  | 'sandbox_patch'
-  | 'future_roadmap'
-  | 'documentation_gap';
+  | 'DAILY_RESOLVABLE'
+  | 'SANDBOX_MAINTENANCE_CANDIDATE'
+  | 'PHASE_RELEASE_CANDIDATE'
+  | 'RISK_BLOCKER';
 
-export interface TriagedEvent extends SupportEvent {
+export interface TriagedSupportTrace extends SupportTrace {
   triageResult: TriageResult;
   confidence: number;
-  suggestedActions: string[];
 }
 
-export function triageSupportEvent(event: SupportEvent): TriagedEvent {
-  const triageResult = determineTriage(event);
-  const triaged: TriagedEvent = {
-    ...event,
+export function triageSupportTrace(
+  trace: SupportTrace
+): TriagedSupportTrace | null {
+  const triageResult = determineTriage(trace);
+  if (!triageResult) return null; // If no match or below threshold
+
+  const confidence = calculateConfidence(trace);
+  if (confidence < 0.6) return null; // Confidence threshold
+
+  const triaged: TriagedSupportTrace = {
+    ...trace,
     triageResult,
-    confidence: calculateConfidence(event),
-    suggestedActions: generateActions(triageResult),
+    confidence,
   };
 
   return triaged;
 }
 
-function determineTriage(event: SupportEvent): TriageResult {
-  // Simple rule-based triage
-  if (event.severity === 'critical' && event.intent.includes('error')) {
-    return 'immediate_fix';
+function determineTriage(trace: SupportTrace): TriageResult | null {
+  // Rule-based triage - exactly one category
+  if (trace.brewTruthScore < 0.3) {
+    return 'RISK_BLOCKER';
   }
 
-  if (event.severity === 'high' && event.context?.hasCode === true) {
-    return 'sandbox_patch';
+  if (trace.activeMode === 'LOOP' && trace.flags.includes('loop_mode')) {
+    return 'SANDBOX_MAINTENANCE_CANDIDATE';
   }
 
-  if (event.description.includes('missing documentation')) {
-    return 'documentation_gap';
+  if (trace.input.includes('bug') || trace.input.includes('error')) {
+    return 'DAILY_RESOLVABLE';
   }
 
-  return 'future_roadmap';
+  if (trace.capabilityIds.length > 5) {
+    return 'PHASE_RELEASE_CANDIDATE';
+  }
+
+  // If no clear match, don't triage
+  return null;
 }
 
-function calculateConfidence(event: SupportEvent): number {
-  // Simplified confidence scoring
+function calculateConfidence(trace: SupportTrace): number {
+  // Deterministic confidence based on trace quality
   let score = 0.5;
 
-  if (event.severity === 'critical') score += 0.3;
-  if (event.context?.hasCode) score += 0.2;
-  if (event.description.length > 50) score += 0.1;
+  if (trace.brewTruthScore > 0.8) score += 0.3;
+  if (trace.capabilityIds.length > 0) score += 0.1;
+  if (trace.response.length > 50) score += 0.1;
+  if (trace.activeMode === 'AGENT') score += 0.1;
 
   return Math.min(score, 1.0);
-}
-
-function generateActions(triageResult: TriageResult): string[] {
-  const actions: string[] = [];
-
-  switch (triageResult) {
-    case 'immediate_fix':
-      actions.push('Escalate to engineering team');
-      actions.push('Create hotfix branch');
-      break;
-    case 'sandbox_patch':
-      actions.push('Generate sandbox test case');
-      actions.push('Propose code fix');
-      break;
-    case 'documentation_gap':
-      actions.push('Create BrewDocs proposal');
-      actions.push('Update knowledge base');
-      break;
-    case 'future_roadmap':
-      actions.push('Add to product roadmap');
-      actions.push('Gather user feedback');
-      break;
-  }
-
-  return actions;
 }

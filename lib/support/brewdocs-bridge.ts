@@ -1,43 +1,57 @@
-import { TriagedEvent } from './triage';
-import { generateProposal } from '../brewdocs/proposals/engine';
+import { TriagedSupportTrace } from './triage';
+
+export interface BrewDocsProposal {
+  tier: 2;
+  source: 'support';
+  targetFile: string;
+  title: string;
+  content: string;
+  confidence: number;
+  phase: 'S5';
+  bridge: 'support-bridge';
+}
 
 export function convertToBrewDocsProposal(
-  triagedEvent: TriagedEvent
-): any | null {
-  // Only convert documentation gaps
-  if (triagedEvent.triageResult !== 'documentation_gap') {
+  triagedTrace: TriagedSupportTrace
+): BrewDocsProposal | null {
+  // Only convert PHASE_RELEASE_CANDIDATE to Tier 2 proposals
+  if (triagedTrace.triageResult !== 'PHASE_RELEASE_CANDIDATE') {
     return null;
   }
 
   // Determine target file based on context
-  const targetFile = determineTargetFile(triagedEvent);
+  const targetFile = determineTargetFile(triagedTrace);
 
-  // Generate proposal
-  const proposal = generateProposal(
-    'support',
+  // Generate proposal content
+  const proposal: BrewDocsProposal = {
+    tier: 2,
+    source: 'support',
     targetFile,
-    `Support issue: ${triagedEvent.description}`,
-    generateDiff(triagedEvent),
-    triagedEvent.confidence,
-    'S5',
-    'support-bridge'
-  );
+    title: `Support insight: ${triagedTrace.input.substring(0, 50)}...`,
+    content: generateContent(triagedTrace),
+    confidence: triagedTrace.confidence,
+    phase: 'S5',
+    bridge: 'support-bridge',
+  };
 
   return proposal;
 }
 
-function determineTargetFile(event: TriagedEvent): string {
-  // Simplified - in practice, use ML or rules to determine best file
-  if (event.intent.includes('api')) {
+function determineTargetFile(trace: TriagedSupportTrace): string {
+  // Determine based on input keywords or capabilities
+  if (trace.input.includes('api')) {
     return 'brewdocs/project/API_REFERENCE.md';
   }
-  if (event.intent.includes('ui')) {
+  if (trace.input.includes('ui') || trace.input.includes('interface')) {
     return 'brewdocs/project/UI_GUIDE.md';
+  }
+  if (trace.capabilityIds.some((id) => id.includes('command'))) {
+    return 'brewdocs/project/COMMAND_REFERENCE.md';
   }
   return 'brewdocs/project/TROUBLESHOOTING.md';
 }
 
-function generateDiff(event: TriagedEvent): string {
-  // Generate diff for documentation addition
-  return `+## ${event.description}\n\n**Reported by:** ${event.persona}\n**Severity:** ${event.severity}\n\n**Suggested Resolution:**\n${event.suggestedActions?.join('\n') || 'TBD'}\n`;
+function generateContent(trace: TriagedSupportTrace): string {
+  // Generate content for proposal
+  return `## Support Insight\n\n**Persona:** ${trace.persona}\n**Input:** ${trace.input}\n**Response:** ${trace.response}\n**BrewTruth Score:** ${trace.brewTruthScore}\n\n**Context:** ${trace.cockpitMode} / ${trace.activeMode}\n**Capabilities:** ${trace.capabilityIds.join(', ')}\n`;
 }
