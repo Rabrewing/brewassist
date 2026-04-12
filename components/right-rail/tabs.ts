@@ -1,5 +1,5 @@
-import React from "react";
-import { useCockpitMode } from "@/contexts/CockpitModeContext";
+import React from 'react';
+import { useCockpitMode } from '@/contexts/CockpitModeContext';
 
 export interface TabConfig {
   id: string;
@@ -9,18 +9,51 @@ export interface TabConfig {
   contentComponent?: React.FC<any>; // Optional: for directly embedding components
 }
 
-export const getTabsConfig = (cockpitMode: 'customer' | 'admin' | 'dev'): TabConfig[] => {
+export const getTabsConfig = (
+  cockpitMode: 'customer' | 'admin' | 'dev'
+): TabConfig[] => {
   const baseTabs: TabConfig[] = [
-    { id: 'guide', icon: '🧭', label: 'Guide', modes: ['customer', 'admin', 'dev'] },
-    { id: 'docs', icon: '📄', label: 'Docs', modes: ['customer', 'admin', 'dev'] },
-    { id: 'help', icon: '❓', label: 'Help', modes: ['customer', 'admin', 'dev'] },
-    { id: 'history', icon: '🕒', label: 'History', modes: ['customer', 'admin', 'dev'] },
+    {
+      id: 'guide',
+      icon: '🧭',
+      label: 'Guide',
+      modes: ['customer', 'admin', 'dev'],
+    },
+    {
+      id: 'docs',
+      icon: '📄',
+      label: 'Docs',
+      modes: ['customer', 'admin', 'dev'],
+    },
+    {
+      id: 'help',
+      icon: '❓',
+      label: 'Help',
+      modes: ['customer', 'admin', 'dev'],
+    },
+    {
+      id: 'history',
+      icon: '🕒',
+      label: 'History',
+      modes: ['customer', 'admin', 'dev'],
+    },
+    {
+      id: 'collab',
+      icon: '🤝',
+      label: 'Collab',
+      modes: ['customer', 'admin', 'dev'],
+    },
   ];
 
   const adminDevTabs: TabConfig[] = [
     { id: 'files', icon: '🗂', label: 'Files', modes: ['admin', 'dev'] },
     { id: 'sandbox', icon: '🧪', label: 'Sandbox', modes: ['admin', 'dev'] },
-    { id: 'cognition', icon: '🧠', label: 'Cognition', modes: ['admin', 'dev'] },
+    {
+      id: 'cognition',
+      icon: '🧠',
+      label: 'Cognition',
+      modes: ['admin', 'dev'],
+    },
   ];
 
   if (cockpitMode === 'customer') {

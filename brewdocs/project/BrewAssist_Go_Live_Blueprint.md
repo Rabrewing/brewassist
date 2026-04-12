@@ -106,6 +106,6 @@ Define the architecture needed to take BrewAssist from a local DevOps cockpit to
   - BrewChat (general AI)
   - BrewCore (knowledge AI)
 - Integrations:
-  - GitHub / GitLab / Bitbucket
+  - GitHub / GitLab / Bitbucket / local repos
   - Supabase / Postgres
 - BrewUniversity integration as a training extension.

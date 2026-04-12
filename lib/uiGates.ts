@@ -1,3 +1,25 @@
-// lib/uiGates.ts
-// This file will contain utilities for managing UI visibility based on various conditions (e.g., cockpitMode, permissions).
-// It serves as a placeholder for future, more granular UI gating logic.
+import type { EnterpriseRequestContext } from '@/lib/enterpriseContext';
+
+export function shouldShowToolbelt(context: EnterpriseRequestContext): boolean {
+  return (
+    context.cockpitMode === 'admin' &&
+    (context.role === 'admin' || context.role === 'dev')
+  );
+}
+
+export function shouldShowSandbox(context: EnterpriseRequestContext): boolean {
+  return context.cockpitMode === 'admin' && context.role === 'admin';
+}
+
+export function shouldShowRepoTree(context: EnterpriseRequestContext): boolean {
+  return (
+    context.cockpitMode === 'admin' &&
+    (context.role === 'admin' || context.role === 'dev')
+  );
+}
+
+export function shouldShowDiffSurface(
+  context: EnterpriseRequestContext
+): boolean {
+  return context.cockpitMode === 'admin';
+}

@@ -3,10 +3,10 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import fs from 'fs/promises';
 import path from 'path';
 import { BREWASSIST_REPO_ROOT, isPathAllowed } from '../../lib/brewConfig';
+import { parseEnterpriseContext } from '@/lib/enterpriseContext';
+import { assertRepoScope } from '@/lib/permissions';
 
-type FsReadResponse =
-  | { error: string }
-  | { path: string; content: string };
+type FsReadResponse = { error: string } | { path: string; content: string };
 
 function normalizeRequestedPath(raw: string | string[] | undefined): string {
   if (!raw) return '.'; // root
@@ -32,6 +32,17 @@ export default async function handler(
   res: NextApiResponse<FsReadResponse>
 ) {
   try {
+    const enterpriseContext = parseEnterpriseContext(req);
+    const repoScope = assertRepoScope(
+      enterpriseContext,
+      enterpriseContext.repoRoot
+    );
+    if (!repoScope.ok) {
+      return res
+        .status(repoScope.statusCode ?? 403)
+        .json({ error: repoScope.reason ?? 'Repo scope denied' });
+    }
+
     const relative = normalizeRequestedPath(req.query.path);
     const fullPath = path.join(BREWASSIST_REPO_ROOT, relative);
 
@@ -48,8 +59,6 @@ export default async function handler(
     });
   } catch (err: any) {
     console.error('[fs-read] error', err);
-    return res
-      .status(500)
-      .json({ error: err?.message ?? 'fs-read failure' });
+    return res.status(500).json({ error: err?.message ?? 'fs-read failure' });
   }
 }

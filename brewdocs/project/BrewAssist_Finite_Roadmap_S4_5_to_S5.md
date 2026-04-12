@@ -89,7 +89,10 @@ Goal: Make BrewAssist the “DevOps brain” of the BrewVerse.
   - BrewExec projects
   - BrewSearch
   - BrewPulse
+- BrewAssist online becomes the control plane for `brew-agentic` local TUI through the shared `Plan → Preview → Confirm → Execute → Report → Replay` contract.
 - RB becomes “User Zero” of the BrewAssist SaaS.
+
+**Spec:** `brewdocs/reference/specifications/BrewAssist_Hybrid_Control_Plane_Spec.md`
 
 ---
 

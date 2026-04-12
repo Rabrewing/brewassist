@@ -4,7 +4,14 @@ describe('DevOps Tabs Visibility', () => {
   test('Customer sees only non-admin tabs', () => {
     const tabs = getVisibleTabs('customer');
     const tabIds = tabs.map((tab) => tab.id);
-    expect(tabIds).toEqual(['guide', 'docs', 'help', 'history']);
+    expect(tabIds).toEqual([
+      'guide',
+      'docs',
+      'help',
+      'history',
+      'collab',
+      'ops',
+    ]);
   });
 
   test('Admin sees all tabs', () => {
@@ -15,6 +22,8 @@ describe('DevOps Tabs Visibility', () => {
       'docs',
       'help',
       'history',
+      'collab',
+      'ops',
       'files',
       'sandbox',
       'cognition',

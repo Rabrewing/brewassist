@@ -6,6 +6,8 @@ import { promises as fs } from 'node:fs';
 import { callOpenAI } from '@/lib/openaiEngine';
 import { logToolRun } from '@/lib/brewLastServer';
 import type { BrewLastToolRun } from '@/lib/brewLast';
+import { parseEnterpriseContext } from '@/lib/enterpriseContext';
+import { canWriteFiles } from '@/lib/permissions';
 
 export default async function handler(
   req: NextApiRequest,
@@ -17,6 +19,14 @@ export default async function handler(
   }
 
   try {
+    const enterpriseContext = parseEnterpriseContext(req);
+
+    if (!canWriteFiles(enterpriseContext)) {
+      return res
+        .status(403)
+        .json({ error: 'File edits require admin mode and write permission' });
+    }
+
     const { path: relPath, instructions } = req.body as {
       path?: string;
       instructions?: string;

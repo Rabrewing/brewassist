@@ -10,14 +10,17 @@ import { render, screen } from '@testing-library/react';
 import { BrewCockpitCenter } from '../../components/BrewCockpitCenter';
 import { CockpitModeProvider } from '../../contexts/CockpitModeContext';
 import { ToolbeltProvider } from '../../contexts/ToolbeltContext';
+import { RepoConnectionProvider } from '../../contexts/RepoConnectionContext';
 
 describe('Scroll Behavior', () => {
   const renderCockpit = () => {
     render(
       <CockpitModeProvider>
-        <ToolbeltProvider>
-          <BrewCockpitCenter />
-        </ToolbeltProvider>
+        <RepoConnectionProvider>
+          <ToolbeltProvider>
+            <BrewCockpitCenter />
+          </ToolbeltProvider>
+        </RepoConnectionProvider>
       </CockpitModeProvider>
     );
   };

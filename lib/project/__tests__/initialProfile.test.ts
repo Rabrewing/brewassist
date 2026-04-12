@@ -4,6 +4,7 @@ describe('Initial Project Profile', () => {
   let manager: InitialProjectProfileManager;
   const testProfile = {
     projectType: 'new' as const,
+    repoProvider: 'local' as const,
     stack: { language: ['javascript'] },
     experienceLevel: 'vibe' as const,
     selectedMode: 'LLM' as const,

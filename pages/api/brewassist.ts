@@ -1,23 +1,37 @@
 // pages/api/brewassist.ts
-import type { NextApiRequest, NextApiResponse } from "next";
-import { runBrewAssistEngineStream } from "@/lib/brewassist-engine";
-import { BrewTruthReport, runBrewTruth } from "@/lib/brewtruth";
-import { PersonaId, getActivePersona } from "@/lib/brewIdentityEngine"; // Import PersonaId and getActivePersona
-import { CAPABILITY_REGISTRY, RWX } from "@/lib/capabilities/registry"; // Import CAPABILITY_REGISTRY, RWX
-import { BrewTier } from "@/lib/commands/types"; // Import BrewTier
-import { evaluateHandshake, UnifiedPolicyEnvelope } from "@/lib/toolbelt/handshake"; // Import evaluateHandshake, UnifiedPolicyEnvelope
-import { classifyIntent, ScopeCategory } from "@/lib/intent-gatekeeper";
-import { BREWASSIST_CANONICAL_DEFINITION, BREWASSIST_IDENTITY_PROMPTS } from "@/lib/brand/brewassist.definition"; // Import brand definition
-import { Persona } from "@/lib/brewIdentityEngine"; // Import Persona
-import type { CockpitMode } from "@/lib/brewTypes"; // Import CockpitMode
-import { updateDevOpsFlowState, updateDevOpsFeedbackState, updateDevOpsMemoryState, getDevOpsFlowState, getDevOpsFeedbackState, getDevOpsMemoryState } from "@/lib/devops8/registry"; // Import update and getter functions
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { runBrewAssistEngineStream } from '@/lib/brewassist-engine';
+import { BrewTruthReport, runBrewTruth } from '@/lib/brewtruth';
+import { PersonaId, getActivePersona } from '@/lib/brewIdentityEngine'; // Import PersonaId and getActivePersona
+import { CAPABILITY_REGISTRY, RWX } from '@/lib/capabilities/registry'; // Import CAPABILITY_REGISTRY, RWX
+import { BrewTier } from '@/lib/commands/types'; // Import BrewTier
+import {
+  evaluateHandshake,
+  UnifiedPolicyEnvelope,
+} from '@/lib/toolbelt/handshake'; // Import evaluateHandshake, UnifiedPolicyEnvelope
+import { classifyIntent, ScopeCategory } from '@/lib/intent-gatekeeper';
+import {
+  BREWASSIST_CANONICAL_DEFINITION,
+  BREWASSIST_IDENTITY_PROMPTS,
+} from '@/lib/brand/brewassist.definition'; // Import brand definition
+import { Persona } from '@/lib/brewIdentityEngine'; // Import Persona
+import type { CockpitMode } from '@/lib/brewTypes'; // Import CockpitMode
+import {
+  updateDevOpsFlowState,
+  updateDevOpsFeedbackState,
+  updateDevOpsMemoryState,
+  getDevOpsFlowState,
+  getDevOpsFeedbackState,
+  getDevOpsMemoryState,
+} from '@/lib/devops8/registry'; // Import update and getter functions
+import { parseEnterpriseContext } from '@/lib/enterpriseContext';
 
 export type BrewAssistApiRequest = {
   input: string;
-  mode: "HRM" | "LLM" | "AGENT" | "LOOP" | "TOOL"; // Add "TOOL" mode
+  mode: 'HRM' | 'LLM' | 'AGENT' | 'LOOP' | 'TOOL'; // Add "TOOL" mode
   tier?: BrewTier; // Use BrewTier
   persona?: Persona; // Add persona
-  skillLevel?: "beginner" | "intermediate" | "expert";
+  skillLevel?: 'beginner' | 'intermediate' | 'expert';
   useDeepReasoning?: boolean;
   useResearchModel?: boolean;
   dangerousAction?: boolean;
@@ -52,15 +66,17 @@ export default async function handler(
     conflicts: 0,
   });
 
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
     res.status(405).json({
       ok: false,
-      error: "Method Not Allowed",
-      code: "METHOD_NOT_ALLOWED"
+      error: 'Method Not Allowed',
+      code: 'METHOD_NOT_ALLOWED',
     });
     return;
   }
+
+  const enterpriseContext = parseEnterpriseContext(req);
 
   const {
     input,
@@ -77,17 +93,21 @@ export default async function handler(
     confirmApply,
     truthScore,
     truthFlags,
-  }: BrewAssistApiRequest & { truthScore?: number; truthFlags?: string[] } = req.body;
+  }: BrewAssistApiRequest & {
+    truthScore?: number;
+    truthFlags?: string[];
+  } = req.body;
 
-  const cockpitMode = (req.headers["x-brewassist-mode"] as CockpitMode) || "customer";
-  const currentPersona: PersonaId = requestPersona?.id || (cockpitMode === "admin" ? "admin" : "customer"); // Determine persona
-  const normalizedTier: BrewTier = tier || "basic"; // Default to basic if not provided
+  const cockpitMode = enterpriseContext.cockpitMode;
+  const currentPersona: PersonaId =
+    requestPersona?.id || (cockpitMode === 'admin' ? 'admin' : 'customer'); // Determine persona
+  const normalizedTier: BrewTier = tier || 'basic'; // Default to basic if not provided
 
   if (!input) {
     return res.status(400).json({
       ok: false,
-      error: "Missing required field: input",
-      code: "INVALID_REQUEST"
+      error: 'Missing required field: input',
+      code: 'INVALID_REQUEST',
     });
   }
 
@@ -96,7 +116,10 @@ export default async function handler(
   // Check if input is a command
   if (input.startsWith('/')) {
     const command = input.split(' ')[0];
-    if (CAPABILITY_REGISTRY[command] && CAPABILITY_REGISTRY[command].surfaces.includes("command")) {
+    if (
+      CAPABILITY_REGISTRY[command] &&
+      CAPABILITY_REGISTRY[command].surfaces.includes('command')
+    ) {
       commandCapabilityId = command;
     }
   }
@@ -105,10 +128,12 @@ export default async function handler(
 
   // S4.10c.2 Patch: Brand Anchor - Detect identity/definition intents
   const lowerCaseInput = input.toLowerCase();
-  const isIdentityIntent = BREWASSIST_IDENTITY_PROMPTS.some(p => lowerCaseInput.includes(p));
+  const isIdentityIntent = BREWASSIST_IDENTITY_PROMPTS.some((p) =>
+    lowerCaseInput.includes(p)
+  );
 
   if (isIdentityIntent) {
-    res.setHeader("Content-Type", "application/json");
+    res.setHeader('Content-Type', 'application/json');
     res.status(200).json({
       ok: true,
       text: BREWASSIST_CANONICAL_DEFINITION,
@@ -116,28 +141,27 @@ export default async function handler(
       blockedByTruth: false,
       policy: {
         ok: true,
-        route: "brewassist",
+        route: 'brewassist',
         tier: normalizedTier,
-        reason: "Brand Anchor response",
-        capabilityId: "/identity", // Placeholder capability for identity
+        reason: 'Brand Anchor response',
+        capabilityId: '/identity', // Placeholder capability for identity
       },
-      route: "brewassist",
-      scopeCategory: "PLATFORM_DEVOPS", // Identity is always platform devops
+      route: 'brewassist',
+      scopeCategory: 'PLATFORM_DEVOPS', // Identity is always platform devops
     });
     return;
   }
 
   let policyEnvelope: UnifiedPolicyEnvelope;
 
-
   const resolvedPersona: Persona = {
-    id: currentPersona,
+    id: enterpriseContext.role === 'customer' ? 'customer' : currentPersona,
     label: `Resolved Persona: ${currentPersona}`, // Placeholder label
     tone: 'Neutral', // Placeholder tone
     emotionTier: 1, // Placeholder tier
     safetyMode: 'soft-stop', // Placeholder safety mode
     memoryWindow: 1, // Placeholder memory window
-    systemPrompt: `Persona derived from request: ${currentPersona}`, // Placeholder system prompt
+    systemPrompt: `Persona derived from request: ${currentPersona}; org=${enterpriseContext.orgId ?? 'none'}; repo=${enterpriseContext.repoId ?? 'none'}`, // Placeholder system prompt
   };
 
   // Evaluate Handshake for policy decision (for capabilities or general intent)
@@ -164,7 +188,9 @@ export default async function handler(
     }
 
     // Record permission gating block
-    updateDevOpsMemoryState({ permissionGatingBlocks: getDevOpsMemoryState().permissionGatingBlocks + 1 });
+    updateDevOpsMemoryState({
+      permissionGatingBlocks: getDevOpsMemoryState().permissionGatingBlocks + 1,
+    });
 
     return res.status(statusCode).json({
       ok: false,
@@ -181,8 +207,11 @@ export default async function handler(
       ok: true,
       message: `Command '${commandCapabilityId}' mocked successfully.`,
       policy: policyEnvelope,
-      route: "command_executed",
-      commandResult: { status: "success", output: `Mocked output for ${commandCapabilityId}` },
+      route: 'command_executed',
+      commandResult: {
+        status: 'success',
+        output: `Mocked output for ${commandCapabilityId}`,
+      },
     });
   }
 
@@ -193,42 +222,45 @@ export default async function handler(
       ok: true,
       message: `Tool '${capabilityId}' mocked successfully.`,
       policy: policyEnvelope,
-      route: "tool_executed",
-      toolResult: { status: "success", output: `Mocked output for ${capabilityId}` },
+      route: 'tool_executed',
+      toolResult: {
+        status: 'success',
+        output: `Mocked output for ${capabilityId}`,
+      },
     });
   }
 
-  if (cockpitMode === "customer" && intent === "GENERAL_KNOWLEDGE") {
+  if (cockpitMode === 'customer' && intent === 'GENERAL_KNOWLEDGE') {
     const redirectMessage =
-      "This question seems to be outside of my scope as a DevOps assistant. For general knowledge questions, please use BrewChat or BrewCore.";
-    res.setHeader("Content-Type", "application/json");
+      'This question seems to be outside of my scope as a DevOps assistant. For general knowledge questions, please use BrewChat or BrewCore.';
+    res.setHeader('Content-Type', 'application/json');
     res.status(200).json({
       ok: true,
       text: redirectMessage,
       truth: null,
       policy: {
         ok: false,
-        route: "blocked",
+        route: 'blocked',
         tier: normalizedTier,
-        reason: "GENERAL_KNOWLEDGE_BLOCKED_CUSTOMER_MODE",
+        reason: 'GENERAL_KNOWLEDGE_BLOCKED_CUSTOMER_MODE',
       },
-      route: "blocked",
-      scopeCategory: "GENERAL_KNOWLEDGE",
+      route: 'blocked',
+      scopeCategory: 'GENERAL_KNOWLEDGE',
     });
     return;
   }
 
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  if (typeof res.flushHeaders === "function") {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  if (typeof res.flushHeaders === 'function') {
     res.flushHeaders();
   }
 
   // Update flow state: streaming is active
   // updateDevOpsFlowState({ isStreaming: true });
 
-  let accumulatedText = "";
+  let accumulatedText = '';
   let providerUsed: string | undefined;
   let modelUsed: string | undefined;
   let brewTruthReport: BrewTruthReport | null = null;
@@ -241,10 +273,12 @@ export default async function handler(
 
   try {
     // Run BrewTruth if enabled
-    if (process.env.BREWTRUTH_ENABLED === "true") {
-      brewTruthReport = await runBrewTruth({ prompt: input, response: "" });
+    if (process.env.BREWTRUTH_ENABLED === 'true') {
+      brewTruthReport = await runBrewTruth({ prompt: input, response: '' });
       // Simulate BrewLast write
-      updateDevOpsMemoryState({ brewLastWrites: getDevOpsMemoryState().brewLastWrites + 1 });
+      updateDevOpsMemoryState({
+        brewLastWrites: getDevOpsMemoryState().brewLastWrites + 1,
+      });
     }
 
     // Evaluate Handshake for policy decision (even if not TOOL mode, for reporting)
@@ -256,45 +290,57 @@ export default async function handler(
       runBrewAssistEngineStream(
         {
           prompt: input,
-          mode: mode.toLowerCase() as "hrm" | "llm" | "agent" | "loop",
+          mode: mode.toLowerCase() as 'hrm' | 'llm' | 'agent' | 'loop',
           preferredProvider: undefined,
           tier: normalizedTier,
           cockpitMode,
           intent, // Pass intent here
         },
         (chunk) => {
-          const text = String(chunk ?? "");
+          const text = String(chunk ?? '');
           if (!text) return;
           accumulatedText += text;
-          sendEvent({ type: "chunk", text });
+          sendEvent({ type: 'chunk', text });
           // Simulate planner churn for demonstration
-          updateDevOpsFlowState({ plannerChurnCount: getDevOpsFlowState().plannerChurnCount + 1 });
+          updateDevOpsFlowState({
+            plannerChurnCount: getDevOpsFlowState().plannerChurnCount + 1,
+          });
 
           // Update feedback state
           const now = Date.now();
-          if (getDevOpsFeedbackState().lastChunkTime > 0 && (now - getDevOpsFeedbackState().lastChunkTime) > 1000) { // 1 second gap
-            updateDevOpsFeedbackState({ feedbackGaps: getDevOpsFeedbackState().feedbackGaps + 1 });
+          if (
+            getDevOpsFeedbackState().lastChunkTime > 0 &&
+            now - getDevOpsFeedbackState().lastChunkTime > 1000
+          ) {
+            // 1 second gap
+            updateDevOpsFeedbackState({
+              feedbackGaps: getDevOpsFeedbackState().feedbackGaps + 1,
+            });
           }
-          updateDevOpsFeedbackState({ chunkCount: getDevOpsFeedbackState().chunkCount + 1, lastChunkTime: now });
+          updateDevOpsFeedbackState({
+            chunkCount: getDevOpsFeedbackState().chunkCount + 1,
+            lastChunkTime: now,
+          });
         },
-        (result) => { // onEnd callback
+        (result) => {
+          // onEnd callback
           providerUsed = result.provider;
           modelUsed = result.model;
           hasEngineCompleted = true;
           debugInfo = result.debugInfo; // Capture debugInfo
-          resolve({ status: "completed" }); // Resolve here on successful completion
+          resolve({ status: 'completed' }); // Resolve here on successful completion
         }
-      ).catch(err => {
+      ).catch((err) => {
         reject(err); // Reject if runBrewAssistEngineStream throws an error
       });
     });
 
     const timeoutPromise = new Promise<any>((resolve) => {
       setTimeout(() => {
-        if (!hasEngineCompleted && (mode === "AGENT" || mode === "LOOP")) {
-          resolve({ status: "timeout" });
+        if (!hasEngineCompleted && (mode === 'AGENT' || mode === 'LOOP')) {
+          resolve({ status: 'timeout' });
         } else {
-          resolve({ status: "no_timeout" }); // Resolve without timeout action if engine already completed or not agent/loop
+          resolve({ status: 'no_timeout' }); // Resolve without timeout action if engine already completed or not agent/loop
         }
       }, 10000); // 10 seconds timeout
     });
@@ -305,15 +351,15 @@ export default async function handler(
     const durationMs = Number(endTime - startTime) / 1_000_000;
     updateDevOpsFlowState({ lastLatencyMs: durationMs, isStreaming: false });
 
-    if (raceResult.status === "timeout") {
+    if (raceResult.status === 'timeout') {
       const message = `Agent/Loop mode is not fully wired yet. Please use HRM or LLM mode.`;
-      sendEvent({ type: "chunk", text: message });
+      sendEvent({ type: 'chunk', text: message });
       sendEvent({
-        type: "end",
+        type: 'end',
         payload: {
-          provider: "BrewAssist",
-          model: "Fallback",
-          route: "brewassist",
+          provider: 'BrewAssist',
+          model: 'Fallback',
+          route: 'brewassist',
           scopeCategory: intent,
           debugInfo: debugInfo, // Include debugInfo here
         },
@@ -321,13 +367,13 @@ export default async function handler(
         truth: brewTruthReport,
         policy: policyEnvelope, // Use policyEnvelope
       });
-    } else if (raceResult.status === "completed") {
+    } else if (raceResult.status === 'completed') {
       sendEvent({
-        type: "end",
+        type: 'end',
         payload: {
           provider: providerUsed,
           model: modelUsed,
-          route: "brewassist",
+          route: 'brewassist',
           scopeCategory: intent,
           debugInfo: debugInfo, // Include debugInfo here
         },
@@ -337,23 +383,32 @@ export default async function handler(
       });
     }
   } catch (error) {
-    console.error("Error in brewassist-stream:", error);
-    sendEvent({ type: "error", payload: { message: (error as Error).message } });
+    console.error('Error in brewassist-stream:', error);
+    sendEvent({
+      type: 'error',
+      payload: { message: (error as Error).message },
+    });
     // Record interruption
-    updateDevOpsFlowState({ interruptions: getDevOpsFlowState().interruptions + 1, isStreaming: false });
+    updateDevOpsFlowState({
+      interruptions: getDevOpsFlowState().interruptions + 1,
+      isStreaming: false,
+    });
     // Update feedback state on error
-    updateDevOpsFeedbackState({ chunkCount: getDevOpsFeedbackState().chunkCount, feedbackGaps: getDevOpsFeedbackState().feedbackGaps + 1 });
+    updateDevOpsFeedbackState({
+      chunkCount: getDevOpsFeedbackState().chunkCount,
+      feedbackGaps: getDevOpsFeedbackState().feedbackGaps + 1,
+    });
     // Always send an end event on error to ensure client stream closes
     sendEvent({
-      type: "end",
+      type: 'end',
       payload: {
-        provider: "BrewAssist",
-        model: "ErrorFallback",
-        route: "brewassist",
+        provider: 'BrewAssist',
+        model: 'ErrorFallback',
+        route: 'brewassist',
         scopeCategory: intent,
         debugInfo: debugInfo, // Include debugInfo here
       },
-      text: "An error occurred during processing.",
+      text: 'An error occurred during processing.',
       truth: brewTruthReport,
       policy: policyEnvelope, // Use policyEnvelope
     });

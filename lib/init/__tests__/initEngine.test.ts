@@ -17,6 +17,7 @@ describe('Init Engine', () => {
   test('selects appropriate initial mode based on experience', () => {
     const detection = {
       projectType: 'new' as const,
+      repoProvider: 'local' as const,
       stack: { language: ['javascript'] },
       experienceLevel: 'vibe' as const,
     };
@@ -27,6 +28,7 @@ describe('Init Engine', () => {
   test('creates initial project profile', () => {
     const detection = {
       projectType: 'existing' as const,
+      repoProvider: 'github' as const,
       stack: { language: ['typescript'], framework: ['nextjs'] },
       experienceLevel: 'intermediate' as const,
     };

@@ -2,10 +2,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { BrewTruthReport } from '@/lib/brewtruth'; // Import BrewTruthReport
 import { ActionMenu } from './ActionMenu';
 import type { BrewAssistApiRequest } from '@/pages/api/brewassist'; // Import BrewAssistApiRequest
-import ReactMarkdown from 'react-markdown';
 import { useToolbelt } from '@/contexts/ToolbeltContext'; // Import useToolbelt
 import { BrewTier } from '@/lib/commands/types'; // Import BrewTier
 import { useCockpitMode } from '@/contexts/CockpitModeContext';
+import { useRepoConnection } from '@/contexts/RepoConnectionContext';
+import { useDevOps8Runtime } from '@/contexts/DevOps8RuntimeContext';
 import { CockpitModeToggle } from './CockpitModeToggle';
 import {
   CognitionState,
@@ -19,6 +20,14 @@ import { ScopeCategory } from '@/lib/intent-gatekeeper'; // Import ScopeCategory
 import { getActivePersona, Persona } from '@/lib/brewIdentityEngine'; // Import getActivePersona and Persona
 import { getMessageText } from '@/lib/ui/messageText';
 import { UnifiedPolicyEnvelope } from '@/lib/toolbelt/handshake'; // Import UnifiedPolicyEnvelope
+import {
+  deriveWorkflowStageFromInput,
+  getWorkflowStageHint,
+  getWorkflowStageLabel,
+  HYBRID_WORKFLOW_STAGES,
+  type HybridWorkflowStage,
+} from '@/lib/hybridWorkflow';
+import { RichMarkdown } from './RichMarkdown';
 
 type ToolbeltBrewMode = 'HRM' | 'LLM' | 'AGENT' | 'LOOP'; // Define ToolbeltBrewMode locally
 
@@ -51,6 +60,8 @@ export const BrewCockpitCenter: React.FC = () => {
   // Removed props
   const { mode, setMode, tier, setTier } = useToolbelt(); // Consume from context
   const { mode: cockpitMode } = useCockpitMode();
+  const { repoProvider, repoRoot } = useRepoConnection();
+  const { setRuntime: setDevOps8Runtime } = useDevOps8Runtime();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<UiMessage[]>(() => [
     {
@@ -67,6 +78,8 @@ export const BrewCockpitCenter: React.FC = () => {
     'Initializing BrewAssist...'
   );
   const [lastError, setLastError] = useState<string | null>(null);
+  const [workflowStage, setWorkflowStage] =
+    useState<HybridWorkflowStage>('intent');
 
   // S4.10c.2 Flow Mode State
   const [flowModeEnabled, setFlowModeEnabled] = useState(() => {
@@ -207,13 +220,43 @@ export const BrewCockpitCenter: React.FC = () => {
     setAutoScrollEnabled(isNearBottom());
   }, []);
 
+  const canPreview = [
+    'preview',
+    'confirm',
+    'execute',
+    'report',
+    'replay',
+  ].includes(workflowStage);
+  const canConfirm = ['confirm', 'execute', 'report', 'replay'].includes(
+    workflowStage
+  );
+  const canExecute = ['execute', 'report', 'replay'].includes(workflowStage);
+
   const handleSend = useCallback(
     async (overridePayload?: any) => {
       const currentInput = overridePayload?.input || input;
       const trimmed = currentInput.trim();
       if (!trimmed || isThinking) return;
+      const requestStartedAt = performance.now();
 
       setLastError(null);
+      setWorkflowStage(deriveWorkflowStageFromInput(trimmed));
+      setDevOps8Runtime((prev) => ({
+        ...prev,
+        isStreaming: true,
+        plannerChurnCount: 0,
+        lastLatencyMs: 0,
+        interruptions: 0,
+        chunkCount: 0,
+        feedbackGaps: 0,
+        policyGateFailures: 0,
+        currentStage: deriveWorkflowStageFromInput(trimmed),
+        lastRunLabel: trimmed.slice(0, 120),
+        cockpitMode,
+        tier,
+        personaId: cockpitMode === 'admin' ? 'admin' : 'customer',
+        lastUpdatedAt: new Date().toISOString(),
+      }));
 
       const userMsg: UiMessage = {
         id: makeId(),
@@ -253,6 +296,8 @@ export const BrewCockpitCenter: React.FC = () => {
           skillLevel: 'intermediate',
           useDeepReasoning: nextUseDeepReasoning,
           useResearchModel: nextUseResearchModel,
+          repoProvider,
+          repoRoot,
           ...overridePayload,
         };
 
@@ -261,6 +306,8 @@ export const BrewCockpitCenter: React.FC = () => {
           headers: {
             'Content-Type': 'application/json',
             'x-brewassist-mode': cockpitMode,
+            'x-brewassist-repo-provider': repoProvider,
+            'x-brewassist-repo-root': repoRoot,
           },
           body: JSON.stringify(payload),
         });
@@ -273,6 +320,8 @@ export const BrewCockpitCenter: React.FC = () => {
             errorBody.message || 'Failed to connect to the streaming endpoint.'
           );
         }
+
+        setWorkflowStage('execute');
 
         const ct = res.headers.get('content-type') || '';
 
@@ -295,6 +344,12 @@ export const BrewCockpitCenter: React.FC = () => {
                     if (json?.type === 'chunk') {
                       const t = typeof json.text === 'string' ? json.text : '';
                       if (t) {
+                        setDevOps8Runtime((prev) => ({
+                          ...prev,
+                          chunkCount: prev.chunkCount + 1,
+                          plannerChurnCount: prev.plannerChurnCount + 1,
+                          lastUpdatedAt: new Date().toISOString(),
+                        }));
                         setMessages((prev) =>
                           prev.map((msg) =>
                             msg.id === assistantMsgId
@@ -304,7 +359,34 @@ export const BrewCockpitCenter: React.FC = () => {
                         );
                       }
                     } else if (json.type === 'end') {
-                      // Handle end of stream if needed
+                      const policyOk = Boolean(json?.policy?.ok);
+                      setDevOps8Runtime((prev) => ({
+                        ...prev,
+                        isStreaming: false,
+                        lastLatencyMs: Math.round(
+                          performance.now() - requestStartedAt
+                        ),
+                        currentStage: 'report',
+                        policyGateFailures: policyOk
+                          ? prev.policyGateFailures
+                          : prev.policyGateFailures + 1,
+                        brewTruthScore:
+                          typeof json?.truth?.overallScore === 'number'
+                            ? json.truth.overallScore
+                            : prev.brewTruthScore,
+                        testConfidence:
+                          typeof json?.truth?.overallScore === 'number'
+                            ? json.truth.overallScore
+                            : prev.testConfidence,
+                        brewLastWrites: json?.truth
+                          ? prev.brewLastWrites + 1
+                          : prev.brewLastWrites,
+                        coverage:
+                          typeof json?.truth?.overallScore === 'number'
+                            ? json.truth.overallScore
+                            : prev.coverage,
+                        lastUpdatedAt: new Date().toISOString(),
+                      }));
                     } else if (json.type === 'error') {
                       throw new Error(json.payload.message);
                     }
@@ -349,6 +431,14 @@ export const BrewCockpitCenter: React.FC = () => {
                 : msg
             )
           );
+          setDevOps8Runtime((prev) => ({
+            ...prev,
+            isStreaming: false,
+            lastLatencyMs: Math.round(performance.now() - requestStartedAt),
+            currentStage: 'report',
+            lastUpdatedAt: new Date().toISOString(),
+          }));
+          setWorkflowStage('report');
         }
       } catch (err) {
         console.error('BrewAssist fetch error:', err);
@@ -365,6 +455,15 @@ export const BrewCockpitCenter: React.FC = () => {
             content: errLine,
           },
         ]);
+        setDevOps8Runtime((prev) => ({
+          ...prev,
+          isStreaming: false,
+          interruptions: prev.interruptions + 1,
+          feedbackGaps: prev.feedbackGaps + 1,
+          currentStage: 'intent',
+          lastUpdatedAt: new Date().toISOString(),
+        }));
+        setWorkflowStage('intent');
       } finally {
         setIsThinking(false);
         setCognitionPhase('BrewAssist ready.');
@@ -381,6 +480,8 @@ export const BrewCockpitCenter: React.FC = () => {
       nextUseDeepReasoning,
       nextUseResearchModel,
       cockpitMode,
+      repoProvider,
+      repoRoot,
     ]
   ); // Add cockpitMode to dependencies
 
@@ -531,9 +632,11 @@ export const BrewCockpitCenter: React.FC = () => {
       <div key={msg.id} className={`log-line ${lineClass}`}>
         <div className="cosmic-bubble">
           <div className="bubble-content">
-            <ReactMarkdown>
-              {msg.isTyping ? msg.visibleText || '' : getMessageText(msg)}
-            </ReactMarkdown>
+            <RichMarkdown
+              content={
+                msg.isTyping ? msg.visibleText || '' : getMessageText(msg)
+              }
+            />
           </div>
           {truthBadge}
           {cockpitMode === 'admin' && msg.cognition && (
@@ -572,6 +675,23 @@ export const BrewCockpitCenter: React.FC = () => {
   return (
     <div className="cockpit-center">
       <div className="cockpit-center-scroll" onScroll={handleScroll}>
+        <div className="workflow-strip" data-testid="workflow-strip">
+          {HYBRID_WORKFLOW_STAGES.map((stage) => (
+            <button
+              key={stage}
+              type="button"
+              className={`workflow-stage ${workflowStage === stage ? 'is-active' : ''}`}
+              onClick={() => setWorkflowStage(stage)}
+              title={getWorkflowStageHint(stage)}
+            >
+              {getWorkflowStageLabel(stage)}
+            </button>
+          ))}
+          <span className="workflow-stage-hint">
+            {getWorkflowStageHint(workflowStage)}
+          </span>
+        </div>
+
         <div className="cockpit-message-log" ref={logRef}>
           {messages.map(renderBubble)}
 
@@ -682,7 +802,7 @@ export const BrewCockpitCenter: React.FC = () => {
           <textarea
             ref={textareaRef}
             className="workspace-input"
-            placeholder="Ask BrewAssist to help with a task…"
+            placeholder={`BrewAssist ${getWorkflowStageLabel(workflowStage).toLowerCase()}...`}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -706,6 +826,35 @@ export const BrewCockpitCenter: React.FC = () => {
             <span className="hud-badge customer-mode">
               Customer Mode · Sandbox locked (internal only)
             </span>
+          )}
+          <span
+            className={`hud-badge workflow-badge workflow-badge--${workflowStage}`}
+          >
+            Stage: {getWorkflowStageLabel(workflowStage)}
+          </span>
+          <span
+            className={`hud-badge ${canPreview ? 'workflow-badge--on' : 'workflow-badge--off'}`}
+          >
+            Preview
+          </span>
+          <span
+            className={`hud-badge ${canConfirm ? 'workflow-badge--on' : 'workflow-badge--off'}`}
+          >
+            Confirm
+          </span>
+          <span
+            className={`hud-badge ${canExecute ? 'workflow-badge--on' : 'workflow-badge--off'}`}
+          >
+            Execute
+          </span>
+          {lastAssistantMessage && (
+            <button
+              type="button"
+              className="hud-badge"
+              onClick={() => setWorkflowStage('replay')}
+            >
+              Replay last run
+            </button>
           )}
         </div>
       </div>

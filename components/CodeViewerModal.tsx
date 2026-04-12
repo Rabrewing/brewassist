@@ -1,6 +1,9 @@
-"use client";
+'use client';
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
+import { useRepoConnection } from '@/contexts/RepoConnectionContext';
+import { highlightSource, isMarkdownPath } from '@/lib/codeHighlight';
+import { RichMarkdown } from './RichMarkdown';
 
 type CodeViewerModalProps = {
   filePath: string | null;
@@ -15,10 +18,12 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
   filePath,
   onClose,
 }) => {
-  const [content, setContent] = useState<string>("");
+  const { repoProvider, repoRoot } = useRepoConnection();
+  const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [assistantPrompt, setAssistantPrompt] = useState("");
+  const [assistantPrompt, setAssistantPrompt] = useState('');
+  const isMarkdown = filePath ? isMarkdownPath(filePath) : false;
 
   useEffect(() => {
     if (!filePath) return;
@@ -28,25 +33,31 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
         setLoading(true);
         setError(null);
         const res = await fetch(
-          `/api/fs-read?path=${encodeURIComponent(filePath)}`
+          `/api/fs-read?path=${encodeURIComponent(filePath)}`,
+          {
+            headers: {
+              'x-brewassist-repo-provider': repoProvider,
+              'x-brewassist-repo-root': repoRoot,
+            },
+          }
         );
         if (!res.ok) throw new Error(`fs-read ${res.status}`);
         const data: FilePayload = await res.json();
-        setContent(data.content ?? "");
+        setContent(data.content ?? '');
       } catch (e: any) {
-        console.error("[CodeViewerModal] fs-read error", e);
-        setError(e?.message ?? "Unable to load file");
+        console.error('[CodeViewerModal] fs-read error', e);
+        setError(e?.message ?? 'Unable to load file');
       } finally {
         setLoading(false);
       }
     };
 
     fetchFile();
-  }, [filePath]);
+  }, [filePath, repoProvider, repoRoot]);
 
   if (!filePath) return null;
 
-  const handleDownload = (format: "md" | "txt" | "docx" | "pdf") => {
+  const handleDownload = (format: 'md' | 'txt' | 'docx' | 'pdf') => {
     // TODO: Implement server-side export.
     console.log(`[CodeViewerModal] Download as ${format}`, filePath);
     alert(`Download as ${format} – to be wired to API later.`);
@@ -54,11 +65,11 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
 
   const handleSendToAssistant = () => {
     // TODO: Wire to BrewAssist / BrewTruth / NIM via API.
-    console.log("[CodeViewerModal] Assistant prompt:", {
+    console.log('[CodeViewerModal] Assistant prompt:', {
       filePath,
       assistantPrompt,
     });
-    setAssistantPrompt("");
+    setAssistantPrompt('');
   };
 
   return (
@@ -71,10 +82,10 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
             <span className="code-viewer-path">{filePath}</span>
           </div>
           <div className="code-viewer-actions">
-            <button onClick={() => handleDownload("md")}>.md</button>
-            <button onClick={() => handleDownload("txt")}>.txt</button>
-            <button onClick={() => handleDownload("docx")}>Word</button>
-            <button onClick={() => handleDownload("pdf")}>PDF</button>
+            <button onClick={() => handleDownload('md')}>.md</button>
+            <button onClick={() => handleDownload('txt')}>.txt</button>
+            <button onClick={() => handleDownload('docx')}>Word</button>
+            <button onClick={() => handleDownload('pdf')}>PDF</button>
             <button className="code-viewer-close" onClick={onClose}>
               ✕ Close
             </button>
@@ -89,11 +100,22 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
               Error loading file: {error}
             </div>
           )}
-          {!loading && !error && (
-            <pre className="code-viewer-pre">
-              <code>{content}</code>
-            </pre>
-          )}
+          {!loading &&
+            !error &&
+            (isMarkdown ? (
+              <div className="code-viewer-markdown">
+                <RichMarkdown content={content} />
+              </div>
+            ) : (
+              <pre className="code-viewer-pre">
+                <code
+                  className="hljs"
+                  dangerouslySetInnerHTML={{
+                    __html: highlightSource(content, filePath),
+                  }}
+                />
+              </pre>
+            ))}
         </div>
 
         {/* Assistant Bar */}
@@ -117,7 +139,7 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
               value={assistantPrompt}
               onChange={(e) => setAssistantPrompt(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
+                if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   handleSendToAssistant();
                 }

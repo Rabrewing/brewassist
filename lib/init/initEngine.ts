@@ -5,6 +5,7 @@ import { ModeProfile } from '../mode/modeProfiles';
 
 export interface ProjectDetection {
   projectType: 'new' | 'existing';
+  repoProvider: 'github' | 'gitlab' | 'bitbucket' | 'local' | 'unknown';
   stack: {
     language: string[];
     framework?: string[];
@@ -15,6 +16,7 @@ export interface ProjectDetection {
 
 export interface InitialProjectProfile {
   projectType: 'new' | 'existing';
+  repoProvider: 'github' | 'gitlab' | 'bitbucket' | 'local' | 'unknown';
   stack: {
     language: string[];
     framework?: string[];
@@ -43,9 +45,17 @@ export class InitEngine {
       path.join(this.rootDir, 'requirements.txt')
     );
     const hasDockerfile = fs.existsSync(path.join(this.rootDir, 'Dockerfile'));
-    const hasCi =
-      fs.existsSync(path.join(this.rootDir, '.github')) ||
-      fs.existsSync(path.join(this.rootDir, '.gitlab-ci.yml'));
+    const hasGithub = fs.existsSync(path.join(this.rootDir, '.github'));
+    const hasGitlab = fs.existsSync(path.join(this.rootDir, '.gitlab-ci.yml'));
+    const hasBitbucket = fs.existsSync(
+      path.join(this.rootDir, '.bitbucket-pipelines.yml')
+    );
+
+    let repoProvider: ProjectDetection['repoProvider'] = 'unknown';
+    if (hasGithub) repoProvider = 'github';
+    else if (hasGitlab) repoProvider = 'gitlab';
+    else if (hasBitbucket) repoProvider = 'bitbucket';
+    else if (!hasGit) repoProvider = 'local';
 
     const projectType = hasGit ? 'existing' : 'new';
 
@@ -76,7 +86,7 @@ export class InitEngine {
     }
 
     if (hasDockerfile) infra.push('docker');
-    if (hasCi) infra.push('ci/cd');
+    if (hasGithub || hasGitlab || hasBitbucket) infra.push('ci/cd');
 
     const experienceLevel = this.inferExperienceLevel(
       languages,
@@ -86,6 +96,7 @@ export class InitEngine {
 
     return {
       projectType,
+      repoProvider,
       stack: { language: languages, framework: frameworks, infra },
       experienceLevel,
     };
@@ -117,6 +128,7 @@ export class InitEngine {
   ): InitialProjectProfile {
     return {
       projectType: detection.projectType,
+      repoProvider: detection.repoProvider,
       stack: detection.stack,
       experienceLevel: detection.experienceLevel,
       selectedMode: mode.mode,

@@ -1,12 +1,13 @@
 // components/ProjectTree.tsx
-"use client";
+'use client';
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
+import { useRepoConnection } from '@/contexts/RepoConnectionContext';
 
 type FileNode = {
   name: string;
   path: string;
-  type: "file" | "directory";
+  type: 'file' | 'directory';
 };
 
 type TreeState = {
@@ -20,9 +21,18 @@ interface TreeNodeProps {
   level: number;
   activeNodePath: string | null;
   setActiveNodePath: (path: string | null) => void;
+  repoProvider: string;
+  repoRoot: string;
 }
 
-const TreeNode: React.FC<TreeNodeProps> = ({ node, level, activeNodePath, setActiveNodePath }) => {
+const TreeNode: React.FC<TreeNodeProps> = ({
+  node,
+  level,
+  activeNodePath,
+  setActiveNodePath,
+  repoProvider,
+  repoRoot,
+}) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [childrenState, setChildrenState] = useState<TreeState>({
@@ -31,17 +41,30 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, level, activeNodePath, setAct
     nodes: [],
   });
 
-  const hasChildren = node.type === "directory";
+  const hasChildren = node.type === 'directory';
   const isActive = activeNodePath === node.path;
 
   const handleToggle = async (event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent triggering parent click
     if (hasChildren) {
       setIsExpanded(!isExpanded);
-      if (!isExpanded && childrenState.nodes.length === 0 && !childrenState.loading && !childrenState.error) {
+      if (
+        !isExpanded &&
+        childrenState.nodes.length === 0 &&
+        !childrenState.loading &&
+        !childrenState.error
+      ) {
         setChildrenState((prev) => ({ ...prev, loading: true }));
         try {
-          const res = await fetch(`/api/fs-tree?path=${encodeURIComponent(node.path)}`);
+          const res = await fetch(
+            `/api/fs-tree?path=${encodeURIComponent(node.path)}`,
+            {
+              headers: {
+                'x-brewassist-repo-provider': repoProvider,
+                'x-brewassist-repo-root': repoRoot,
+              },
+            }
+          );
           if (!res.ok) {
             throw new Error(`fs-tree API returned ${res.status}`);
           }
@@ -51,7 +74,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, level, activeNodePath, setAct
         } catch (err: any) {
           setChildrenState({
             loading: false,
-            error: err?.message ?? "Failed to load directory",
+            error: err?.message ?? 'Failed to load directory',
             nodes: [],
           });
         }
@@ -60,7 +83,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, level, activeNodePath, setAct
       // This is a file, trigger onFileSelect
       setActiveNodePath(node.path);
       // Placeholder for actual file selection logic
-      console.log("File selected:", node.path);
+      console.log('File selected:', node.path);
     }
   };
 
@@ -69,11 +92,11 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, level, activeNodePath, setAct
     setActiveNodePath(node.path);
     if (!hasChildren) {
       // Placeholder for actual file selection logic
-      console.log("File selected:", node.path);
+      console.log('File selected:', node.path);
     }
   };
 
-  const indicator = hasChildren ? (isExpanded ? "▾" : "▸") : "•"; // Updated glyphs
+  const indicator = hasChildren ? (isExpanded ? '▾' : '▸') : '•'; // Updated glyphs
 
   return (
     <li
@@ -92,7 +115,9 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, level, activeNodePath, setAct
       {isExpanded && hasChildren && (
         <ul className="tree-children">
           {childrenState.loading && <li className="tree-status">Loading…</li>}
-          {childrenState.error && <li className="tree-status tree-error">{childrenState.error}</li>}
+          {childrenState.error && (
+            <li className="tree-status tree-error">{childrenState.error}</li>
+          )}
           {childrenState.nodes.map((childNode) => (
             <TreeNode
               key={childNode.path}
@@ -100,6 +125,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, level, activeNodePath, setAct
               level={level + 1}
               activeNodePath={activeNodePath}
               setActiveNodePath={setActiveNodePath}
+              repoProvider={repoProvider}
+              repoRoot={repoRoot}
             />
           ))}
         </ul>
@@ -109,6 +136,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, level, activeNodePath, setAct
 };
 
 export const ProjectTree: React.FC = () => {
+  const { repoProvider, repoRoot } = useRepoConnection();
   const [state, setState] = useState<TreeState>({
     loading: true,
     error: null,
@@ -119,7 +147,12 @@ export const ProjectTree: React.FC = () => {
   useEffect(() => {
     const loadTree = async () => {
       try {
-        const res = await fetch("/api/fs-tree?path=.");
+        const res = await fetch('/api/fs-tree?path=.', {
+          headers: {
+            'x-brewassist-repo-provider': repoProvider,
+            'x-brewassist-repo-root': repoRoot,
+          },
+        });
         if (!res.ok) {
           throw new Error(`fs-tree API returned ${res.status}`);
         }
@@ -129,14 +162,14 @@ export const ProjectTree: React.FC = () => {
       } catch (err: any) {
         setState({
           loading: false,
-          error: err?.message ?? "Failed to load project tree",
+          error: err?.message ?? 'Failed to load project tree',
           nodes: [],
         });
       }
     };
 
     void loadTree();
-  }, []);
+  }, [repoProvider, repoRoot]);
 
   if (state.loading) {
     return <div className="tree-status">Loading project…</div>;
@@ -144,16 +177,14 @@ export const ProjectTree: React.FC = () => {
 
   if (state.error) {
     return (
-      <div className="tree-status tree-error">
-        [fs-tree] {state.error}
-      </div>
+      <div className="tree-status tree-error">[fs-tree] {state.error}</div>
     );
   }
 
   // Sort directories first, then files
   const sortedNodes = [...state.nodes].sort((a, b) => {
-    if (a.type === "directory" && b.type !== "directory") return -1;
-    if (a.type !== "directory" && b.type === "directory") return 1;
+    if (a.type === 'directory' && b.type !== 'directory') return -1;
+    if (a.type !== 'directory' && b.type === 'directory') return 1;
     return a.name.localeCompare(b.name);
   });
 
@@ -166,6 +197,8 @@ export const ProjectTree: React.FC = () => {
           level={0}
           activeNodePath={activeNodePath}
           setActiveNodePath={setActiveNodePath}
+          repoProvider={repoProvider}
+          repoRoot={repoRoot}
         />
       ))}
     </ul>

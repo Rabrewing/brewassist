@@ -3,6 +3,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import fs from 'fs/promises';
 import path from 'path';
 import { BREWASSIST_REPO_ROOT, isPathAllowed } from '../../lib/brewConfig';
+import { parseEnterpriseContext } from '@/lib/enterpriseContext';
+import { assertRepoScope } from '@/lib/permissions';
 
 type FileNode = {
   name: string;
@@ -34,6 +36,17 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
+    const enterpriseContext = parseEnterpriseContext(req);
+    const repoScope = assertRepoScope(
+      enterpriseContext,
+      enterpriseContext.repoRoot
+    );
+    if (!repoScope.ok) {
+      return res
+        .status(repoScope.statusCode ?? 403)
+        .json({ error: repoScope.reason ?? 'Repo scope denied' });
+    }
+
     const relative = normalizeRequestedPath(req.query.path);
     const fullPath = path.join(BREWASSIST_REPO_ROOT, relative);
 

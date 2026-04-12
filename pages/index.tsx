@@ -1,16 +1,19 @@
-import { useState } from "react";
-import Head from "next/head";
-import { WorkspaceSidebarLeft } from "../components/WorkspaceSidebarLeft";
-import { WorkspaceSidebarRight } from "../components/WorkspaceSidebarRight"; // Import WorkspaceSidebarRight
-import { BrewCockpitCenter } from "../components/BrewCockpitCenter";
+import { useState } from 'react';
+import Head from 'next/head';
+import { WorkspaceSidebarLeft } from '../components/WorkspaceSidebarLeft';
+import { WorkspaceSidebarRight } from '../components/WorkspaceSidebarRight'; // Import WorkspaceSidebarRight
+import { BrewCockpitCenter } from '../components/BrewCockpitCenter';
 import { ToolbeltProvider } from '@/contexts/ToolbeltContext'; // Import ToolbeltProvider
+import { RepoProviderSelector } from '@/components/RepoProviderSelector';
 
 export default function Home() {
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState(false); // Add state for right sidebar
 
   return (
-    <ToolbeltProvider> {/* Wrap the entire cockpit with ToolbeltProvider */}
+    <ToolbeltProvider>
+      {' '}
+      {/* Wrap the entire cockpit with ToolbeltProvider */}
       <div className="cockpit-shell">
         <header className="cockpit-header">
           <div className="cockpit-header-left">
@@ -26,6 +29,7 @@ export default function Home() {
             <button className="cockpit-nav-link">Settings</button>
           </nav>
           <div className="cockpit-header-right">
+            <RepoProviderSelector />
             <span className="cockpit-mode-pill">
               Primary: Gemini • Fallback: Local
             </span>
@@ -37,7 +41,7 @@ export default function Home() {
           {/* LEFT SIDEBAR */}
           <aside
             className={`workspace-sidebar-left ${
-            isLeftCollapsed ? "is-collapsed" : ""
+              isLeftCollapsed ? 'is-collapsed' : ''
             }`}
           >
             <button
@@ -45,7 +49,7 @@ export default function Home() {
               type="button"
               onClick={() => setIsLeftCollapsed((v) => !v)}
             >
-              {isLeftCollapsed ? "‹" : "›"}
+              {isLeftCollapsed ? '‹' : '›'}
             </button>
             {!isLeftCollapsed && <WorkspaceSidebarLeft />}
           </aside>
@@ -58,7 +62,7 @@ export default function Home() {
           {/* RIGHT SIDEBAR */}
           <aside
             className={`workspace-sidebar-right ${
-            isRightCollapsed ? "is-collapsed" : ""
+              isRightCollapsed ? 'is-collapsed' : ''
             }`}
           >
             <button
@@ -66,16 +70,14 @@ export default function Home() {
               type="button"
               onClick={() => setIsRightCollapsed((v) => !v)}
             >
-              {isRightCollapsed ? "›" : "‹"}
+              {isRightCollapsed ? '›' : '‹'}
             </button>
             {!isRightCollapsed && <WorkspaceSidebarRight />}
           </aside>
         </main>
 
         <footer className="cockpit-footer">
-          <div className="cockpit-footer-left">
-            © 2025 BREWINGTON EXEC GROUP INC.
-          </div>
+          <div className="cockpit-footer-left">© 2025 BrewSoft</div>
           <div className="cockpit-footer-right">
             <a href="/terms" className="cockpit-footer-link">
               Terms
