@@ -5,6 +5,32 @@
   position: relative; /* Added for absolute positioning of guides */
 }
 
+.tree-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.tree-scope-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(0, 199, 183, 0.16);
+  background: rgba(2, 6, 23, 0.7);
+}
+
+.tree-scope-banner strong {
+  color: #f8e7a3;
+  font-size: 0.82rem;
+}
+
+.tree-scope-banner span {
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.72rem;
+}
+
 .tree-root {
   list-style: none;
   padding: 0;
@@ -22,13 +48,15 @@
   align-items: center;
   padding-right: 0.5rem;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .tree-item:hover {
-    border-color: #FFD700;
-    color: #00C7B7;
-    background: rgba(15,23,42,0.7);
+  border-color: #ffd700;
+  color: #00c7b7;
+  background: rgba(15, 23, 42, 0.7);
 }
 
 .tree-item.directory > .tree-name {
@@ -60,7 +88,9 @@
   bottom: 0;
   width: 1px;
   background-color: rgba(34, 211, 238, 0.4); /* BrewTeal vertical line */
-  transform: translateX(calc(0.625rem + (var(--level, 0) * 0.75rem))); /* Changed 1.25rem to 0.75rem */
+  transform: translateX(
+    calc(0.625rem + (var(--level, 0) * 0.75rem))
+  ); /* Changed 1.25rem to 0.75rem */
   z-index: 0;
 }
 
@@ -72,7 +102,9 @@
   width: 0.625rem; /* Horizontal line length */
   height: 1px;
   background-color: rgba(34, 211, 238, 0.4); /* BrewTeal horizontal line */
-  transform: translateX(calc(0.625rem + (var(--level, 0) * 0.75rem))); /* Changed 1.25rem to 0.75rem */
+  transform: translateX(
+    calc(0.625rem + (var(--level, 0) * 0.75rem))
+  ); /* Changed 1.25rem to 0.75rem */
   z-index: 0;
 }
 
@@ -85,7 +117,9 @@
 /* Adjust padding-left for levels to make space for lines */
 .tree-item {
   --level: attr(data-level number, 0); /* Custom property for level */
-  padding-left: calc(1.25rem + (var(--level) * 0.75rem)); /* Changed 1.25rem to 0.75rem */
+  padding-left: calc(
+    1.25rem + (var(--level) * 0.75rem)
+  ); /* Changed 1.25rem to 0.75rem */
 }
 
 .tree-item-level-0 {
@@ -159,12 +193,16 @@
 }
 
 @keyframes pulseGlow {
-  from { border-left-color: rgba(34,211,238,0.35); }
-  to   { border-left-color: rgba(34,211,238,0.85); }
+  from {
+    border-left-color: rgba(34, 211, 238, 0.35);
+  }
+  to {
+    border-left-color: rgba(34, 211, 238, 0.85);
+  }
 }
 
 .project-tree-guides {
-  border-left: 1px solid rgba(34,211,238,0.5);
+  border-left: 1px solid rgba(34, 211, 238, 0.5);
   animation: pulseGlow 2.4s ease-in-out infinite alternate;
   height: 100%; /* Ensure it spans the full height of the tree scroll zone */
   position: absolute;
@@ -175,9 +213,11 @@
 }
 
 .tree-item-active {
-    border-color: #FFD700;
-    background: radial-gradient(circle at left,
-       rgba(0,199,183,0.22),
-       transparent 60%);
-    color: #00C7B7;
+  border-color: #ffd700;
+  background: radial-gradient(
+    circle at left,
+    rgba(0, 199, 183, 0.22),
+    transparent 60%
+  );
+  color: #00c7b7;
 }

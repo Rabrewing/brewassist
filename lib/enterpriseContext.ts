@@ -7,6 +7,7 @@ export type RepoProvider = 'github' | 'gitlab' | 'bitbucket' | 'local';
 export interface EnterpriseRequestContext {
   tenantId?: string;
   orgId?: string;
+  workspaceId?: string;
   userId?: string;
   projectId?: string;
   repoId?: string;
@@ -21,18 +22,6 @@ function firstHeaderValue(
 ): string | undefined {
   if (Array.isArray(value)) return value[0];
   return value;
-}
-
-function normalizeRole(value: string | undefined): EnterpriseRole {
-  switch (value?.toLowerCase()) {
-    case 'admin':
-    case 'dev':
-    case 'support':
-    case 'customer':
-      return value.toLowerCase() as EnterpriseRole;
-    default:
-      return 'customer';
-  }
 }
 
 function normalizeRepoProvider(
@@ -61,11 +50,6 @@ export function parseEnterpriseContext(
   const cockpitMode = normalizeCockpitMode(
     firstHeaderValue(req.headers['x-brewassist-mode'])
   );
-  const role = normalizeRole(
-    firstHeaderValue(req.headers['x-brewassist-role']) ??
-      (typeof body.role === 'string' ? body.role : undefined) ??
-      cockpitMode
-  );
 
   const repoRoot =
     firstHeaderValue(req.headers['x-brewassist-repo-root']) ??
@@ -84,9 +68,9 @@ export function parseEnterpriseContext(
     orgId:
       firstHeaderValue(req.headers['x-brewassist-org-id']) ??
       (typeof body.orgId === 'string' ? body.orgId : undefined),
-    userId:
-      firstHeaderValue(req.headers['x-brewassist-user-id']) ??
-      (typeof body.userId === 'string' ? body.userId : undefined),
+    workspaceId:
+      firstHeaderValue(req.headers['x-brewassist-workspace-id']) ??
+      (typeof body.workspaceId === 'string' ? body.workspaceId : undefined),
     projectId:
       firstHeaderValue(req.headers['x-brewassist-project-id']) ??
       (typeof body.projectId === 'string' ? body.projectId : undefined),
@@ -95,7 +79,7 @@ export function parseEnterpriseContext(
       (typeof body.repoId === 'string' ? body.repoId : undefined),
     repoRoot,
     repoProvider,
-    role,
+    role: 'customer',
     cockpitMode,
   };
 }

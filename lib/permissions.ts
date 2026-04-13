@@ -16,7 +16,7 @@ export function canUseAdminSurfaces(
 }
 
 export function canWriteFiles(context: EnterpriseRequestContext): boolean {
-  return context.cockpitMode === 'admin' && canUseAdminSurfaces(context);
+  return canUseAdminSurfaces(context);
 }
 
 export function assertRepoScope(

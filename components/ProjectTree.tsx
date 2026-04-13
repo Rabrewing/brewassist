@@ -3,6 +3,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRepoConnection } from '@/contexts/RepoConnectionContext';
+import { useEnterpriseSelection } from '@/contexts/EnterpriseSelectionContext';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 
 type FileNode = {
   name: string;
@@ -23,6 +25,8 @@ interface TreeNodeProps {
   setActiveNodePath: (path: string | null) => void;
   repoProvider: string;
   repoRoot: string;
+  orgId: string | null;
+  accessToken: string | null;
 }
 
 const TreeNode: React.FC<TreeNodeProps> = ({
@@ -32,6 +36,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   setActiveNodePath,
   repoProvider,
   repoRoot,
+  orgId,
+  accessToken,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -62,6 +68,10 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               headers: {
                 'x-brewassist-repo-provider': repoProvider,
                 'x-brewassist-repo-root': repoRoot,
+                ...(orgId ? { 'x-brewassist-org-id': orgId } : {}),
+                ...(accessToken
+                  ? { Authorization: `Bearer ${accessToken}` }
+                  : {}),
               },
             }
           );
@@ -127,6 +137,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               setActiveNodePath={setActiveNodePath}
               repoProvider={repoProvider}
               repoRoot={repoRoot}
+              orgId={orgId}
+              accessToken={accessToken}
             />
           ))}
         </ul>
@@ -137,6 +149,9 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 
 export const ProjectTree: React.FC = () => {
   const { repoProvider, repoRoot } = useRepoConnection();
+  const { orgId, workspaceId, organizations, workspaces } =
+    useEnterpriseSelection();
+  const { session } = useSupabaseAuth();
   const [state, setState] = useState<TreeState>({
     loading: true,
     error: null,
@@ -151,6 +166,10 @@ export const ProjectTree: React.FC = () => {
           headers: {
             'x-brewassist-repo-provider': repoProvider,
             'x-brewassist-repo-root': repoRoot,
+            ...(orgId ? { 'x-brewassist-org-id': orgId } : {}),
+            ...(session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {}),
           },
         });
         if (!res.ok) {
@@ -169,7 +188,7 @@ export const ProjectTree: React.FC = () => {
     };
 
     void loadTree();
-  }, [repoProvider, repoRoot]);
+  }, [repoProvider, repoRoot, orgId, session]);
 
   if (state.loading) {
     return <div className="tree-status">Loading project…</div>;
@@ -188,19 +207,36 @@ export const ProjectTree: React.FC = () => {
     return a.name.localeCompare(b.name);
   });
 
+  const selectedOrg = organizations.find((item) => item.id === orgId) ?? null;
+  const selectedWorkspace =
+    workspaces.find((item) => item.id === workspaceId) ?? null;
+
   return (
-    <ul className="tree-root">
-      {sortedNodes.map((node) => (
-        <TreeNode
-          key={node.path}
-          node={node}
-          level={0}
-          activeNodePath={activeNodePath}
-          setActiveNodePath={setActiveNodePath}
-          repoProvider={repoProvider}
-          repoRoot={repoRoot}
-        />
-      ))}
-    </ul>
+    <div className="tree-shell">
+      <div className="tree-scope-banner">
+        <strong>
+          {selectedOrg?.name ?? 'Org'} /{' '}
+          {selectedWorkspace?.name ?? 'Workspace'}
+        </strong>
+        <span>
+          Repo {repoProvider} · {repoRoot}
+        </span>
+      </div>
+      <ul className="tree-root">
+        {sortedNodes.map((node) => (
+          <TreeNode
+            key={node.path}
+            node={node}
+            level={0}
+            activeNodePath={activeNodePath}
+            setActiveNodePath={setActiveNodePath}
+            repoProvider={repoProvider}
+            repoRoot={repoRoot}
+            orgId={orgId}
+            accessToken={session?.access_token ?? null}
+          />
+        ))}
+      </ul>
+    </div>
   );
 };

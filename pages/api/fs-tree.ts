@@ -5,6 +5,10 @@ import path from 'path';
 import { BREWASSIST_REPO_ROOT, isPathAllowed } from '../../lib/brewConfig';
 import { parseEnterpriseContext } from '@/lib/enterpriseContext';
 import { assertRepoScope } from '@/lib/permissions';
+import {
+  getAuthenticatedUser,
+  getSupabaseEnterpriseRole,
+} from '@/lib/supabase/server';
 
 type FileNode = {
   name: string;
@@ -37,10 +41,19 @@ export default async function handler(
 ) {
   try {
     const enterpriseContext = parseEnterpriseContext(req);
-    const repoScope = assertRepoScope(
-      enterpriseContext,
-      enterpriseContext.repoRoot
+    const authUser = await getAuthenticatedUser(req, res);
+
+    if (!authUser) {
+      return res.status(401).json({ error: 'Sign in required' });
+    }
+
+    const role = await getSupabaseEnterpriseRole(
+      req,
+      res,
+      enterpriseContext.orgId
     );
+    const scopedContext = { ...enterpriseContext, userId: authUser.id, role };
+    const repoScope = assertRepoScope(scopedContext, scopedContext.repoRoot);
     if (!repoScope.ok) {
       return res
         .status(repoScope.statusCode ?? 403)

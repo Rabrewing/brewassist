@@ -1,5 +1,7 @@
 # AGENTS.md - BrewAssist
 
+Updated: 2026-04-13 (session progress through April 13)
+
 - Treat `/home/brewexec/brewassist` as the repo root.
 - Main UI entrypoint is `pages/index.tsx`; the primary assistant stream route is `pages/api/brewassist.ts`.
 - Shared app logic lives in `lib/`; client state providers live in `contexts/`; tests live in `__tests__/`.
@@ -42,3 +44,14 @@
 - Unsupported cross-repo access must fail closed until multi-repo routing is implemented.
 - The sandbox mirror is the writable surface; live repo writes are not the default path.
 - BrewAssist is not v1 until repo connect, sandbox bind, diff preview, confirm, report, and replay are all present in the online workflow.
+- Supabase is the current enterprise data path: keep migrations under `supabase/migrations/`, preserve RLS/RBAC in SQL, and never commit live Supabase keys.
+- Online auth now uses Supabase session identity plus org membership lookup; API routes may receive the browser access token as a bearer header until server-side cookie exchange is fully hardened.
+- `brewmaster.rb@brewassist.app` is the current super-admin recovery account; keep bootstrap logic idempotent so repeated login/bootstrap attempts reuse the same org/workspace instead of failing on unique constraints.
+- Typed agent-fabric runtime, persisted replay, and right-rail collab surfaces are now partially implemented; remaining high-priority unfinished work is auth/tenant hardening, real provider repo connect, sandbox binding, diff/confirm/apply completion, landing/pricing/billing implementation, and production email/SSO hardening.
+- Public brewassist.app entry must include landing, auth gate, cookie consent, accessibility, terms/privacy, and AI/data-collection disclosures before the cockpit.
+- Landing and pricing implementation should now use `brewdocs/BrewAssist Landing Page-Pricing-v1.md` plus `brewdocs/mockups/landing-page.png` and `brewdocs/mockups/pricing-page.png`, but normalize copy to the real product state before building.
+- Do not market BrewAssist as generic AI fluff; public copy should reflect the actual control-plane workflow: provider/repo selection, sandbox-first execution, policy gating, reporting, replay, telemetry, and collaboration.
+- Auth blocker now FIXED: Applied migration `202604130003_fix_membership_rls_recursion.sql`, made browser client a singleton in `lib/supabase/browser.ts`, updated `EnterpriseTenantGate` to use shared client. Sign-in now works reliably.
+- Public landing and pricing now implemented with modal legal links, auth panel visible in hero, and billing status badge in cockpit header.
+- Collab agent and persisted replay now fully wired: `collab.message` events persist to `run_events`, surface in right-rail CollabPanel and replay center trace.
+- Remaining high-priority work: real provider repo connect (GitHub OAuth), sandbox binding lifecycle, production billing integration (Stripe), diff/confirm/apply completion, enterprise SSO hardening.

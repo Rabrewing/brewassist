@@ -2,29 +2,39 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { runBrewAssistEngineStream } from '@/lib/brewassist-engine';
 import { BrewTruthReport, runBrewTruth } from '@/lib/brewtruth';
-import { PersonaId, getActivePersona } from '@/lib/brewIdentityEngine'; // Import PersonaId and getActivePersona
+import { PersonaId } from '@/lib/brewIdentityEngine';
 import { CAPABILITY_REGISTRY, RWX } from '@/lib/capabilities/registry'; // Import CAPABILITY_REGISTRY, RWX
 import { BrewTier } from '@/lib/commands/types'; // Import BrewTier
-import {
-  evaluateHandshake,
-  UnifiedPolicyEnvelope,
-} from '@/lib/toolbelt/handshake'; // Import evaluateHandshake, UnifiedPolicyEnvelope
-import { classifyIntent, ScopeCategory } from '@/lib/intent-gatekeeper';
+import { UnifiedPolicyEnvelope } from '@/lib/toolbelt/handshake';
 import {
   BREWASSIST_CANONICAL_DEFINITION,
   BREWASSIST_IDENTITY_PROMPTS,
 } from '@/lib/brand/brewassist.definition'; // Import brand definition
 import { Persona } from '@/lib/brewIdentityEngine'; // Import Persona
-import type { CockpitMode } from '@/lib/brewTypes'; // Import CockpitMode
-import {
-  updateDevOpsFlowState,
-  updateDevOpsFeedbackState,
-  updateDevOpsMemoryState,
-  getDevOpsFlowState,
-  getDevOpsFeedbackState,
-  getDevOpsMemoryState,
-} from '@/lib/devops8/registry'; // Import update and getter functions
+import { getDevOpsFeedbackState } from '@/lib/devops8/registry';
 import { parseEnterpriseContext } from '@/lib/enterpriseContext';
+import {
+  getAuthenticatedUser,
+  getSupabaseEnterpriseRole,
+} from '@/lib/supabase/server';
+import {
+  buildBrewAssistEndPayload,
+  runCollabAgent,
+  runExecutorAgentChunk,
+  runExecutorAgentComplete,
+  runExecutorAgentStart,
+  runIntentAgent,
+  runPlannerAgent,
+  runPolicyAgent,
+  runReplayAgent,
+  runReporterAgent,
+  runReporterAgentFailure,
+} from '@/lib/agent-fabric/agents';
+import {
+  AgentRuntime,
+  createAgentRuntimeContext,
+} from '@/lib/agent-fabric/runtime';
+import { persistAgentRun } from '@/lib/agent-fabric/persistence';
 
 export type BrewAssistApiRequest = {
   input: string;
@@ -45,27 +55,6 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Initialize flow state for this request
-  updateDevOpsFlowState({
-    isStreaming: false,
-    plannerChurnCount: 0,
-    lastLatencyMs: 0,
-    interruptions: 0,
-  });
-  // Initialize feedback state for this request
-  updateDevOpsFeedbackState({
-    chunkCount: 0,
-    lastChunkTime: 0,
-    feedbackGaps: 0,
-  });
-  // Initialize memory state for this request
-  updateDevOpsMemoryState({
-    brewLastWrites: 0,
-    memorySkips: 0,
-    permissionGatingBlocks: 0,
-    conflicts: 0,
-  });
-
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     res.status(405).json({
@@ -77,6 +66,22 @@ export default async function handler(
   }
 
   const enterpriseContext = parseEnterpriseContext(req);
+  const authUser = await getAuthenticatedUser(req, res);
+
+  if (!authUser) {
+    return res.status(401).json({
+      ok: false,
+      error: 'Sign in required',
+      code: 'UNAUTHENTICATED',
+    });
+  }
+
+  const resolvedRole = await getSupabaseEnterpriseRole(
+    req,
+    res,
+    enterpriseContext.orgId
+  );
+  enterpriseContext.role = resolvedRole;
 
   const {
     input,
@@ -100,7 +105,7 @@ export default async function handler(
 
   const cockpitMode = enterpriseContext.cockpitMode;
   const currentPersona: PersonaId =
-    requestPersona?.id || (cockpitMode === 'admin' ? 'admin' : 'customer'); // Determine persona
+    requestPersona?.id || (resolvedRole === 'admin' ? 'admin' : 'customer'); // Determine persona
   const normalizedTier: BrewTier = tier || 'basic'; // Default to basic if not provided
 
   if (!input) {
@@ -110,21 +115,6 @@ export default async function handler(
       code: 'INVALID_REQUEST',
     });
   }
-
-  let commandCapabilityId: string | undefined;
-
-  // Check if input is a command
-  if (input.startsWith('/')) {
-    const command = input.split(' ')[0];
-    if (
-      CAPABILITY_REGISTRY[command] &&
-      CAPABILITY_REGISTRY[command].surfaces.includes('command')
-    ) {
-      commandCapabilityId = command;
-    }
-  }
-
-  const intent = classifyIntent(input, commandCapabilityId);
 
   // S4.10c.2 Patch: Brand Anchor - Detect identity/definition intents
   const lowerCaseInput = input.toLowerCase();
@@ -152,10 +142,8 @@ export default async function handler(
     return;
   }
 
-  let policyEnvelope: UnifiedPolicyEnvelope;
-
   const resolvedPersona: Persona = {
-    id: enterpriseContext.role === 'customer' ? 'customer' : currentPersona,
+    id: resolvedRole === 'customer' ? 'customer' : currentPersona,
     label: `Resolved Persona: ${currentPersona}`, // Placeholder label
     tone: 'Neutral', // Placeholder tone
     emotionTier: 1, // Placeholder tier
@@ -163,23 +151,54 @@ export default async function handler(
     memoryWindow: 1, // Placeholder memory window
     systemPrompt: `Persona derived from request: ${currentPersona}; org=${enterpriseContext.orgId ?? 'none'}; repo=${enterpriseContext.repoId ?? 'none'}`, // Placeholder system prompt
   };
-
-  // Evaluate Handshake for policy decision (for capabilities or general intent)
-  policyEnvelope = evaluateHandshake({
-    intent,
-    tier: normalizedTier,
-    persona: resolvedPersona,
-    cockpitMode,
-    capabilityId: capabilityId || commandCapabilityId, // Use capabilityId from body or derived command
-    action,
-    confirmApply,
-    gepHeaderPresent: !!req.headers['x-gemini-execution-protocol'],
-    truthScore,
-    truthFlags,
+  const runtime = new AgentRuntime(
+    createAgentRuntimeContext({
+      tenantId: enterpriseContext.tenantId,
+      orgId: enterpriseContext.orgId,
+      workspaceId: enterpriseContext.workspaceId,
+      repoProvider: enterpriseContext.repoProvider,
+      repoRoot: enterpriseContext.repoRoot,
+      repoId: enterpriseContext.repoId,
+      projectId: enterpriseContext.projectId,
+      userId: authUser.id,
+      role: resolvedRole,
+      cockpitMode,
+      tier: normalizedTier,
+      personaId: currentPersona,
+      persona: resolvedPersona,
+      input,
+      mode,
+      capabilityId,
+      action,
+      confirmApply,
+      gepHeaderPresent: !!req.headers['x-gemini-execution-protocol'],
+      truthScore,
+      truthFlags,
+    })
+  );
+  runtime.emit({
+    agentId: 'telemetry_agent',
+    eventType: 'telemetry.updated',
+    stage: 'intent',
+    summary: 'Initialized runtime telemetry',
+    payload: runtime.state.telemetry,
   });
+  const { intent, commandCapabilityId } = runIntentAgent(runtime);
+  runPlannerAgent(runtime);
+  const policyEnvelope: UnifiedPolicyEnvelope = runPolicyAgent(runtime);
 
   // Handle policy decisions
   if (!policyEnvelope.ok) {
+    runCollabAgent(runtime, {
+      author: 'Policy',
+      message:
+        'Run blocked before execution. Review policy gate and retry with the required approval context.',
+      kind: 'review',
+      source: 'agent',
+      presence: 'needs-review',
+      reportReady: false,
+    });
+
     let statusCode = 403; // Forbidden
     if (policyEnvelope.reason?.includes('TOOLBELT_GEP_REQUIRED')) {
       statusCode = 412; // Precondition Failed
@@ -188,8 +207,8 @@ export default async function handler(
     }
 
     // Record permission gating block
-    updateDevOpsMemoryState({
-      permissionGatingBlocks: getDevOpsMemoryState().permissionGatingBlocks + 1,
+    await persistAgentRun({ runtime, status: 'blocked' }).catch((error) => {
+      console.error('[agent-fabric/persist] blocked persist failed', error);
     });
 
     return res.status(statusCode).json({
@@ -258,7 +277,17 @@ export default async function handler(
   }
 
   // Update flow state: streaming is active
-  // updateDevOpsFlowState({ isStreaming: true });
+  runExecutorAgentStart(runtime);
+  runCollabAgent(runtime, {
+    author: 'Planner',
+    message:
+      'Execution handoff is live. Capture notes in replay after the run settles.',
+    kind: 'handoff',
+    source: 'agent',
+    presence: 'live',
+    screenShareActive: false,
+    reportReady: false,
+  });
 
   let accumulatedText = '';
   let providerUsed: string | undefined;
@@ -275,9 +304,14 @@ export default async function handler(
     // Run BrewTruth if enabled
     if (process.env.BREWTRUTH_ENABLED === 'true') {
       brewTruthReport = await runBrewTruth({ prompt: input, response: '' });
-      // Simulate BrewLast write
-      updateDevOpsMemoryState({
-        brewLastWrites: getDevOpsMemoryState().brewLastWrites + 1,
+      runReporterAgent(runtime, brewTruthReport);
+      runCollabAgent(runtime, {
+        author: 'Reporter',
+        message: `BrewTruth report is ready with score ${brewTruthReport.overallScore.toFixed(2)}.`,
+        kind: 'report',
+        source: 'agent',
+        presence: 'report-ready',
+        reportReady: true,
       });
     }
 
@@ -301,25 +335,14 @@ export default async function handler(
           if (!text) return;
           accumulatedText += text;
           sendEvent({ type: 'chunk', text });
-          // Simulate planner churn for demonstration
-          updateDevOpsFlowState({
-            plannerChurnCount: getDevOpsFlowState().plannerChurnCount + 1,
-          });
-
-          // Update feedback state
           const now = Date.now();
-          if (
-            getDevOpsFeedbackState().lastChunkTime > 0 &&
-            now - getDevOpsFeedbackState().lastChunkTime > 1000
-          ) {
-            // 1 second gap
-            updateDevOpsFeedbackState({
-              feedbackGaps: getDevOpsFeedbackState().feedbackGaps + 1,
-            });
-          }
-          updateDevOpsFeedbackState({
-            chunkCount: getDevOpsFeedbackState().chunkCount + 1,
-            lastChunkTime: now,
+          runExecutorAgentChunk(runtime, {
+            text,
+            hasFeedbackGap:
+              getDevOpsFeedbackState().lastChunkTime > 0 &&
+              now - getDevOpsFeedbackState().lastChunkTime > 1000,
+            truthScore: brewTruthReport?.overallScore ?? 1,
+            schemaDiffsDetected: Boolean(brewTruthReport?.flags?.length),
           });
         },
         (result) => {
@@ -349,37 +372,75 @@ export default async function handler(
 
     const endTime = process.hrtime.bigint();
     const durationMs = Number(endTime - startTime) / 1_000_000;
-    updateDevOpsFlowState({ lastLatencyMs: durationMs, isStreaming: false });
+    runtime.state.accumulatedText = accumulatedText;
+    runExecutorAgentComplete(runtime, {
+      latencyMs: durationMs,
+      truthScore: brewTruthReport?.overallScore ?? 1,
+      policyGateFailures: policyEnvelope.ok ? 0 : 1,
+      schemaDiffsDetected: Boolean(brewTruthReport?.flags?.length),
+    });
 
     if (raceResult.status === 'timeout') {
       const message = `Agent/Loop mode is not fully wired yet. Please use HRM or LLM mode.`;
+      runCollabAgent(runtime, {
+        author: 'Executor',
+        message:
+          'Execution timed out. Handoff replay trace to the next teammate before retrying.',
+        kind: 'review',
+        source: 'agent',
+        presence: 'timeout',
+        reportReady: Boolean(brewTruthReport),
+      });
+      runReplayAgent(runtime, {
+        provider: 'BrewAssist',
+        model: 'Fallback',
+        outcome: 'timeout',
+      });
+      await persistAgentRun({ runtime, status: 'timeout' }).catch((error) => {
+        console.error('[agent-fabric/persist] timeout persist failed', error);
+      });
       sendEvent({ type: 'chunk', text: message });
       sendEvent({
         type: 'end',
-        payload: {
+        payload: buildBrewAssistEndPayload(runtime, {
           provider: 'BrewAssist',
           model: 'Fallback',
           route: 'brewassist',
-          scopeCategory: intent,
-          debugInfo: debugInfo, // Include debugInfo here
-        },
+          debugInfo,
+        }),
         text: message,
         truth: brewTruthReport,
-        policy: policyEnvelope, // Use policyEnvelope
+        policy: policyEnvelope,
       });
     } else if (raceResult.status === 'completed') {
+      runCollabAgent(runtime, {
+        author: 'Executor',
+        message:
+          'Execution completed. Replay is ready for async review in the collab rail.',
+        kind: 'status',
+        source: 'agent',
+        presence: 'complete',
+        reportReady: Boolean(brewTruthReport),
+      });
+      runReplayAgent(runtime, {
+        provider: providerUsed,
+        model: modelUsed,
+        outcome: 'completed',
+      });
+      await persistAgentRun({ runtime, status: 'completed' }).catch((error) => {
+        console.error('[agent-fabric/persist] completed persist failed', error);
+      });
       sendEvent({
         type: 'end',
-        payload: {
+        payload: buildBrewAssistEndPayload(runtime, {
           provider: providerUsed,
           model: modelUsed,
           route: 'brewassist',
-          scopeCategory: intent,
-          debugInfo: debugInfo, // Include debugInfo here
-        },
+          debugInfo,
+        }),
         text: accumulatedText,
         truth: brewTruthReport,
-        policy: policyEnvelope, // Use policyEnvelope
+        policy: policyEnvelope,
       });
     }
   } catch (error) {
@@ -389,28 +450,41 @@ export default async function handler(
       payload: { message: (error as Error).message },
     });
     // Record interruption
-    updateDevOpsFlowState({
-      interruptions: getDevOpsFlowState().interruptions + 1,
-      isStreaming: false,
+    runReporterAgentFailure(runtime, brewTruthReport?.overallScore ?? 0);
+    runCollabAgent(runtime, {
+      author: 'Executor',
+      message:
+        'Execution failed. Review replay and error telemetry before the next attempt.',
+      kind: 'review',
+      source: 'agent',
+      presence: 'error',
+      reportReady: Boolean(brewTruthReport),
     });
-    // Update feedback state on error
-    updateDevOpsFeedbackState({
-      chunkCount: getDevOpsFeedbackState().chunkCount,
-      feedbackGaps: getDevOpsFeedbackState().feedbackGaps + 1,
+    runReplayAgent(runtime, {
+      provider: 'BrewAssist',
+      model: 'ErrorFallback',
+      outcome: 'error',
     });
+    await persistAgentRun({ runtime, status: 'error' }).catch(
+      (persistError) => {
+        console.error(
+          '[agent-fabric/persist] error persist failed',
+          persistError
+        );
+      }
+    );
     // Always send an end event on error to ensure client stream closes
     sendEvent({
       type: 'end',
-      payload: {
+      payload: buildBrewAssistEndPayload(runtime, {
         provider: 'BrewAssist',
         model: 'ErrorFallback',
         route: 'brewassist',
-        scopeCategory: intent,
-        debugInfo: debugInfo, // Include debugInfo here
-      },
+        debugInfo,
+      }),
       text: 'An error occurred during processing.',
       truth: brewTruthReport,
-      policy: policyEnvelope, // Use policyEnvelope
+      policy: policyEnvelope,
     });
   } finally {
     res.end();

@@ -20,11 +20,11 @@ All eight DevOps 8 adapters exist, are registered, and are rendered in the live 
 
 4. **Build & Change Quality (`build_change_quality`)**
    - Status: implemented and rendered, but still mostly default-data driven.
-   - Integration: currently driven by policy failures and BrewTruth/test-confidence inputs.
+   - Integration: now updated from policy failures and BrewTruth/test-confidence inputs during request handling.
 
 5. **Scope Containment (`scope_containment`)**
    - Status: implemented and rendered.
-   - Integration: needs stronger execution/scope tracking to become fully meaningful.
+   - Integration: receives end-of-run scope indicators from the center pane so it can reflect executed scope and creep signals.
 
 6. **Safety & Policy Enforcement (`safety_policy_enforcement`)**
    - Status: implemented and rendered.
@@ -32,7 +32,7 @@ All eight DevOps 8 adapters exist, are registered, and are rendered in the live 
 
 7. **Reasoning Visibility (`reasoning_visibility`)**
    - Status: implemented and rendered.
-   - Integration: driven by BrewTruth coverage and check counts.
+   - Integration: driven by BrewTruth coverage and check counts surfaced from the run summary.
 
 8. **Execution Efficiency (`execution_efficiency`)**
    - Status: implemented and rendered.

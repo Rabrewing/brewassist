@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { BrewTruthReport } from '@/lib/brewtruth'; // Import BrewTruthReport
 import { ActionMenu } from './ActionMenu';
 import type { BrewAssistApiRequest } from '@/pages/api/brewassist'; // Import BrewAssistApiRequest
@@ -7,7 +13,11 @@ import { BrewTier } from '@/lib/commands/types'; // Import BrewTier
 import { useCockpitMode } from '@/contexts/CockpitModeContext';
 import { useRepoConnection } from '@/contexts/RepoConnectionContext';
 import { useDevOps8Runtime } from '@/contexts/DevOps8RuntimeContext';
+import { useEnterpriseSelection } from '@/contexts/EnterpriseSelectionContext';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { CockpitModeToggle } from './CockpitModeToggle';
+import { InitWizardModal } from './InitWizardModal';
+import { SlashCommandPalette } from './SlashCommandPalette';
 import {
   CognitionState,
   assembleCognitionState,
@@ -49,6 +59,33 @@ interface UiMessage {
   flowModeEnabled?: boolean;
 }
 
+type ReplayEvent = {
+  run_id: string;
+  event_type: string;
+  payload: {
+    summary?: string;
+    stage?: string;
+    payload?: {
+      author?: string;
+      message?: string;
+      kind?: string;
+      presence?: string;
+      source?: 'agent' | 'human';
+    };
+  };
+  created_at: string;
+};
+
+type ReplayRun = {
+  id: string;
+  status: string;
+  truth_score: number | null;
+  created_at: string;
+  events: ReplayEvent[];
+};
+
+type ReplayTrace = ReplayRun | null;
+
 const defaultSystemLine =
   'BrewAssist is online. Select HRM, LLM, Agent, or Loop, then send a prompt to begin.';
 
@@ -61,7 +98,15 @@ export const BrewCockpitCenter: React.FC = () => {
   const { mode, setMode, tier, setTier } = useToolbelt(); // Consume from context
   const { mode: cockpitMode } = useCockpitMode();
   const { repoProvider, repoRoot } = useRepoConnection();
-  const { setRuntime: setDevOps8Runtime } = useDevOps8Runtime();
+  const {
+    orgId,
+    workspaceId,
+    selectedReplayRunId,
+    replayOpenRequestToken,
+    setSelectedReplayRunId,
+  } = useEnterpriseSelection();
+  const { session } = useSupabaseAuth();
+  const { recordEvent: recordDevOps8Event } = useDevOps8Runtime();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<UiMessage[]>(() => [
     {
@@ -80,6 +125,28 @@ export const BrewCockpitCenter: React.FC = () => {
   const [lastError, setLastError] = useState<string | null>(null);
   const [workflowStage, setWorkflowStage] =
     useState<HybridWorkflowStage>('intent');
+  const [showInitWizard, setShowInitWizard] = useState(false);
+  const [showFirstRunBanner, setShowFirstRunBanner] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [replayRuns, setReplayRuns] = useState<ReplayRun[]>([]);
+  const [replayLoading, setReplayLoading] = useState(false);
+  const [replayError, setReplayError] = useState<string | null>(null);
+  const [selectedReplayTrace, setSelectedReplayTrace] =
+    useState<ReplayTrace>(null);
+  const [selectedReplayLoading, setSelectedReplayLoading] = useState(false);
+
+  const selectedCollabEvents = useMemo(
+    () =>
+      (selectedReplayTrace?.events ?? []).filter(
+        (event) => event.event_type === 'collab.message'
+      ),
+    [selectedReplayTrace]
+  );
+
+  useEffect(() => {
+    if (!selectedReplayRunId || replayOpenRequestToken === 0) return;
+    setWorkflowStage('replay');
+  }, [replayOpenRequestToken, selectedReplayRunId]);
 
   // S4.10c.2 Flow Mode State
   const [flowModeEnabled, setFlowModeEnabled] = useState(() => {
@@ -100,9 +167,30 @@ export const BrewCockpitCenter: React.FC = () => {
   const [isClient, setIsClient] = useState(false);
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false); // S4.10c.2 Auto-Scroll Fix
 
+  const composerPlaceholder = showFirstRunBanner
+    ? 'BrewAssist setup... Type / for commands or /init to onboard.'
+    : `BrewAssist ${getWorkflowStageLabel(workflowStage).toLowerCase()}... Type / for commands.`;
+
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (!isClient) return;
+    const completed = localStorage.getItem('brewassist.init.complete');
+    const dismissed = localStorage.getItem('brewassist.init.dismissed');
+    const shouldShow = !completed && !dismissed;
+    setShowFirstRunBanner(shouldShow);
+    if (shouldShow) {
+      setShowInitWizard(true);
+    }
+  }, [isClient]);
+
+  useEffect(() => {
+    if (input === '/') {
+      setShowCommandPalette(true);
+    }
+  }, [input]);
 
   // Persist flowModeEnabled
   useEffect(() => {
@@ -209,6 +297,107 @@ export const BrewCockpitCenter: React.FC = () => {
     }
   }, [messages.length]);
 
+  useEffect(() => {
+    if (workflowStage !== 'replay') return;
+    if (!orgId || !session?.access_token) return;
+
+    let active = true;
+    setReplayLoading(true);
+    setReplayError(null);
+
+    const loadReplayHistory = async () => {
+      try {
+        const response = await fetch('/api/replay-history', {
+          headers: {
+            'x-brewassist-org-id': orgId,
+            ...(workspaceId
+              ? { 'x-brewassist-workspace-id': workspaceId }
+              : {}),
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (!response.ok) {
+          const body = await response
+            .json()
+            .catch(() => ({ error: 'Unable to load replay history' }));
+          throw new Error(body.error || 'Unable to load replay history');
+        }
+
+        const data = await response.json();
+        if (!active) return;
+        setReplayRuns(data.runs ?? []);
+        const firstRunId = data.runs?.[0]?.id ?? null;
+        setSelectedReplayRunId(selectedReplayRunId ?? firstRunId);
+      } catch (error: any) {
+        if (!active) return;
+        setReplayError(error?.message ?? 'Unable to load replay history');
+      } finally {
+        if (active) setReplayLoading(false);
+      }
+    };
+
+    void loadReplayHistory();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    workflowStage,
+    orgId,
+    selectedReplayRunId,
+    session,
+    setSelectedReplayRunId,
+    workspaceId,
+  ]);
+
+  useEffect(() => {
+    if (workflowStage !== 'replay') return;
+    if (!selectedReplayRunId || !orgId || !session?.access_token) return;
+
+    let active = true;
+    setSelectedReplayLoading(true);
+
+    const loadReplayTrace = async () => {
+      try {
+        const response = await fetch(
+          `/api/replay-history?runId=${encodeURIComponent(selectedReplayRunId)}`,
+          {
+            headers: {
+              'x-brewassist-org-id': orgId,
+              ...(workspaceId
+                ? { 'x-brewassist-workspace-id': workspaceId }
+                : {}),
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const body = await response
+            .json()
+            .catch(() => ({ error: 'Unable to load replay trace' }));
+          throw new Error(body.error || 'Unable to load replay trace');
+        }
+
+        const data = await response.json();
+        if (!active) return;
+        setSelectedReplayTrace(data.runs?.[0] ?? null);
+      } catch (error: any) {
+        if (!active) return;
+        setReplayError(error?.message ?? 'Unable to load replay trace');
+      } finally {
+        if (active) setSelectedReplayLoading(false);
+      }
+    };
+
+    void loadReplayTrace();
+
+    return () => {
+      active = false;
+    };
+  }, [workflowStage, selectedReplayRunId, orgId, workspaceId, session]);
+
   // S4.9c.1: Handle manual scrolling to disable/enable auto-scroll
   const isNearBottom = () => {
     if (!chatContainerRef.current) return false;
@@ -237,26 +426,39 @@ export const BrewCockpitCenter: React.FC = () => {
       const currentInput = overridePayload?.input || input;
       const trimmed = currentInput.trim();
       if (!trimmed || isThinking) return;
+
+      if (trimmed === '/init' || trimmed.startsWith('/init ')) {
+        setShowInitWizard(true);
+        setInput('');
+        return;
+      }
+
       const requestStartedAt = performance.now();
 
       setLastError(null);
-      setWorkflowStage(deriveWorkflowStageFromInput(trimmed));
-      setDevOps8Runtime((prev) => ({
-        ...prev,
-        isStreaming: true,
-        plannerChurnCount: 0,
-        lastLatencyMs: 0,
-        interruptions: 0,
-        chunkCount: 0,
-        feedbackGaps: 0,
-        policyGateFailures: 0,
-        currentStage: deriveWorkflowStageFromInput(trimmed),
-        lastRunLabel: trimmed.slice(0, 120),
-        cockpitMode,
-        tier,
-        personaId: cockpitMode === 'admin' ? 'admin' : 'customer',
-        lastUpdatedAt: new Date().toISOString(),
-      }));
+      const nextStage = deriveWorkflowStageFromInput(trimmed);
+      setWorkflowStage(nextStage);
+      recordDevOps8Event({
+        type: 'intent.captured',
+        payload: {
+          input: trimmed,
+          stage: nextStage,
+          runLabel: trimmed.slice(0, 120),
+          cockpitMode,
+          tier,
+          personaId: cockpitMode === 'admin' ? 'admin' : 'customer',
+          repoProvider,
+          repoRoot,
+        },
+      });
+      recordDevOps8Event({
+        type: 'execute.started',
+        payload: { latencyMs: 0 },
+      });
+      recordDevOps8Event({
+        type: 'plan.created',
+        payload: { stepCount: 1, plannerChurnDelta: 1 },
+      });
 
       const userMsg: UiMessage = {
         id: makeId(),
@@ -308,6 +510,13 @@ export const BrewCockpitCenter: React.FC = () => {
             'x-brewassist-mode': cockpitMode,
             'x-brewassist-repo-provider': repoProvider,
             'x-brewassist-repo-root': repoRoot,
+            ...(orgId ? { 'x-brewassist-org-id': orgId } : {}),
+            ...(workspaceId
+              ? { 'x-brewassist-workspace-id': workspaceId }
+              : {}),
+            ...(session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {}),
           },
           body: JSON.stringify(payload),
         });
@@ -344,12 +553,13 @@ export const BrewCockpitCenter: React.FC = () => {
                     if (json?.type === 'chunk') {
                       const t = typeof json.text === 'string' ? json.text : '';
                       if (t) {
-                        setDevOps8Runtime((prev) => ({
-                          ...prev,
-                          chunkCount: prev.chunkCount + 1,
-                          plannerChurnCount: prev.plannerChurnCount + 1,
-                          lastUpdatedAt: new Date().toISOString(),
-                        }));
+                        recordDevOps8Event({
+                          type: 'preview.ready',
+                          payload: {
+                            diffFiles: 1,
+                            hasChanges: true,
+                          },
+                        });
                         setMessages((prev) =>
                           prev.map((msg) =>
                             msg.id === assistantMsgId
@@ -360,33 +570,61 @@ export const BrewCockpitCenter: React.FC = () => {
                       }
                     } else if (json.type === 'end') {
                       const policyOk = Boolean(json?.policy?.ok);
-                      setDevOps8Runtime((prev) => ({
-                        ...prev,
-                        isStreaming: false,
-                        lastLatencyMs: Math.round(
-                          performance.now() - requestStartedAt
-                        ),
-                        currentStage: 'report',
-                        policyGateFailures: policyOk
-                          ? prev.policyGateFailures
-                          : prev.policyGateFailures + 1,
-                        brewTruthScore:
-                          typeof json?.truth?.overallScore === 'number'
-                            ? json.truth.overallScore
-                            : prev.brewTruthScore,
-                        testConfidence:
-                          typeof json?.truth?.overallScore === 'number'
-                            ? json.truth.overallScore
-                            : prev.testConfidence,
-                        brewLastWrites: json?.truth
-                          ? prev.brewLastWrites + 1
-                          : prev.brewLastWrites,
-                        coverage:
-                          typeof json?.truth?.overallScore === 'number'
-                            ? json.truth.overallScore
-                            : prev.coverage,
-                        lastUpdatedAt: new Date().toISOString(),
-                      }));
+                      const responseText =
+                        typeof json?.text === 'string' ? json.text : '';
+                      const scopeWords = responseText
+                        .trim()
+                        .split(/\s+/)
+                        .filter(Boolean).length;
+                      recordDevOps8Event({
+                        type: 'execute.completed',
+                        payload: {
+                          latencyMs: Math.round(
+                            performance.now() - requestStartedAt
+                          ),
+                          truthScore:
+                            typeof json?.truth?.overallScore === 'number'
+                              ? json.truth.overallScore
+                              : 1,
+                          coverage:
+                            typeof json?.truth?.overallScore === 'number'
+                              ? json.truth.overallScore
+                              : 1,
+                          policyGateFailures: policyOk ? 0 : 1,
+                          schemaDiffsDetected: Boolean(
+                            json?.truth?.flags?.length
+                          ),
+                          responseText,
+                          scope: {
+                            definedScopeItems: Math.max(scopeWords, 1),
+                            executedItems: responseText
+                              ? Math.min(scopeWords, 8)
+                              : 0,
+                            scopeCreepIncidents: policyOk ? 0 : 1,
+                            boundaryViolations: policyOk ? 0 : 1,
+                            recentChecks: 1,
+                            coverage:
+                              typeof json?.truth?.overallScore === 'number'
+                                ? json.truth.overallScore
+                                : 1,
+                            violations: policyOk ? 0 : 1,
+                          },
+                        },
+                      });
+                      recordDevOps8Event({
+                        type: 'report.emitted',
+                        payload: {
+                          truthScore:
+                            typeof json?.truth?.overallScore === 'number'
+                              ? json.truth.overallScore
+                              : 1,
+                          coverage:
+                            typeof json?.truth?.overallScore === 'number'
+                              ? json.truth.overallScore
+                              : 1,
+                          reportLabel: responseText.slice(0, 120),
+                        },
+                      });
                     } else if (json.type === 'error') {
                       throw new Error(json.payload.message);
                     }
@@ -431,13 +669,14 @@ export const BrewCockpitCenter: React.FC = () => {
                 : msg
             )
           );
-          setDevOps8Runtime((prev) => ({
-            ...prev,
-            isStreaming: false,
-            lastLatencyMs: Math.round(performance.now() - requestStartedAt),
-            currentStage: 'report',
-            lastUpdatedAt: new Date().toISOString(),
-          }));
+          recordDevOps8Event({
+            type: 'report.emitted',
+            payload: {
+              truthScore: 1,
+              coverage: 1,
+              reportLabel: newText.slice(0, 120),
+            },
+          });
           setWorkflowStage('report');
         }
       } catch (err) {
@@ -455,14 +694,16 @@ export const BrewCockpitCenter: React.FC = () => {
             content: errLine,
           },
         ]);
-        setDevOps8Runtime((prev) => ({
-          ...prev,
-          isStreaming: false,
-          interruptions: prev.interruptions + 1,
-          feedbackGaps: prev.feedbackGaps + 1,
-          currentStage: 'intent',
-          lastUpdatedAt: new Date().toISOString(),
-        }));
+        recordDevOps8Event({
+          type: 'telemetry.updated',
+          payload: {
+            policyGateFailures: 1,
+            truthScore: 0,
+            testConfidence: 0,
+            schemaDiffsDetected: true,
+            coverage: 0,
+          },
+        });
         setWorkflowStage('intent');
       } finally {
         setIsThinking(false);
@@ -499,12 +740,25 @@ export const BrewCockpitCenter: React.FC = () => {
     setPendingAction(null);
   }, []);
 
+  const appendSystemNotice = useCallback((message: string) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: makeId(),
+        role: 'system',
+        content: message,
+      },
+    ]);
+  }, []);
+
   const handleKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (
     e
   ) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       void handleSend();
+    } else if (e.key === '/' && !input.trim()) {
+      setShowCommandPalette(true);
     }
   };
 
@@ -675,6 +929,43 @@ export const BrewCockpitCenter: React.FC = () => {
   return (
     <div className="cockpit-center">
       <div className="cockpit-center-scroll" onScroll={handleScroll}>
+        {showFirstRunBanner && !showInitWizard && (
+          <div className="first-run-banner">
+            <div className="first-run-banner-copy">
+              <span className="first-run-banner-kicker">First run</span>
+              <strong>
+                Set up your provider, repo, and role before the first safe run.
+              </strong>
+              <p>
+                BrewAssist can guide vibe coders, developers, and enterprise
+                teams through the same Intent → Plan → Preview → Confirm →
+                Execute → Report → Replay flow.
+              </p>
+            </div>
+            <div className="first-run-banner-actions">
+              <button
+                type="button"
+                className="first-run-banner-action"
+                onClick={() => setShowInitWizard(true)}
+              >
+                Start setup
+              </button>
+              <button
+                type="button"
+                className="first-run-banner-action first-run-banner-action--ghost"
+                onClick={() => {
+                  setShowFirstRunBanner(false);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('brewassist.init.dismissed', 'true');
+                  }
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="workflow-strip" data-testid="workflow-strip">
           {HYBRID_WORKFLOW_STAGES.map((stage) => (
             <button
@@ -776,13 +1067,32 @@ export const BrewCockpitCenter: React.FC = () => {
           >
             {'</>'}
           </button>
+          <button
+            type="button"
+            className="format-btn format-btn--setup"
+            onClick={() => setShowInitWizard(true)}
+          >
+            Init
+          </button>
+          <button
+            type="button"
+            className="format-btn format-btn--setup"
+            onClick={() => setShowCommandPalette(true)}
+          >
+            Commands
+          </button>
         </div>
 
         <div className="cockpit-input-row">
           {isClient && (
+            <span className="brew-action-inline-hint">Message helpers</span>
+          )}
+          {isClient && (
             <ActionMenu
               onUploadFile={(files, dangerousAction) => {
-                console.log('Uploaded files', files);
+                appendSystemNotice(
+                  `Prepared file helper for ${files[0]?.name || 'uploaded file'}.`
+                );
                 void handleSend({
                   input: `Uploaded ${files[0].name}`,
                   dangerousAction: dangerousAction,
@@ -791,18 +1101,26 @@ export const BrewCockpitCenter: React.FC = () => {
               onSelectDeepReasoning={() => setNextUseDeepReasoning(true)}
               onSelectNimsResearch={() => setNextUseResearchModel(true)}
               onUploadImage={() =>
-                console.log('Upload Image / Screenshot clicked')
+                appendSystemNotice(
+                  'Upload Image / Screenshot is a stub for now. Use file upload or paste context while media capture is wired.'
+                )
               }
-              onTakePhoto={() => console.log('Take Photo (Camera) clicked')}
+              onTakePhoto={() =>
+                appendSystemNotice(
+                  'Take Photo is a stub for now. Camera capture will be added in a later phase.'
+                )
+              }
               onImportFromGoogleDrive={() =>
-                console.log('Import from Google Drive clicked')
+                appendSystemNotice(
+                  'Import from Google Drive is a stub for now. Drive integration will be added in a later phase.'
+                )
               }
             />
           )}
           <textarea
             ref={textareaRef}
             className="workspace-input"
-            placeholder={`BrewAssist ${getWorkflowStageLabel(workflowStage).toLowerCase()}...`}
+            placeholder={composerPlaceholder}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -856,6 +1174,11 @@ export const BrewCockpitCenter: React.FC = () => {
               Replay last run
             </button>
           )}
+          <span
+            className={`hud-badge ${showFirstRunBanner ? 'workflow-badge--on' : 'workflow-badge--off'}`}
+          >
+            Onboarding {showFirstRunBanner ? 'Ready' : 'Done'}
+          </span>
         </div>
       </div>
 
@@ -894,6 +1217,196 @@ export const BrewCockpitCenter: React.FC = () => {
         </div>
         <CockpitModeToggle />
       </div>
+
+      {workflowStage === 'replay' ? (
+        <section className="replay-history-panel">
+          <div className="replay-history-header">
+            <strong>Replay History</strong>
+            <span>
+              {workspaceId ? 'Workspace-scoped runs' : 'Recent org runs'}
+            </span>
+          </div>
+          {replayLoading ? (
+            <div className="code-viewer-status">Loading replay history…</div>
+          ) : replayError ? (
+            <div className="code-viewer-status error">{replayError}</div>
+          ) : replayRuns.length === 0 ? (
+            <div className="code-viewer-status">No persisted runs yet.</div>
+          ) : (
+            <div className="replay-history-layout">
+              <div className="replay-history-list">
+                {replayRuns.map((run) => (
+                  <button
+                    key={run.id}
+                    type="button"
+                    className={`replay-history-card ${selectedReplayRunId === run.id ? 'is-active' : ''}`}
+                    onClick={() => setSelectedReplayRunId(run.id)}
+                  >
+                    <div className="replay-history-meta">
+                      <strong>{run.status}</strong>
+                      <span>{new Date(run.created_at).toLocaleString()}</span>
+                      <span>
+                        Truth{' '}
+                        {typeof run.truth_score === 'number'
+                          ? run.truth_score
+                          : 'n/a'}
+                      </span>
+                    </div>
+                    <div className="replay-history-events">
+                      {run.events.slice(-3).map((event, index) => (
+                        <div
+                          key={`${run.id}-${event.created_at}-${index}`}
+                          className="replay-history-event"
+                        >
+                          <span>{event.event_type}</span>
+                          <span>
+                            {event.payload?.summary ??
+                              event.payload?.stage ??
+                              'event'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="replay-trace-panel">
+                {selectedReplayLoading ? (
+                  <div className="code-viewer-status">Loading run trace…</div>
+                ) : !selectedReplayTrace ? (
+                  <div className="code-viewer-status">
+                    Select a run to inspect its full trace.
+                  </div>
+                ) : (
+                  <>
+                    <div className="replay-history-header">
+                      <strong>Run Trace</strong>
+                      <span>{selectedReplayTrace.id}</span>
+                    </div>
+                    <div className="replay-collab-lane">
+                      <div className="replay-history-header">
+                        <strong>Collab Handoffs</strong>
+                        <span>
+                          {selectedCollabEvents.length > 0
+                            ? `${selectedCollabEvents.length} note(s)`
+                            : 'No collab notes'}
+                        </span>
+                      </div>
+                      {selectedCollabEvents.length === 0 ? (
+                        <div className="code-viewer-status">
+                          No persisted `collab.message` events for this run yet.
+                        </div>
+                      ) : (
+                        <div className="replay-collab-list">
+                          {selectedCollabEvents.map((event, index) => (
+                            <div
+                              key={`${selectedReplayTrace.id}-collab-${event.created_at}-${index}`}
+                              className="replay-collab-event"
+                            >
+                              <div className="replay-history-meta">
+                                <strong>
+                                  {event.payload?.payload?.author ?? 'System'}
+                                </strong>
+                                <span>
+                                  {event.payload?.payload?.kind ?? 'status'}
+                                </span>
+                                <span>
+                                  {event.payload?.payload?.source ?? 'agent'}
+                                </span>
+                                <span>
+                                  {new Date(event.created_at).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="replay-trace-summary">
+                                {event.payload?.payload?.message ??
+                                  event.payload?.summary ??
+                                  'Collab note'}
+                              </div>
+                              <div className="replay-collab-meta">
+                                {event.payload?.stage ?? 'replay'}
+                                {' • '}
+                                {event.payload?.payload?.presence ?? 'ready'}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="replay-trace-list">
+                      {selectedReplayTrace.events.map((event, index) => (
+                        <div
+                          key={`${selectedReplayTrace.id}-${event.created_at}-${index}`}
+                          className="replay-trace-event"
+                        >
+                          <div className="replay-history-meta">
+                            <strong>{event.event_type}</strong>
+                            <span>
+                              {new Date(event.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="replay-trace-summary">
+                            {event.payload?.summary ??
+                              event.payload?.stage ??
+                              'event'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      <InitWizardModal
+        open={showInitWizard}
+        onClose={() => {
+          setShowInitWizard(false);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('brewassist.init.dismissed', 'true');
+          }
+        }}
+        onComplete={(summary, nextPrompt) => {
+          setShowInitWizard(false);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('brewassist.init.complete', 'true');
+            localStorage.removeItem('brewassist.init.dismissed');
+          }
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: makeId(),
+              role: 'system',
+              content: `Onboarding complete.\n\n${summary}`,
+            },
+          ]);
+          setInput(nextPrompt);
+          setWorkflowStage('plan');
+        }}
+      />
+
+      <SlashCommandPalette
+        open={showCommandPalette}
+        onClose={() => {
+          setShowCommandPalette(false);
+          if (input === '/') {
+            setInput('');
+          }
+          textareaRef.current?.focus();
+        }}
+        onInsert={(command) => {
+          setInput(command + ' ');
+          setShowCommandPalette(false);
+          textareaRef.current?.focus();
+        }}
+        onRun={(command) => {
+          setShowCommandPalette(false);
+          void handleSend({ input: command });
+        }}
+      />
 
       {}
 

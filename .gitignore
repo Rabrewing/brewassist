@@ -30,3 +30,8 @@ __pycache__/
 
 # BrewAssist local state
 .brewlast.json
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+supabase/.cache/

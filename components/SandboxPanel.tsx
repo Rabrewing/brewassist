@@ -1,17 +1,24 @@
 // components/SandboxPanel.tsx
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import { useCockpitMode } from "@/contexts/CockpitModeContext";
+import React, { useState } from 'react';
+import { useCockpitMode } from '@/contexts/CockpitModeContext';
+import { useEnterpriseSelection } from '@/contexts/EnterpriseSelectionContext';
 
 export const SandboxPanel: React.FC = () => {
   const { mode: cockpitMode } = useCockpitMode();
-  const [model, setModel] = useState("TinyLLAMA (local)");
-  const [prompt, setPrompt] = useState("");
+  const { orgId, workspaceId, organizations, workspaces } =
+    useEnterpriseSelection();
+  const [model, setModel] = useState('TinyLLAMA (local)');
+  const [prompt, setPrompt] = useState('');
 
-  if (cockpitMode === "customer") {
+  if (cockpitMode === 'customer') {
     return null;
   }
+
+  const selectedOrg = organizations.find((item) => item.id === orgId) ?? null;
+  const selectedWorkspace =
+    workspaces.find((item) => item.id === workspaceId) ?? null;
 
   const handleRunSandbox = async () => {
     const payload = {
@@ -33,6 +40,10 @@ export const SandboxPanel: React.FC = () => {
     <div className="sandbox-card">
       <div className="sandbox-header">
         <span className="sandbox-title">AI SANDBOX</span>
+        <span className="sandbox-scope">
+          {selectedOrg?.name ?? 'Org'} /{' '}
+          {selectedWorkspace?.name ?? 'Workspace'}
+        </span>
       </div>
 
       <label className="sandbox-label">
@@ -59,7 +70,9 @@ export const SandboxPanel: React.FC = () => {
           <input type="checkbox" />
           BrewTruth Mode (cold audit)
         </label>
-        <button className="sandbox-run-button" onClick={handleRunSandbox}>Run Sandbox</button>
+        <button className="sandbox-run-button" onClick={handleRunSandbox}>
+          Run Sandbox
+        </button>
       </div>
     </div>
   );

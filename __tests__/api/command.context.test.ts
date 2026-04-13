@@ -7,6 +7,14 @@ const mockHandler = jest.fn(async (_input: string, ctx: any) => ({
   rawText: JSON.stringify(ctx),
 }));
 
+jest.mock('@/lib/supabase/server', () => ({
+  getAuthenticatedUser: jest.fn(async () => ({
+    id: 'user-a',
+    email: 'user@example.com',
+  })),
+  getSupabaseEnterpriseRole: jest.fn(async () => 'dev'),
+}));
+
 jest.mock('@/lib/commands/registry', () => ({
   findCommand: jest.fn(() => ({
     handler: mockHandler,
@@ -27,7 +35,6 @@ describe('command api enterprise context', () => {
       },
       headers: {
         'x-brewassist-mode': 'admin',
-        'x-brewassist-role': 'dev',
         'x-brewassist-tenant-id': 'tenant-a',
         'x-brewassist-org-id': 'org-a',
         'x-brewassist-user-id': 'user-a',

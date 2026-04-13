@@ -8,7 +8,11 @@
   border-radius: 0.75rem;
   border: 1px solid rgba(255, 215, 0, 0.3); /* BrewGold border */
   padding: 0.75rem 1rem 1rem; /* Adjusted padding */
-  background: radial-gradient(circle at top right, #020617 0%, #0b1220 55%); /* Darker gradient */
+  background: radial-gradient(
+    circle at top right,
+    #020617 0%,
+    #0b1220 55%
+  ); /* Darker gradient */
   box-shadow: 0 0 20px rgba(255, 215, 0, 0.15); /* BrewGold glow */
   font-size: 0.78rem;
   display: flex; /* Added flex for internal layout */
@@ -29,6 +33,13 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
+}
+
+.sandbox-scope {
+  font-size: 0.68rem;
+  color: rgba(248, 250, 252, 0.72);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .sandbox-label {
@@ -83,7 +94,7 @@
   color: rgba(248, 250, 252, 0.7);
 }
 
-.sandbox-checkbox-label input[type="checkbox"] {
+.sandbox-checkbox-label input[type='checkbox'] {
   appearance: none;
   width: 16px;
   height: 16px;
@@ -95,8 +106,8 @@
   cursor: pointer;
 }
 
-.sandbox-checkbox-label input[type="checkbox"]::before {
-  content: "";
+.sandbox-checkbox-label input[type='checkbox']::before {
+  content: '';
   width: 10px;
   height: 10px;
   transform: scale(0);
@@ -105,15 +116,18 @@
   border-radius: 0.125rem;
 }
 
-.sandbox-checkbox-label input[type="checkbox"]:checked::before {
+.sandbox-checkbox-label input[type='checkbox']:checked::before {
   transform: scale(1);
 }
-
 
 .sandbox-run-button {
   border-radius: 999px;
   border: none;
-  background: linear-gradient(90deg, #facc15, #22d3ee); /* BrewGold to BrewTeal gradient */
+  background: linear-gradient(
+    90deg,
+    #facc15,
+    #22d3ee
+  ); /* BrewGold to BrewTeal gradient */
   color: #020617;
   font-weight: 600;
   padding: 0.4rem 1.2rem; /* Adjusted padding */

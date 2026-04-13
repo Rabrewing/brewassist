@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRepoConnection } from '@/contexts/RepoConnectionContext';
+import { useEnterpriseSelection } from '@/contexts/EnterpriseSelectionContext';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { highlightSource, isMarkdownPath } from '@/lib/codeHighlight';
+import { summarizeUnifiedDiff } from '@/lib/brewdocs/diff/summary';
 import { RichMarkdown } from './RichMarkdown';
 
 type CodeViewerModalProps = {
@@ -19,11 +22,28 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
   onClose,
 }) => {
   const { repoProvider, repoRoot } = useRepoConnection();
+  const { orgId } = useEnterpriseSelection();
+  const { session } = useSupabaseAuth();
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [assistantPrompt, setAssistantPrompt] = useState('');
   const isMarkdown = filePath ? isMarkdownPath(filePath) : false;
+  const isDiffArtifact = Boolean(
+    filePath && /(diff\.txt|patch\.diff|\.diff)$/i.test(filePath)
+  );
+  const diffSummary = useMemo(
+    () => (isDiffArtifact ? summarizeUnifiedDiff(content) : null),
+    [content, isDiffArtifact]
+  );
+  const reviewRisk = useMemo(() => {
+    if (!diffSummary) return null;
+    if (diffSummary.hasBinaryHint) return 'HIGH';
+    if (diffSummary.addedLines + diffSummary.removedLines > 200)
+      return 'MEDIUM';
+    if (diffSummary.addedLines + diffSummary.removedLines > 0) return 'LOW';
+    return 'LOW';
+  }, [diffSummary]);
 
   useEffect(() => {
     if (!filePath) return;
@@ -38,6 +58,10 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
             headers: {
               'x-brewassist-repo-provider': repoProvider,
               'x-brewassist-repo-root': repoRoot,
+              ...(orgId ? { 'x-brewassist-org-id': orgId } : {}),
+              ...(session?.access_token
+                ? { Authorization: `Bearer ${session.access_token}` }
+                : {}),
             },
           }
         );
@@ -53,7 +77,7 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
     };
 
     fetchFile();
-  }, [filePath, repoProvider, repoRoot]);
+  }, [filePath, repoProvider, repoRoot, orgId, session]);
 
   if (!filePath) return null;
 
@@ -94,6 +118,28 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
 
         {/* Body */}
         <div className="code-viewer-body">
+          {diffSummary && (
+            <div className="code-viewer-review-banner">
+              <div className="code-viewer-review-copy">
+                <strong>Diff review</strong>
+                <span>
+                  {diffSummary.fileCount} file(s), {diffSummary.addedLines}{' '}
+                  added, {diffSummary.removedLines} removed
+                  {reviewRisk ? ` · Risk ${reviewRisk}` : ''}
+                </span>
+              </div>
+              <div className="code-viewer-review-chips">
+                <span className="code-viewer-review-chip">Sandbox mirror</span>
+                <span className="code-viewer-review-chip">Explain first</span>
+                {diffSummary.hasBinaryHint && (
+                  <span className="code-viewer-review-chip code-viewer-review-chip--warn">
+                    Binary hint
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {loading && <div className="code-viewer-status">Loading…</div>}
           {error && (
             <div className="code-viewer-status error">
@@ -123,7 +169,9 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
           <div className="assistant-meta">
             <span className="assistant-chip">BrewAssist</span>
             <span className="assistant-chip secondary">RB Mode</span>
-            {/* Future: NIM Researcher, BrewTruth Mode chips */}
+            {diffSummary && (
+              <span className="assistant-chip secondary">Diff</span>
+            )}
           </div>
           <div className="assistant-input-row">
             <button
@@ -135,7 +183,11 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
             </button>
             <input
               className="assistant-input"
-              placeholder="Ask BrewAssist about this file, request a patch, or send to BrewTruth…"
+              placeholder={
+                diffSummary
+                  ? 'Ask BrewAssist to explain this diff, review risk, or draft a patch…'
+                  : 'Ask BrewAssist about this file, request a patch, or send to BrewTruth…'
+              }
               value={assistantPrompt}
               onChange={(e) => setAssistantPrompt(e.target.value)}
               onKeyDown={(e) => {
@@ -145,6 +197,19 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
                 }
               }}
             />
+            <button
+              className="assistant-send assistant-send--ghost"
+              type="button"
+              onClick={() =>
+                setAssistantPrompt(
+                  diffSummary
+                    ? `Explain this diff and summarize its risk: ${filePath}`
+                    : assistantPrompt || `Review ${filePath}`
+                )
+              }
+            >
+              Explain
+            </button>
             <button
               className="assistant-send"
               type="button"

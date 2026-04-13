@@ -3,6 +3,10 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { findCommand } from '@/lib/commands/registry';
 import { BrewContext, BrewResult } from '@/lib/commands/types';
 import { parseEnterpriseContext } from '@/lib/enterpriseContext';
+import {
+  getAuthenticatedUser,
+  getSupabaseEnterpriseRole,
+} from '@/lib/supabase/server';
 
 type CommandRequestBody = {
   command: string;
@@ -21,22 +25,33 @@ export default async function handler(
   const { command, input = '' } = req.body as CommandRequestBody;
   const cmd = findCommand(command);
   const enterpriseContext = parseEnterpriseContext(req);
+  const authUser = await getAuthenticatedUser(req, res);
+  const resolvedRole = await getSupabaseEnterpriseRole(
+    req,
+    res,
+    enterpriseContext.orgId
+  );
 
   if (!cmd) {
     res.status(400).json({ error: `Unknown command: ${command}` });
     return;
   }
 
+  if (!authUser) {
+    res.status(401).json({ error: 'Sign in required' });
+    return;
+  }
+
   // TODO: derive from session / headers / cookies
   const ctx: BrewContext = {
     tenantId: enterpriseContext.tenantId,
-    userId: enterpriseContext.userId,
+    userId: authUser.id,
     projectId: enterpriseContext.projectId,
     orgId: enterpriseContext.orgId,
     repoId: enterpriseContext.repoId,
-    role: enterpriseContext.role,
+    role: resolvedRole,
     activeEnv: enterpriseContext.cockpitMode === 'admin' ? 'dev' : 'prod',
-    rbMode: enterpriseContext.role === 'admin',
+    rbMode: resolvedRole === 'admin',
     models: {
       primary: 'openai:gpt-4.1-mini',
       local: 'tinyllama',

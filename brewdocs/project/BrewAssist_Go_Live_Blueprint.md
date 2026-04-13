@@ -7,6 +7,22 @@ Define the architecture needed to take BrewAssist from a local DevOps cockpit to
 - `brewassist.app` → Cockpit UI + marketing site
 - A separate sandbox infra (per-customer isolated environments)
 
+## Current State
+
+- Signed-out users land on a public marketing/auth entry instead of the cockpit.
+- Supabase is the active auth and enterprise data path.
+- Email magic-link auth works in-browser; protected API routes currently accept the browser bearer token while server-side cookie exchange is still being hardened.
+- Tenant bootstrap is in place for org/workspace creation and now reuses existing records for the super-admin recovery account.
+- Typed agent runtime, persisted replay, and collab run notes now exist in the online control plane.
+- The launch path is still blocked on real provider repo connect, sandbox binding, and full preview-confirm-apply-report-replay completion.
+
+## Current Auth Risks
+
+- The duplicate `GoTrueClient` warning was caused by multiple browser Supabase clients. Fixed by making `lib/supabase/browser.ts` a singleton and updating `EnterpriseTenantGate` to use it.
+- The Supabase 500s on membership lookup were caused by recursive RLS policy in `public.is_active_org_member()`. Fixed by applying migration `202604130003_fix_membership_rls_recursion.sql` which replaces the function with a direct query and narrows the memberships select policy.
+- Sign-in now works reliably; the cockpit loads and shows the billing status badge for the org plan.
+- The Next.js dev-mode `isrManifest` websocket warning is framework/HMR noise, not a blocker.
+
 ---
 
 ## Core Components
@@ -53,7 +69,13 @@ Define the architecture needed to take BrewAssist from a local DevOps cockpit to
    - Authentication (Supabase Auth / Auth0 / Cognito)
    - Billing (Stripe)
 
-5. **Observability & Safety**
+5. **Public Entry And Billing Layer**
+   - Public landing page aligned to the real control-plane workflow
+   - Pricing page with normalized tier messaging
+   - Billing and plan-visibility surfaces tied to org scope
+   - Legal/compliance disclosures before cockpit access
+
+6. **Observability & Safety**
    - Logs:
      - API logs
      - Tool calls
@@ -86,12 +108,35 @@ Define the architecture needed to take BrewAssist from a local DevOps cockpit to
 
 4. **Add Auth & Billing**
    - Protect cockpit behind login.
+   - Add a public landing page and auth gateway before the cockpit loads.
+   - Add an org/workspace gate after login so tenant scope is explicit before the cockpit loads.
+   - Add cookie consent and legal pages (terms/privacy/cookies/accessibility) for the public entry flow.
+   - Include AI usage terms and data-collection disclosure before sign-in.
+   - Surface a public support contact (info@brewassist.app) for legal/compliance questions.
+   - Allow self-serve email magic link and optional Google/GitHub login; use org-managed SSO/OIDC/SAML for enterprise tenants.
    - Enforce plan tiers:
-     - Free (limited runs)
-     - Pro
-     - Enterprise
 
-5. **Roll Out**
+- Free (limited runs)
+- Pro
+- Enterprise
+
+## Remaining Go-Live Blockers
+
+1. Fix tenant lookup stability by removing duplicate browser Supabase clients and repairing the recursive `memberships` RLS policy path.
+2. Real repo provider auth/connect flow for GitHub, GitLab, Bitbucket, and local repo selection.
+3. Real sandbox mirror binding and sandbox lifecycle per selected repo/workspace.
+4. Server-side auth hardening: reliable session cookies, production SMTP, and enterprise SSO.
+5. End-to-end online execution lifecycle: confirm, apply, and full execution reporting must be real, not partial.
+6. Landing, pricing, billing, and plan enforcement surfaces need to match the normalized public product spec before launch.
+
+## Landing And Billing Direction
+
+- Use `brewdocs/BrewAssist Landing Page-Pricing-v1.md` and the mockups under `brewdocs/mockups/` as visual direction.
+- Normalize the copy to the real product state before implementation.
+- Public messaging should emphasize provider/repo context, sandbox-first execution, policy gating, report/replay, telemetry, and collaboration.
+- Avoid generic AI-tool marketing language or compliance claims that overstate current implementation.
+
+7. **Roll Out**
    - Internal dogfooding:
      - RB’s BrewVerse projects as first “customer”.
    - Closed beta:

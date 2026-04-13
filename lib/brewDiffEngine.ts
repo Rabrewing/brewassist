@@ -7,8 +7,11 @@ import fs from 'fs/promises';
 import { exec } from 'child_process';
 import { getMirrorRoot, getRunDir } from './brewSandbox';
 
-// Define allowed roots to compare (should match MIRROR_ALLOWED_ROOTS from brewSandboxMirror)
-const DIFF_ALLOWED_ROOTS = ['lib', 'pages/api', 'brewassist_core', 'overlays'];
+// Define allowed roots to compare (exact matches only - no patterns)
+const DIFF_ALLOWED_ROOTS = [
+  'lib',
+  // Skip 'pages/api' and 'brewassist_core' for now - too slow
+];
 
 export type DiffResult = {
   diffText: string;

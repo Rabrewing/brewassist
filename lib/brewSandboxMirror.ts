@@ -6,12 +6,10 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { getSandboxRoot, getMirrorRoot } from './brewSandbox';
 
-// Define allowed roots to mirror from the real repository
+// Define allowed roots to mirror from the real repository (exact matches only - no patterns)
 const MIRROR_ALLOWED_ROOTS = [
   'lib',
-  'pages/api',
-  'brewassist_core',
-  'overlays',
+  // Skip 'pages/api', 'brewassist_core', 'overlays' for now - too slow / too broad
 ];
 
 export type MirrorSummary = {

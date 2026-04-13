@@ -8,6 +8,10 @@ import { logToolRun } from '@/lib/brewLastServer';
 import type { BrewLastToolRun } from '@/lib/brewLast';
 import { parseEnterpriseContext } from '@/lib/enterpriseContext';
 import { canWriteFiles } from '@/lib/permissions';
+import {
+  getAuthenticatedUser,
+  getSupabaseEnterpriseRole,
+} from '@/lib/supabase/server';
 
 export default async function handler(
   req: NextApiRequest,
@@ -20,6 +24,19 @@ export default async function handler(
 
   try {
     const enterpriseContext = parseEnterpriseContext(req);
+    const authUser = await getAuthenticatedUser(req, res);
+
+    if (!authUser) {
+      return res.status(401).json({ error: 'Sign in required' });
+    }
+
+    const role = await getSupabaseEnterpriseRole(
+      req,
+      res,
+      enterpriseContext.orgId
+    );
+    enterpriseContext.userId = authUser.id;
+    enterpriseContext.role = role;
 
     if (!canWriteFiles(enterpriseContext)) {
       return res

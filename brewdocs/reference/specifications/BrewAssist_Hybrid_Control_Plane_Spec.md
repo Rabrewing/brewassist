@@ -1,5 +1,7 @@
 # BrewAssist Hybrid Control Plane Spec
 
+Updated: 2026-04-13
+
 ## Goal
 
 Make BrewAssist online the shared control plane for both the browser app and `brew-agentic` local TUI, without inventing separate workflows.
@@ -19,6 +21,45 @@ Make BrewAssist online the shared control plane for both the browser app and `br
 - **BrewAssist Online**: repo/provider selection, collaboration, review, approvals, audit, replay.
 - **Brew-Agentic Local TUI**: terminal-first execution, offline use, fast operator control, local memory and telemetry.
 - **Shared Contract**: one plan/session/run schema, one diff format, one replay/report model.
+- **Agent Fabric**: small typed agents for intent, plan, policy, execute, report, replay, telemetry, and collaboration.
+
+## Current Implementation Gap
+
+- The typed agent fabric is now partially implemented.
+- `intent_agent`, `planner_agent`, `policy_agent`, `executor_agent`, `reporter_agent`, `replay_agent`, `telemetry_agent`, and `collab_agent` now emit shared runtime events.
+- Replay traces now persist through `sessions`, `runs`, and `run_events`.
+- Collaboration notes now persist as `collab.message` events and surface in replay and the right rail.
+- Current online behavior still relies on central UI/API orchestration in places where dedicated typed agents should own more stage transitions and side effects.
+- BrewAssist is not v1 until provider/repo binding, sandbox execution, diff/confirm/apply, and human collaboration flows fully operate through the shared contract.
+
+## Shared Event Envelope
+
+All agent messages and run events should carry the same core fields.
+
+- `sessionId`
+- `runId`
+- `stage`
+- `agentId`
+- `eventType`
+- `timestamp`
+- `actor`
+- `summary`
+- `payload`
+- `policyState`
+- `telemetry`
+- `uiHints`
+
+Stage payloads should stay narrow and typed:
+
+- Intent: user text, repo context, desired outcome
+- Plan: steps, risks, preview targets, confirm requirements
+- Preview: diff summary, files touched, policy notes
+- Confirm: approval state, blockers, acknowledgements
+- Execute: sandbox writes, command results, retries, timestamps
+- Report: changed files, outcome summary, truth/report metadata
+- Replay: prior run references, immutable snapshot data
+- Telemetry: DevOps 8 scores, latency, safety, scope, efficiency
+- Collab: chat entries, presence, handoff state, screen-share markers
 
 ## Shared Session Fields
 
@@ -49,6 +90,24 @@ Make BrewAssist online the shared control plane for both the browser app and `br
 4. BrewAssist binds that repo to a sandbox mirror.
 5. BrewAssist uses the mirror for reads, previews, and writes.
 6. Unsupported cross-repo access fails closed.
+7. Supabase sessions and org membership govern enterprise access before production rollout.
+8. Browser-originated bearer tokens may be forwarded to protected Next API routes until server-side cookie exchange is fully hardened.
+
+## Onboarding
+
+Onboarding is a required v1 surface for both new users and enterprise rollouts.
+
+- first-run setup should explain the hybrid control plane and safe workflow
+- provider connection, repo selection, and sandbox binding should be guided
+- org creation, workspace setup, and role assignment should be explicit for enterprise tenants
+- diff review, confirm gates, and replay should be introduced during onboarding
+- research and toolbelt permissions should be explained before first use
+- onboarding must leave the user with a working Intent -> Plan -> Preview -> Confirm -> Execute -> Report -> Replay loop
+- power users should be able to invoke a slash-command palette from the center composer
+- public landing and auth gate should precede the cockpit for signed-out users on brewassist.app
+- cookie consent and legal links should be present on the public entry flow
+- the public entry flow should link accessibility and cookie policy pages and disclose AI/data collection terms
+- tenant bootstrap should be idempotent so super-admin recovery and repeated login attempts reuse the same org/workspace instead of failing on unique constraints
 
 ## Surface Responsibilities
 
@@ -73,6 +132,18 @@ Make BrewAssist online the shared control plane for both the browser app and `br
 - No direct tool execution bypassing policy gates.
 - No replay/report mode mutations.
 - Sandbox mirror is the default writable surface.
+- Enterprise deployments should assume RBAC, RLS, audit logging, and secret management are required before database-backed team workflows go live.
+- Temporary bearer-token forwarding from the browser is acceptable for the current online build, but production hardening should converge on stable cookie/session exchange.
+
+## Diff Review
+
+Diff review is a required v1 control-plane surface.
+
+- preview must show before/after context where possible
+- patch validation must happen before confirm/apply
+- review should expose truth score, risk level, and an explanation mode
+- diff review should work against the sandbox mirror, not the live repo
+- diff review should include summary chips for file count, line count, and binary hints when relevant
 
 ## BrewAssist v1 Criteria
 
@@ -84,10 +155,12 @@ BrewAssist is not v1 until it can:
 - preview the diff before execution
 - require confirmation for mutations
 - report what changed and replay the run
+- keep auth, tenant bootstrap, and repo/sandbox selection aligned so a signed-in user can reach the cockpit without manual recovery steps
 
 ## Cross References
 
 - `brewdocs/project/BrewAssist_Go_Live_Blueprint.md`
+- `brewdocs/reference/specifications/BrewAssist_Landing_And_Billing_Spec.md`
 - `brewdocs/project/BrewAssist_Finite_Roadmap_S4_5_to_S5.md`
 - `brewdocs/project/S4.10_MCP_DevOps_Cockpit_Blueprint.md`
 - `brewdocs/project/S4.10_MCP_Tools_Overhaul_Roadmap.md`
