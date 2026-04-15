@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { SandboxDiffModal } from './modals/SandboxDiffModal';
 import type { BrewTruthReport } from '@/lib/brewtruth'; // Import BrewTruthReport
 import { ActionMenu } from './ActionMenu';
 import type { BrewAssistApiRequest } from '@/pages/api/brewassist'; // Import BrewAssistApiRequest
@@ -108,7 +109,9 @@ export const BrewCockpitCenter: React.FC = () => {
   const { session } = useSupabaseAuth();
   const { recordEvent: recordDevOps8Event } = useDevOps8Runtime();
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<UiMessage[]>(() => [
+  const [showSandboxDiffModal, setShowSandboxDiffModal] = useState(false);
+  const [hasPendingSandboxChanges, setHasPendingSandboxChanges] = useState(false);
+  const [messages, setMessages] = useState<UiMessage[]>([
     {
       id: 'initial-system-message', // Use a static ID for the initial message
       role: 'system',
@@ -558,10 +561,16 @@ export const BrewCockpitCenter: React.FC = () => {
                           payload: {
                             diffFiles: 1,
                             hasChanges: true,
-                          },
-                        });
-                        setMessages((prev) =>
-                          prev.map((msg) =>
+                            },
+                            });
+
+                            if (json.needsPreviewRefresh) {
+                            setHasPendingSandboxChanges(true);
+                            setWorkflowStage('preview');
+                            appendSystemNotice('AI modifications completed in Sandbox. Review diff before applying.');
+                            }
+
+                            setMessages((prev) =>                          prev.map((msg) =>
                             msg.id === assistantMsgId
                               ? { ...msg, fullText: (msg.fullText ?? '') + t }
                               : msg
@@ -1133,6 +1142,16 @@ export const BrewCockpitCenter: React.FC = () => {
           >
             Send
           </button>
+          
+          {hasPendingSandboxChanges && (
+            <button
+              className="workspace-send-button"
+              style={{ background: '#22d3ee', color: '#020617', marginLeft: '0.5rem', minWidth: 'max-content' }}
+              onClick={() => setShowSandboxDiffModal(true)}
+            >
+              Review & Apply
+            </button>
+          )}
         </div>
 
         <div className="cockpit-hud">
@@ -1375,6 +1394,21 @@ export const BrewCockpitCenter: React.FC = () => {
             localStorage.setItem('brewassist.init.complete', 'true');
             localStorage.removeItem('brewassist.init.dismissed');
           }
+
+          // --- Checks & Balances ---
+          const hasRepo = !!repoRoot;
+          const githubToken = window.localStorage.getItem('github_token');
+          const gitlabToken = window.localStorage.getItem('gitlab_token');
+          const bitbucketToken = window.localStorage.getItem('bitbucket_token');
+          
+          const hasToken =
+            (repoProvider === 'github' && !!githubToken) ||
+            (repoProvider === 'gitlab' && !!gitlabToken) ||
+            (repoProvider === 'bitbucket' && !!bitbucketToken) ||
+            repoProvider === 'local';
+
+          const isEnvironmentReady = hasRepo && hasToken;
+
           setMessages((prev) => [
             ...prev,
             {
@@ -1382,9 +1416,19 @@ export const BrewCockpitCenter: React.FC = () => {
               role: 'system',
               content: `Onboarding complete.\n\n${summary}`,
             },
+            {
+              id: makeId(),
+              role: 'system',
+              content: isEnvironmentReady
+                ? `✅ Environment Verified: ${repoProvider} connected to ${repoRoot}. Ready for planning.`
+                : `⚠️ Environment Warning: Your repo is not fully connected yet. Please use the top navigation to connect ${repoProvider} before starting.`,
+            },
           ]);
-          setInput(nextPrompt);
-          setWorkflowStage('plan');
+
+          if (isEnvironmentReady) {
+            setInput(nextPrompt);
+            setWorkflowStage('plan');
+          }
         }}
       />
 
@@ -1435,6 +1479,16 @@ export const BrewCockpitCenter: React.FC = () => {
           </div>
         </div>
       )}
+      <SandboxDiffModal 
+        open={showSandboxDiffModal} 
+        onClose={() => setShowSandboxDiffModal(false)}
+        onSuccess={() => {
+          setShowSandboxDiffModal(false);
+          setHasPendingSandboxChanges(false);
+          setWorkflowStage('report');
+          appendSystemNotice('✅ Changes successfully committed and pushed to remote repository!');
+        }}
+      />
     </div>
   );
 };

@@ -5,6 +5,7 @@ import path from 'path';
 import { BREWASSIST_REPO_ROOT, isPathAllowed } from '../../lib/brewConfig';
 import { parseEnterpriseContext } from '@/lib/enterpriseContext';
 import { assertRepoScope } from '@/lib/permissions';
+import { getMirrorRoot } from '@/lib/brewSandbox';
 import {
   getAuthenticatedUser,
   getSupabaseEnterpriseRole,
@@ -12,7 +13,7 @@ import {
 
 type FsReadResponse = { error: string } | { path: string; content: string };
 
-function normalizeRequestedPath(raw: string | string[] | undefined): string {
+function normalizeRequestedPath(raw: string | string[] | undefined, rootPath: string): string {
   if (!raw) return '.'; // root
 
   const s = Array.isArray(raw) ? raw[0] : raw;
@@ -21,7 +22,7 @@ function normalizeRequestedPath(raw: string | string[] | undefined): string {
   let clean = s.replace(/^\/+/, '');
 
   // If someone sent an absolute path under the repo, strip the repo root
-  const root = path.resolve(BREWASSIST_REPO_ROOT);
+  const root = path.resolve(rootPath);
   const candidate = path.resolve(s);
   if (candidate.startsWith(root)) {
     clean = path.relative(root, candidate);
@@ -56,10 +57,25 @@ export default async function handler(
         .json({ error: repoScope.reason ?? 'Repo scope denied' });
     }
 
-    const relative = normalizeRequestedPath(req.query.path);
-    const fullPath = path.join(BREWASSIST_REPO_ROOT, relative);
+    // Determine the base path (sandbox mirror or local fallback)
+    let basePath = BREWASSIST_REPO_ROOT;
+    if (enterpriseContext.repoProvider && enterpriseContext.repoProvider !== 'local' && enterpriseContext.repoRoot) {
+      const mirrorTargetRoot = getMirrorRoot();
+      basePath = path.join(mirrorTargetRoot, enterpriseContext.repoProvider, enterpriseContext.repoRoot);
+      
+      try {
+        await fs.access(basePath);
+      } catch {
+        console.warn(`[fs-read] Sandbox mirror not found for ${enterpriseContext.repoProvider}/${enterpriseContext.repoRoot}. Falling back to local repo root.`);
+        basePath = BREWASSIST_REPO_ROOT;
+      }
+    }
 
-    if (!isPathAllowed(fullPath)) {
+    const relative = normalizeRequestedPath(req.query.path, basePath);
+    const fullPath = path.join(basePath, relative);
+
+    // If using BREWASSIST_REPO_ROOT, check if allowed
+    if (basePath === BREWASSIST_REPO_ROOT && !isPathAllowed(fullPath)) {
       console.warn('[fs-read] blocked path', { relative, fullPath });
       return res.status(400).json({ error: 'Path not allowed' });
     }

@@ -5,10 +5,13 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import fs from 'fs';
 import path from 'path';
 import { BREWEXEC_ROOT, sandboxPath } from '../../lib/brewassistMaintenance';
+import { getMirrorRoot } from '../../lib/brewSandbox';
 
 interface SandboxApplyBody {
-  relativePath: string; // must be under sandbox/, e.g. "sandbox/s4_fix.ts" or "s4_fix.ts"
+  relativePath: string; // e.g. "components/Button.tsx"
   content: string;
+  provider?: string; // e.g. "github", "gitlab"
+  repoFullName?: string; // e.g. "rabrewing/brewassist"
 }
 
 function isSafeSandboxPath(relativePath: string): boolean {
@@ -41,14 +44,31 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   try {
-    const baseSandboxDir = path.join(BREWEXEC_ROOT, 'sandbox');
-    if (!fs.existsSync(baseSandboxDir)) {
-      fs.mkdirSync(baseSandboxDir, { recursive: true });
-    }
+    let fullPath = '';
 
-    // Strip possible leading "sandbox/"
-    const cleanRel = body.relativePath.replace(/^sandbox\//, '');
-    const fullPath = sandboxPath(cleanRel);
+    if (body.provider && body.provider !== 'local' && body.repoFullName) {
+      // Use the new multi-provider Sandbox Mirror directory
+      const mirrorTargetRoot = getMirrorRoot();
+      const basePath = path.join(mirrorTargetRoot, body.provider, body.repoFullName);
+      
+      if (!fs.existsSync(basePath)) {
+        fs.mkdirSync(basePath, { recursive: true });
+      }
+
+      // Strip leading slashes
+      const cleanRel = body.relativePath.replace(/^\/+/, '');
+      fullPath = path.join(basePath, cleanRel);
+
+    } else {
+      // Legacy flat sandbox logic
+      const baseSandboxDir = path.join(BREWEXEC_ROOT, 'sandbox');
+      if (!fs.existsSync(baseSandboxDir)) {
+        fs.mkdirSync(baseSandboxDir, { recursive: true });
+      }
+
+      const cleanRel = body.relativePath.replace(/^sandbox\//, '');
+      fullPath = sandboxPath(cleanRel);
+    }
 
     const dir = path.dirname(fullPath);
     if (!fs.existsSync(dir)) {

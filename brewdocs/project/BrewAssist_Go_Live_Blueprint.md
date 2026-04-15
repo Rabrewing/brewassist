@@ -122,9 +122,9 @@ Define the architecture needed to take BrewAssist from a local DevOps cockpit to
 
 ## Remaining Go-Live Blockers
 
-1. Fix tenant lookup stability by removing duplicate browser Supabase clients and repairing the recursive `memberships` RLS policy path.
-2. Real repo provider auth/connect flow for GitHub, GitLab, Bitbucket, and local repo selection.
-3. Real sandbox mirror binding and sandbox lifecycle per selected repo/workspace.
+1. ~~Fix tenant lookup stability by removing duplicate browser Supabase clients and repairing the recursive `memberships` RLS policy path.~~ (✅ FIXED)
+2. Real repo provider auth/connect flow for GitHub (✅ FIXED), GitLab (✅ FIXED), Bitbucket (✅ FIXED), and local repo selection (✅ BrewAgentic Bridge).
+3. Real sandbox mirror binding and sandbox lifecycle per selected repo/workspace. (✅ Multi-provider binding implemented securely for GH/GL/BB)
 4. Server-side auth hardening: reliable session cookies, production SMTP, and enterprise SSO.
 5. End-to-end online execution lifecycle: confirm, apply, and full execution reporting must be real, not partial.
 6. Landing, pricing, billing, and plan enforcement surfaces need to match the normalized public product spec before launch.
@@ -147,6 +147,10 @@ Define the architecture needed to take BrewAssist from a local DevOps cockpit to
 
 ## Long-Term Direction
 
+- **Universal Provider Architecture (BYOK):**
+  - Shift from rigid fallback chains to a dynamic provider system.
+  - **Bring Your Own Key (BYOK):** Allow enterprise clients to input their own API keys for inference, or use BrewAssist's managed quotas.
+  - **Expanded Roster:** Add support for ChatGPT 5.4, Gemini 3, Anthropic (Claude), Mimo V2 (Omni + Pro), Kimi K2.5, Qwen, and MiniMax.
 - Native support for:
   - BrewChat (general AI)
   - BrewCore (knowledge AI)

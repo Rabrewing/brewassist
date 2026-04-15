@@ -2,20 +2,24 @@ import { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { WorkspaceSidebarLeft } from '../components/WorkspaceSidebarLeft';
-import { WorkspaceSidebarRight } from '../components/WorkspaceSidebarRight'; // Import WorkspaceSidebarRight
+import { WorkspaceSidebarRight } from '../components/WorkspaceSidebarRight';
 import { BrewCockpitCenter } from '../components/BrewCockpitCenter';
-import { ToolbeltProvider } from '@/contexts/ToolbeltContext'; // Import ToolbeltProvider
+import { ToolbeltProvider } from '@/contexts/ToolbeltContext';
 import { RepoProviderSelector } from '@/components/RepoProviderSelector';
-import { EnterpriseWorkspaceSwitcher } from '@/components/EnterpriseWorkspaceSwitcher';
-import { PublicLandingPage } from '@/components/PublicLandingPage';
+import { EnterpriseWorkspaceSwitcher } from '../components/EnterpriseWorkspaceSwitcher';
+import { PublicLandingPage } from '../components/PublicLandingPage';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { EnterpriseTenantGate } from '@/components/EnterpriseTenantGate';
 import { BillingStatusBadge } from '@/components/BillingStatusBadge';
+import { DeviceFlowModal } from '@/components/DeviceFlowModal';
+import { useRepoConnection } from '@/contexts/RepoConnectionContext';
 
 export default function Home() {
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
-  const [isRightCollapsed, setIsRightCollapsed] = useState(false); // Add state for right sidebar
+  const [isRightCollapsed, setIsRightCollapsed] = useState(false);
   const { session, loading, signOut } = useSupabaseAuth();
+  const { showDeviceFlow, setGithubToken, closeDeviceFlow } =
+    useRepoConnection();
 
   if (loading) {
     return (
@@ -49,20 +53,28 @@ export default function Home() {
               <button className="cockpit-nav-link">Settings</button>
             </nav>
             <div className="cockpit-header-right">
-              <EnterpriseWorkspaceSwitcher />
               <BillingStatusBadge />
-              <RepoProviderSelector />
-              <span className="cockpit-mode-pill">
+              <span className="cockpit-mode-pill" style={{ marginLeft: '0.5rem' }}>
                 Signed in · {session.user.email ?? 'BrewAssist user'}
               </span>
               <button
                 className="cockpit-signin-btn"
+                style={{ marginLeft: '0.5rem' }}
                 onClick={() => void signOut()}
               >
                 Sign out
               </button>
             </div>
           </header>
+
+          <div className="cockpit-sub-header">
+            <div className="sub-header-left">
+              <EnterpriseWorkspaceSwitcher />
+            </div>
+            <div className="sub-header-right">
+              <RepoProviderSelector />
+            </div>
+          </div>
 
           <main className="cockpit-body">
             {/* LEFT SIDEBAR */}
@@ -116,6 +128,14 @@ export default function Home() {
             </div>
           </footer>
         </div>
+        <DeviceFlowModal
+          open={showDeviceFlow}
+          onClose={closeDeviceFlow}
+          onSuccess={(token) => {
+            setGithubToken(token);
+            closeDeviceFlow();
+          }}
+        />
       </ToolbeltProvider>
     </EnterpriseTenantGate>
   );

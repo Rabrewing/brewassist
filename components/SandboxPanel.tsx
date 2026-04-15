@@ -1,7 +1,7 @@
 // components/SandboxPanel.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useCockpitMode } from '@/contexts/CockpitModeContext';
 import { useEnterpriseSelection } from '@/contexts/EnterpriseSelectionContext';
 
@@ -9,7 +9,45 @@ export const SandboxPanel: React.FC = () => {
   const { mode: cockpitMode } = useCockpitMode();
   const { orgId, workspaceId, organizations, workspaces } =
     useEnterpriseSelection();
-  const [model, setModel] = useState('TinyLLAMA (local)');
+  
+  const [providers, setProviders] = useState<any>(null);
+  
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        const res = await fetch('/api/models/available');
+        const data = await res.json();
+        if (data.providers) {
+          setProviders(data.providers);
+        }
+      } catch (err) {
+        console.error('Failed to fetch available models:', err);
+      }
+    };
+    void fetchModels();
+  }, []);
+  
+  const availableModels = useMemo(() => {
+    if (!providers) return [{ id: 'tinyllm', label: 'TinyLLAMA (local)' }];
+    
+    const list = [];
+    if (providers.openai?.enabled) list.push({ id: 'openai', label: 'GPT-4o (Enterprise)' });
+    if (providers.gemini?.enabled) list.push({ id: 'gemini', label: 'Gemini 1.5 Pro' });
+    if (providers.mistral?.enabled) list.push({ id: 'mistral', label: 'Mistral Large' });
+    if (providers.nims?.enabled) list.push({ id: 'nims', label: 'Nvidia NIMs' });
+    list.push({ id: 'tinyllm', label: 'TinyLLAMA (local)' });
+    return list;
+  }, [providers]);
+
+  const [model, setModel] = useState('tinyllm');
+  
+  // Update selection if the list changes and current selection is gone
+  useEffect(() => {
+    if (availableModels.length > 0 && !availableModels.find(m => m.id === model)) {
+      setModel(availableModels[0].id);
+    }
+  }, [availableModels, model]);
+
   const [prompt, setPrompt] = useState('');
 
   if (cockpitMode === 'customer') {
@@ -53,8 +91,9 @@ export const SandboxPanel: React.FC = () => {
           value={model}
           onChange={(e) => setModel(e.target.value)}
         >
-          <option value="TinyLLAMA (local)">TinyLLAMA (local)</option>
-          {/* Add OpenAI / Gemini / Mistral later */}
+          {availableModels.map(m => (
+            <option key={m.id} value={m.id}>{m.label}</option>
+          ))}
         </select>
       </label>
 

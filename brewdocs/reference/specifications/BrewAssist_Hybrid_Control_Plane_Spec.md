@@ -86,6 +86,7 @@ Stage payloads should stay narrow and typed:
 
 1. User selects a provider: GitHub, GitLab, Bitbucket, or local.
 2. User authenticates with that provider using OAuth, app install, token, or enterprise SSO.
+   - **Note on "Local":** When "Local" is selected in the online web UI, BrewAssist will surface a toast/prompt instructing the user to install the `BrewAgentic` local TUI. The online web app cannot read local drives for security. Once `BrewAgentic` is running locally, the online control plane can orchestrate it.
 3. User selects a repo or workspace scope.
 4. BrewAssist binds that repo to a sandbox mirror.
 5. BrewAssist uses the mirror for reads, previews, and writes.
@@ -121,6 +122,7 @@ Onboarding is a required v1 surface for both new users and enterprise rollouts.
   - expose compact collaboration surfaces for chat, presence, reporting, and screen-share launch
   - expose the left rail as grouped, policy-aware MCP/action surfaces with a compact helper card
   - keep the right rail compact so the center pane stays dominant
+  - **Help Tab:** Must explain the "Public Repository Requirement" (BrewAssist V1 requires repos to be public to support full Sandbox bindings and AI code-reading functions).
 - **Local TUI**
   - execute approved plans
   - run offline when needed

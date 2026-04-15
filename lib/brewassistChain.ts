@@ -20,6 +20,7 @@ export type BrewAssistResult = {
   mode?: BrewMode;
   truth?: BrewTruthReport;
   autoProceeded?: boolean;
+  needsPreviewRefresh?: boolean;
 };
 
 function asCleanString(input: unknown): string {
@@ -56,6 +57,7 @@ export async function runBrewAssistChain(
         engine: 'openai+toolbelt',
         emoji: '🛠️',
         raw: tb.raw,
+        needsPreviewRefresh: tb.needsPreviewRefresh,
         ...options,
       };
     }

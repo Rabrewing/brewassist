@@ -136,6 +136,7 @@ export type ToolCallResult = {
   exitCode: number;
   tool: string;
   args: unknown;
+  needsPreviewRefresh?: boolean;
 };
 
 export type ToolbeltRunResult = {
@@ -145,6 +146,7 @@ export type ToolbeltRunResult = {
   mode?: BrewMode;
   truth?: BrewTruthReport;
   autoProceeded?: boolean;
+  needsPreviewRefresh?: boolean;
 };
 
 /**
@@ -309,6 +311,7 @@ export async function runWithToolbelt(
 
   // Tools selected → execute each via /api/llm-tool-call
   const results: ToolCallResult[] = [];
+  let needsPreviewRefresh = false;
 
   for (const call of toolCalls) {
     const name = call.function?.name;
@@ -332,6 +335,11 @@ export async function runWithToolbelt(
       prompt,
       options?.userId
     );
+    
+    if (result.needsPreviewRefresh) {
+      needsPreviewRefresh = true;
+    }
+    
     results.push({ ...result, tool: name, args });
   }
 
@@ -355,6 +363,7 @@ export async function runWithToolbelt(
     output: summaryLines.join('\n'),
     usedTools: true,
     raw: { openai: data, tools: results },
+    needsPreviewRefresh,
     ...options,
   };
 }

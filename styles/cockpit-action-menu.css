@@ -207,48 +207,60 @@
   box-shadow: none;
 }
 
-/* --- 4) Icon container (no bubble pills) --- */
+/* --- 4) Icon container (clean, sharp, no blobs) --- */
 .brew-action-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: var(--brew-radius-icon);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px; /* Sharp rounded, not a pill */
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(65, 140, 255, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(148, 163, 184, 0.12);
   color: var(--brew-text);
+  transition: all 140ms ease;
 }
 
 /* Slight accent on hover only */
 .brew-action-item-btn:hover .brew-action-icon {
-  border-color: rgba(0, 199, 183, 0.22);
-  box-shadow: 0 0 0 1px rgba(0, 199, 183, 0.08) inset;
+  background: rgba(0, 199, 183, 0.08);
+  border-color: rgba(0, 199, 183, 0.3);
+  color: #9cefe5;
 }
 
 /* --- 5) Text treatment (calm, enterprise) --- */
 .brew-action-text {
   display: flex;
   flex-direction: column;
-  line-height: 1.15;
-  min-width: 0; /* allow text ellipsis */
+  line-height: 1.3; /* Better spacing for font encapsulation */
+  min-width: 0;
 }
 
 .brew-action-title {
-  font-size: var(--brew-title-size);
-  letter-spacing: var(--brew-letterspace);
-  color: var(--brew-text);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #f8fafc;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .brew-action-subtitle {
-  margin-top: 3px;
-  font-size: var(--brew-subtitle-size);
-  color: var(--brew-text); /* LED White */
+  margin-top: 1px;
+  font-size: 0.72rem;
+  color: rgba(148, 163, 184, 0.85);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Clean row hover (matches sidebar logic) */
+.brew-action-item-btn:hover {
+  background: rgba(30, 64, 175, 0.08);
+  border-left: 2px solid var(--brew-teal);
+  border-radius: 0 8px 8px 0; /* Only right corners to emphasize the left bar */
+  transform: translateX(2px);
+  box-shadow: none;
 }
 
 /* --- 6) Divider (if needed) --- */

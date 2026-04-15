@@ -71,12 +71,6 @@ export function EnterpriseWorkspaceSwitcher() {
           ))}
         </select>
       </label>
-
-      {selectedOrg && selectedWorkspace ? (
-        <span className="cockpit-mode-pill">
-          {selectedOrg.name} · {selectedWorkspace.name}
-        </span>
-      ) : null}
     </div>
   );
 }

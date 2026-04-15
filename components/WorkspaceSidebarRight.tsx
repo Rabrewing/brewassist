@@ -32,7 +32,7 @@ export const WorkspaceSidebarRight: React.FC = () => {
           <button
             key={tab.id}
             className={`workspace-sidebar-right-tab-item ${activeTabId === tab.id ? 'is-active' : ''}`}
-            onClick={() => setActiveTabId(tab.id)}
+            onClick={() => setActiveTabId(prev => prev === tab.id ? null : tab.id)}
             title={tab.label}
           >
             {tab.icon}

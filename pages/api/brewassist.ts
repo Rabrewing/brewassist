@@ -441,6 +441,7 @@ export default async function handler(
         text: accumulatedText,
         truth: brewTruthReport,
         policy: policyEnvelope,
+        needsPreviewRefresh: raceResult.value?.needsPreviewRefresh,
       });
     }
   } catch (error) {

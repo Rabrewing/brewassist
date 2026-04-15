@@ -321,25 +321,31 @@ export function EnterpriseTenantGate({
               className="public-landing-input"
               id="org-name"
               name="orgName"
-              placeholder="Organization name"
+              placeholder="Organization Name (e.g., Brewington Exec Group)"
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
               required
             />
-            <input
-              className="public-landing-input"
-              id="org-slug"
-              name="slug"
-              placeholder="slug"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                className="public-landing-input"
+                id="org-slug"
+                name="slug"
+                placeholder="Organization URL Slug (e.g., brewington-exec)"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                required
+                style={{ marginBottom: '4px' }}
+              />
+              <span style={{ fontSize: '0.65rem', color: '#94a3b8', display: 'block', marginBottom: '16px', marginLeft: '4px' }}>
+                This is the unique URL-friendly ID for your organization (lowercase, no spaces).
+              </span>
+            </div>
             <input
               className="public-landing-input"
               id="workspace-name"
               name="workspaceName"
-              placeholder="Workspace name (optional)"
+              placeholder="Workspace Name (optional)"
               value={workspaceName}
               onChange={(e) => setWorkspaceName(e.target.value)}
             />
@@ -352,37 +358,35 @@ export function EnterpriseTenantGate({
     );
   }
 
+  if (selectedOrg && selectedWorkspace) {
+    return <>{children}</>;
+  }
+
   return (
-    <div className="enterprise-gate-shell">
-      <section className="enterprise-gate-card">
+    <div className="enterprise-gate-shell public-landing-shell">
+      <section className="enterprise-gate-card public-site-panel">
         <div>
-          <div className="public-landing-kicker">Workspace selected</div>
-          <h2>{selectedOrg?.name ?? 'Selected org'}</h2>
+          <div className="public-landing-kicker">Select Workspace</div>
+          <h2>{selectedOrg?.name ?? 'Your Organization'}</h2>
           <p>
-            Choose your workspace before entering the cockpit. Role and
-            permissions come from your org membership.
+            Choose your workspace before entering the cockpit.
           </p>
         </div>
-        <div className="enterprise-gate-grid">
+        <div className="enterprise-gate-grid public-landing-card-grid" style={{ marginTop: '1rem' }}>
           {workspaces.map((workspace) => (
             <button
               key={workspace.id}
               type="button"
-              className={`enterprise-gate-card-item ${workspace.id === workspaceId ? 'is-active' : ''}`}
+              className={`public-landing-card ${workspace.id === workspaceId ? 'is-active' : ''}`}
               onClick={() => setWorkspaceId(workspace.id)}
+              style={{ textAlign: 'left', cursor: 'pointer', border: workspace.id === workspaceId ? '1px solid #00c7b7' : undefined }}
             >
               <strong>{workspace.name}</strong>
-              <span>Workspace</span>
+              <p>Workspace</p>
             </button>
           ))}
         </div>
-        {selectedWorkspace && (
-          <div className="public-landing-status">
-            Active workspace: {selectedWorkspace.name}
-          </div>
-        )}
       </section>
-      {orgId ? children : null}
     </div>
   );
 }

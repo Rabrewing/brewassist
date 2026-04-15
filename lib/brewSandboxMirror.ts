@@ -4,7 +4,11 @@
 
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { getSandboxRoot, getMirrorRoot } from './brewSandbox';
+
+const execAsync = promisify(exec);
 
 // Define allowed roots to mirror from the real repository (exact matches only - no patterns)
 const MIRROR_ALLOWED_ROOTS = [
@@ -15,6 +19,12 @@ const MIRROR_ALLOWED_ROOTS = [
 export type MirrorSummary = {
   filesCopied: number;
   rootsIncluded: string[];
+  durationMs: number;
+};
+
+export type RemoteBindingSummary = {
+  repoFullName: string;
+  sandboxPath: string;
   durationMs: number;
 };
 
@@ -93,5 +103,60 @@ export async function buildMirror(
     filesCopied, // This count is currently inaccurate, needs refinement if exact file count is critical
     rootsIncluded: MIRROR_ALLOWED_ROOTS,
     durationMs,
+  };
+}
+
+/**
+ * Clones a remote repository into the sandbox mirror directory.
+ * @param provider The repository provider ('github', 'gitlab', 'bitbucket').
+ * @param repoFullName The full name of the repository (e.g., 'rabrewing/brewassist').
+ * @param token The OAuth token for authentication.
+ * @returns {Promise<RemoteBindingSummary>} A summary of the binding operation.
+ */
+export async function bindRemoteSandbox(
+  provider: string,
+  repoFullName: string,
+  token: string
+): Promise<RemoteBindingSummary> {
+  const startTime = Date.now();
+  const mirrorTargetRoot = getMirrorRoot();
+  
+  // Create a provider-specific and repo-specific directory inside the mirror
+  const targetDir = path.join(mirrorTargetRoot, provider, repoFullName);
+  
+  // Clean up any existing directory to ensure a fresh clone
+  await fs.rm(targetDir, { recursive: true, force: true }).catch(() => {});
+  await fs.mkdir(path.dirname(targetDir), { recursive: true });
+
+  let cloneUrl = '';
+  
+  if (provider === 'github') {
+    // Construct authenticated clone URL for GitHub
+    cloneUrl = `https://oauth2:${token}@github.com/${repoFullName}.git`;
+  } else if (provider === 'gitlab') {
+    // Construct authenticated clone URL for GitLab
+    cloneUrl = `https://oauth2:${token}@gitlab.com/${repoFullName}.git`;
+  } else if (provider === 'bitbucket') {
+    // Construct authenticated clone URL for Bitbucket (OAuth2 uses x-token-auth)
+    cloneUrl = `https://x-token-auth:${token}@bitbucket.org/${repoFullName}.git`;
+  } else {
+    throw new Error(`Provider ${provider} is not yet supported for sandbox binding.`);
+  }
+
+  try {
+    // We use shallow clone (--depth 1) to make the sandbox binding extremely fast
+    await execAsync(`git clone --depth 1 "${cloneUrl}" "${targetDir}"`);
+    
+    // We want to avoid logging the clone URL because it contains the token
+  } catch (error: any) {
+    // Sanitize the error message to remove the token before throwing
+    const sanitizedMsg = error.message ? error.message.replace(cloneUrl, 'https://***@github.com/...') : 'Failed to clone repository';
+    throw new Error(`Sandbox binding failed: ${sanitizedMsg}`);
+  }
+
+  return {
+    repoFullName,
+    sandboxPath: targetDir,
+    durationMs: Date.now() - startTime,
   };
 }

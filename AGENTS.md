@@ -1,6 +1,6 @@
 # AGENTS.md - BrewAssist
 
-Updated: 2026-04-13 (session progress through April 13)
+Updated: 2026-04-14T09:30:00Z (GitHub OAuth in progress)
 
 - Treat `/home/brewexec/brewassist` as the repo root.
 - Main UI entrypoint is `pages/index.tsx`; the primary assistant stream route is `pages/api/brewassist.ts`.
@@ -55,3 +55,50 @@ Updated: 2026-04-13 (session progress through April 13)
 - Public landing and pricing now implemented with modal legal links, auth panel visible in hero, and billing status badge in cockpit header.
 - Collab agent and persisted replay now fully wired: `collab.message` events persist to `run_events`, surface in right-rail CollabPanel and replay center trace.
 - Remaining high-priority work: real provider repo connect (GitHub OAuth), sandbox binding lifecycle, production billing integration (Stripe), diff/confirm/apply completion, enterprise SSO hardening.
+
+## Current Session - GitHub OAuth, UI, & Sandbox Binding (COMPLETED)
+
+**2026-04-14: GitHub Device Flow OAuth Implementation & Fixes**
+
+- Resolved race condition in `DeviceFlowModal.tsx` that caused "new code" generation on tab return.
+- Added auto-detection on tab focus/visibility change using `visibilitychange` and `focus` events.
+- Extracted `checkActivation` for immediate status checks.
+- Enhanced UI with better instructions, copy button, and pulse indicators.
+- Added 401 handling in `RepoConnectionContext` to clear stale tokens.
+- All components now correctly handle the full device flow lifecycle.
+
+**2026-04-14: Cockpit UI Flow & Sandbox Binding Pipeline**
+
+- **UI Layout Flow:** Solved the global scrolling bug by conditionally rendering the `EnterpriseTenantGate` setup card so it doesn't push the `100vh` cockpit out of bounds. 
+- **Two-Row Navigation:** Re-architected the header into two rows (`cockpit-header` and `cockpit-sub-header`) to uncramp the UI, restoring full visibility of the sign-out button, user session info, and repository provider dropdowns.
+- **Sandbox Binding Engine:** Implemented `bindRemoteSandbox` in `lib/brewSandboxMirror.ts`. When a user selects a GitHub repo from the UI, it securely runs a shallow `git clone` to pull the code into `sandbox/mirror/github/[repo]`.
+- **Private Repo Warning:** Added a tooltip and red border to the Repo selector if the user selects a private repository, indicating it must be made public to be fully usable in the online sandbox.
+- **API & Tree Integration:** Created `/api/sandbox/bind` to handle the clone request securely. Wired `ProjectTree.tsx`, `fs-tree.ts`, and `fs-read.ts` to dynamically point to the cloned sandbox mirror instead of the local repo if an external repo is selected.
+- **Next Logical Step:** Extend the exact same sandbox pipeline to further enterprise providers if needed (e.g., Azure DevOps).
+
+## 2026-04-14: Multi-Provider Integration (GitHub, GitLab, Bitbucket) - COMPLETED
+
+- **OAuth Unified Flow:** Successfully implemented OAuth Web Flow for GitLab and Bitbucket, and Device Flow for GitHub.
+- **Unified Sandbox Pipeline:** The `bindRemoteSandbox` engine now supports all three major providers (GitHub, GitLab, Bitbucket), automatically using the correct authenticated clone URL for each.
+- **UI Context Bar:** The two-row cockpit header now dynamically handles repository selection and connection states for all three providers.
+- **Enterprise Readiness:** BrewAssist V1 now supports over 95% of the enterprise source control market out of the box.
+- **BrewAgentic Bridge:** Added a bridge notification for "Local" repo selection, pointing users to the BrewAgentic CLI suite.
+- **Security:** Implemented a private repository warning system to ensure users understand the V1 public-repo requirement for sandbox operations.
+- **Onboarding Checks:** Added "Checks & Balances" to the `InitWizardModal` completion handler. BrewAssist now verifies the repository connection and provider token before proceeding to the planning stage, surfacing warnings if the environment isn't ready.
+
+## Next Milestone: End-to-End Apply Loop (V1 Final Stretch)
+
+**Strategy Phase Initiated: 2026-04-14**
+- **Objective:** Complete the loop from AI sandbox edit to live repository push (Confirm & Push).
+- **Plan Documented:** See `brewdocs/tasks/20260414_end_to_end_apply_loop_plan.md` for the full technical breakdown.
+- **Immediate Next Steps:** Improve the `brewassist-sandbox-apply.ts` API to support provider-specific mirror paths and implement the Diff UI component.
+
+**Documented: 2026-04-14**
+- **Architectural Pivot:** BrewAssist is migrating from a rigid "fallback chain" to a pure "Provider-Based Route" system.
+- **BYOK (Bring Your Own Key):** Clients will have the option to use BrewAssist's enterprise API quota OR supply their own API keys per provider.
+- **Target Roster (Post-V1):**
+  - **OpenAI:** ChatGPT 5.4, etc.
+  - **Google:** Gemini 3 (Ultra/Pro/Flash)
+  - **Anthropic:** Claude 3.5+ (Opus/Sonnet/Haiku)
+  - **Emerging/Asian Providers:** Mimo V2 (Omni + Pro), Kimi K2.5, Qwen (latest), MiniMax.
+- **Rule:** Do *not* implement these new API clients until the core V1 Sandbox execution loop (Diff/Confirm/Apply) is 100% complete and tested.

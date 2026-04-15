@@ -148,7 +148,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 };
 
 export const ProjectTree: React.FC = () => {
-  const { repoProvider, repoRoot } = useRepoConnection();
+  const { repoProvider, repoRoot, activeSandboxPath, isBindingSandbox } = useRepoConnection();
   const { orgId, workspaceId, organizations, workspaces } =
     useEnterpriseSelection();
   const { session } = useSupabaseAuth();
@@ -160,6 +160,12 @@ export const ProjectTree: React.FC = () => {
   const [activeNodePath, setActiveNodePath] = useState<string | null>(null); // Active node state
 
   useEffect(() => {
+    // Wait until binding is complete to load the tree
+    if (isBindingSandbox) {
+      setState((prev) => ({ ...prev, loading: true }));
+      return;
+    }
+
     const loadTree = async () => {
       try {
         const res = await fetch('/api/fs-tree?path=.', {
@@ -188,7 +194,7 @@ export const ProjectTree: React.FC = () => {
     };
 
     void loadTree();
-  }, [repoProvider, repoRoot, orgId, session]);
+  }, [repoProvider, repoRoot, orgId, session, activeSandboxPath, isBindingSandbox]);
 
   if (state.loading) {
     return <div className="tree-status">Loading project…</div>;
