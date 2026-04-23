@@ -39,6 +39,10 @@ import {
   type HybridWorkflowStage,
 } from '@/lib/hybridWorkflow';
 import { RichMarkdown } from './RichMarkdown';
+import {
+  clearInitWizardDraft,
+  shouldResumeInitWizard,
+} from '@/lib/init/initWizardStorage';
 
 type ToolbeltBrewMode = 'HRM' | 'LLM' | 'AGENT' | 'LOOP'; // Define ToolbeltBrewMode locally
 
@@ -182,10 +186,12 @@ export const BrewCockpitCenter: React.FC = () => {
     if (!isClient) return;
     const completed = localStorage.getItem('brewassist.init.complete');
     const dismissed = localStorage.getItem('brewassist.init.dismissed');
-    const shouldShow = !completed && !dismissed;
+    const shouldResume = shouldResumeInitWizard();
+    const shouldShow = shouldResume || (!completed && !dismissed);
     setShowFirstRunBanner(shouldShow);
     if (shouldShow) {
       setShowInitWizard(true);
+      localStorage.removeItem('brewassist.init.dismissed');
     }
   }, [isClient]);
 
@@ -1384,12 +1390,14 @@ export const BrewCockpitCenter: React.FC = () => {
         open={showInitWizard}
         onClose={() => {
           setShowInitWizard(false);
+          clearInitWizardDraft();
           if (typeof window !== 'undefined') {
             localStorage.setItem('brewassist.init.dismissed', 'true');
           }
         }}
         onComplete={(summary, nextPrompt) => {
           setShowInitWizard(false);
+          clearInitWizardDraft();
           if (typeof window !== 'undefined') {
             localStorage.setItem('brewassist.init.complete', 'true');
             localStorage.removeItem('brewassist.init.dismissed');

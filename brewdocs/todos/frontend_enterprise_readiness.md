@@ -127,6 +127,7 @@ Key components analyzed:
 2. Add loading states and error boundaries
 3. Implement toast notifications
 4. Fix right sidebar horizontal scrolling
+5. Fix onboarding OAuth resume behavior so provider authorization returns the user to the correct `InitWizardModal` step instead of restarting the five-step flow
 
 ### Phase 2: Customer Experience (Week 3-4)
 
@@ -134,6 +135,7 @@ Key components analyzed:
 2. Implement conversation export
 3. Create user preferences panel
 4. Add help tooltips
+5. Redesign the center-pane message surface away from mirrored bubble chat into a left-aligned block stream for text, data, and code while preserving BrewAssist colors
 
 ### Phase 3: Admin Productivity (Week 5-6)
 
@@ -178,5 +180,12 @@ Key components analyzed:
 2. Conduct user interviews for feature validation
 3. Set up A/B testing for major UX changes
 4. Implement analytics for usage tracking
+
+## Current Session Additions
+
+- OAuth onboarding regression:
+  GitHub device-flow return and GitLab/Bitbucket OAuth callback return should resume onboarding at the next wizard step after repo authorization, not reset the user to the beginning of `InitWizardModal`.
+- Conversation surface redesign:
+  BrewAssist should move toward the Brew Agentic / Codex / terminal-style block presentation in the center pane, with assistant and system output rendered in a single left-aligned stream that handles prose, structured data, and code more cleanly than the current split bubble chat.
 
 This roadmap will transform BrewAssist into a truly enterprise-ready platform balancing customer usability with admin power tools.

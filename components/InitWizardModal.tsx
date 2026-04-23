@@ -1,8 +1,14 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { RepoProviderSelector } from '@/components/RepoProviderSelector';
 import { useRepoConnection } from '@/contexts/RepoConnectionContext';
+import {
+  clearInitWizardDraft,
+  loadInitWizardDraft,
+  saveInitWizardDraft,
+  type InitWizardDraft,
+} from '@/lib/init/initWizardStorage';
 
 type InitWizardProps = {
   open: boolean;
@@ -27,12 +33,36 @@ type EnvironmentChoice = 'new-environment' | 'existing-repo' | 'not-sure';
 
 const STEP_TITLES = ['Identity', 'Goal', 'Environment', 'Repo Bind', 'Summary'];
 
+function getDefaultDraft(): InitWizardDraft {
+  return {
+    open: false,
+    step: 0,
+    userType: 'intermediate-dev',
+    workGoal: 'existing-repo',
+    environment: 'existing-repo',
+    customGoal: '',
+    frontend: 'Next.js',
+    backend: 'Node.js',
+    database: 'Postgres',
+    orgName: '',
+    workspaceName: '',
+    roleName: 'operator',
+  };
+}
+
 export function InitWizardModal({
   open,
   onClose,
   onComplete,
 }: InitWizardProps) {
-  const { repoProvider, repoRoot } = useRepoConnection();
+  const {
+    repoProvider,
+    repoRoot,
+    githubToken,
+    gitlabToken,
+    bitbucketToken,
+  } = useRepoConnection();
+  const restoredDraftRef = useRef(false);
   const [step, setStep] = useState(0);
   const [userType, setUserType] = useState<UserType>('intermediate-dev');
   const [workGoal, setWorkGoal] = useState<WorkGoal>('existing-repo');
@@ -45,6 +75,78 @@ export function InitWizardModal({
   const [orgName, setOrgName] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
   const [roleName, setRoleName] = useState('operator');
+
+  useEffect(() => {
+    if (!open || restoredDraftRef.current) return;
+
+    const draft = loadInitWizardDraft();
+    const source = draft ?? getDefaultDraft();
+
+    setStep(source.step);
+    setUserType(source.userType as UserType);
+    setWorkGoal(source.workGoal as WorkGoal);
+    setEnvironment(source.environment as EnvironmentChoice);
+    setCustomGoal(source.customGoal);
+    setFrontend(source.frontend);
+    setBackend(source.backend);
+    setDatabase(source.database);
+    setOrgName(source.orgName);
+    setWorkspaceName(source.workspaceName);
+    setRoleName(source.roleName);
+    restoredDraftRef.current = true;
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    saveInitWizardDraft({
+      open: true,
+      step,
+      userType,
+      workGoal,
+      environment,
+      customGoal,
+      frontend,
+      backend,
+      database,
+      orgName,
+      workspaceName,
+      roleName,
+    });
+  }, [
+    open,
+    step,
+    userType,
+    workGoal,
+    environment,
+    customGoal,
+    frontend,
+    backend,
+    database,
+    orgName,
+    workspaceName,
+    roleName,
+  ]);
+
+  useEffect(() => {
+    if (!open || step !== 2) return;
+
+    const providerAuthorized =
+      (repoProvider === 'github' && Boolean(githubToken)) ||
+      (repoProvider === 'gitlab' && Boolean(gitlabToken)) ||
+      (repoProvider === 'bitbucket' && Boolean(bitbucketToken));
+
+    if (providerAuthorized) {
+      setStep(3);
+    }
+  }, [
+    open,
+    step,
+    repoProvider,
+    githubToken,
+    gitlabToken,
+    bitbucketToken,
+  ]);
 
   const goalLabel = useMemo(() => {
     switch (workGoal) {
@@ -95,11 +197,15 @@ export function InitWizardModal({
   }, [goalLabel]);
 
   const resetAndClose = () => {
+    clearInitWizardDraft();
+    restoredDraftRef.current = false;
     setStep(0);
     onClose();
   };
 
   const finish = () => {
+    clearInitWizardDraft();
+    restoredDraftRef.current = false;
     onComplete(summary, nextPrompt);
     setStep(0);
   };

@@ -1,6 +1,6 @@
 # AGENTS.md - BrewAssist
 
-Updated: 2026-04-14T09:30:00Z (GitHub OAuth in progress)
+Updated: 2026-04-23T12:40:54Z (console merger, enterprise readiness, and hosted control-plane scaffolding)
 
 - Treat `/home/brewexec/brewassist` as the repo root.
 - Main UI entrypoint is `pages/index.tsx`; the primary assistant stream route is `pages/api/brewassist.ts`.
@@ -38,6 +38,8 @@ Updated: 2026-04-14T09:30:00Z (GitHub OAuth in progress)
 ## Current Session Rules
 
 - `brewdocs/reference/specifications/BrewAssist_Hybrid_Control_Plane_Spec.md` is the canonical online+local workflow contract.
+- During the BrewAssist + Brew Agentic merger phase, keep `brewdocs/console/` aligned with the mirrored upstream specs and review `/home/brewexec/brew-agentic/brewdocs/specs/` when checking intent, provider, billing, console, runtime-link, or trust behavior.
+- When BrewAssist and Brew Agentic appear to diverge, do not silently invent a third interpretation; document the delta and normalize BrewAssist to the shared control-plane contract where feasible.
 - BrewAssist online must stay aligned to `Intent -> Plan -> Preview -> Confirm -> Execute -> Report -> Replay`; do not invent a second flow.
 - `components/WorkspaceSidebarRight.tsx` is the real right-rail host for `Ops`/DevOps8, `Files`, `Sandbox`, and `Cognition`; do not reintroduce placeholder tabs.
 - `repoProvider` and `repoRoot` are part of the request context and must be forwarded through `/api/brewassist`, `/api/fs-tree`, and `/api/fs-read`.
@@ -55,6 +57,22 @@ Updated: 2026-04-14T09:30:00Z (GitHub OAuth in progress)
 - Public landing and pricing now implemented with modal legal links, auth panel visible in hero, and billing status badge in cockpit header.
 - Collab agent and persisted replay now fully wired: `collab.message` events persist to `run_events`, surface in right-rail CollabPanel and replay center trace.
 - Remaining high-priority work: real provider repo connect (GitHub OAuth), sandbox binding lifecycle, production billing integration (Stripe), diff/confirm/apply completion, enterprise SSO hardening.
+
+## Current Session - Console Merger, Enterprise Readiness, And Hosted Contracts
+
+**2026-04-23T12:40:54Z: Shared Console + Public IA Scaffold**
+
+- Public route registry scaffold now exists inside BrewAssist for `/product`, `/brew-agentic`, `/features`, `/pricing`, `/security`, `/docs`, `/start-free`, `/login`, `/book-demo`, `/ai-transparency`, `/support`, `/status`, and `/console/*`.
+- The first hosted console shell now lives under `/console/*` in-repo as a scaffold while `console.brewassist.app` remains the canonical target shape.
+- Console pages now consume the first Supabase-backed control-plane summary endpoints for account, workspace, entitlement, billing, credits, and managed-provider state.
+- Current mockups under `public/mockups/` and the Brew Agentic images under `public/assests/agentic/` are active implementation inputs.
+
+**2026-04-23T12:40:54Z: Managed Provider + Enterprise Trust Direction**
+
+- Brew-managed provider keys must remain server-side only; never expose raw vendor keys to the browser or Brew Agentic.
+- Short-lived Brew runtime tokens are the intended link path for Brew Agentic hosted access; raw provider keys are not the runtime contract.
+- Stripe is required before production-ready subscriptions, credit top-ups, invoice history, billing portal access, or live managed charging can be considered complete.
+- Enterprise readiness now explicitly includes SAML/OIDC SSO, tenant isolation, auditability, Trust Center content, security documentation, and a credible SOC 2 path.
 
 ## Current Session - GitHub OAuth, UI, & Sandbox Binding (COMPLETED)
 

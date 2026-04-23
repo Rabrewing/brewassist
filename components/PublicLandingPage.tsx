@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 import { PublicAuthPanel } from './PublicAuthPanel';
 import { CookieConsentBar } from './CookieConsentBar';
-import { PublicLegalLinks } from './PublicLegalLinks';
+import { PublicSiteLayout } from './PublicSiteLayout';
 
 const WORKFLOW_STAGES = [
   'Intent',
@@ -88,17 +88,7 @@ const FAQS = [
 
 export function PublicLandingPage() {
   return (
-    <div className="public-landing-shell public-site-shell">
-      <section className="public-site-nav">
-        <div className="public-site-wordmark">BrewAssist</div>
-        <div className="public-site-nav-links">
-          <a href="#workflow">Workflow</a>
-          <a href="#capabilities">Capabilities</a>
-          <Link href="/pricing">Pricing</Link>
-          <Link href="/terms">Terms</Link>
-        </div>
-      </section>
-
+    <PublicSiteLayout>
       <section className="public-site-panel public-site-panel--hero">
         <div className="public-site-hero-grid">
           <div className="public-site-copy">
@@ -130,12 +120,18 @@ export function PublicLandingPage() {
               </div>
             </div>
             <div className="public-site-cta-row">
-              <a
-                href="#public-auth"
+              <Link
+                href="/start-free"
                 className="public-landing-button public-landing-button--primary"
               >
-                Launch BrewAssist
-              </a>
+                Start Free
+              </Link>
+              <Link href="/console/overview" className="public-landing-button">
+                Launch Console
+              </Link>
+              <Link href="/brew-agentic" className="public-landing-button">
+                Connect Brew Agentic
+              </Link>
               <Link href="/pricing" className="public-landing-button">
                 View Pricing
               </Link>
@@ -144,9 +140,9 @@ export function PublicLandingPage() {
 
           <div className="public-site-hero-art">
             <img
-              src="/landing/hero-section.png"
-              alt="BrewAssist cockpit logo"
-              className="public-site-hero-image"
+              src="/mockups/brewassist-landing.png"
+              alt="BrewAssist landing mockup"
+              className="public-site-route-image"
             />
             <PublicAuthPanel
               title="Sign in or create your BrewAssist account"
@@ -156,8 +152,10 @@ export function PublicLandingPage() {
         </div>
 
         <div className="public-site-inline-links">
+          <Link href="/product">Product</Link>
+          <Link href="/brew-agentic">Brew Agentic</Link>
+          <Link href="/security">Security</Link>
           <Link href="/pricing">Pricing</Link>
-          <PublicLegalLinks />
           <a href="mailto:info@brewassist.app">Contact</a>
         </div>
       </section>
@@ -247,6 +245,9 @@ export function PublicLandingPage() {
           >
             Explore Pricing
           </Link>
+          <Link href="/book-demo" className="public-landing-button">
+            Book Demo
+          </Link>
           <a
             href="mailto:info@brewassist.app"
             className="public-landing-button"
@@ -275,22 +276,7 @@ export function PublicLandingPage() {
         </div>
       </section>
 
-      <section className="public-site-footer">
-        <div>
-          <div className="public-site-wordmark">BrewAssist</div>
-          <p className="public-site-support-copy">
-            AI-native DevOps control plane for governed execution, replay, and
-            collaboration.
-          </p>
-        </div>
-        <div className="public-site-inline-links">
-          <Link href="/pricing">Pricing</Link>
-          <PublicLegalLinks />
-          <a href="mailto:info@brewassist.app">info@brewassist.app</a>
-        </div>
-      </section>
-
       <CookieConsentBar />
-    </div>
+    </PublicSiteLayout>
   );
 }

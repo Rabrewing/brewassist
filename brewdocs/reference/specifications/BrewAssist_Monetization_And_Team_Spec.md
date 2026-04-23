@@ -10,6 +10,15 @@ Define how BrewAssist makes money as an online provider while supporting hosted 
 
 BrewAssist is a paid product in every deployment mode.
 
+Canonical cross-product monetization model:
+
+1. platform fee
+2. optional usage-priced Brew intelligence
+3. managed API margin
+
+See `brewdocs/console/brew-platform-monetization-architecture-2026-04-21.md` for the shared BrewAssist + Brew Agentic monetization language.
+
+
 ## Pricing Modes
 
 1. **Hosted BrewAssist**
@@ -191,6 +200,12 @@ approvals(id, org_id, run_id, approver_id, decision, reason, created_at)
 - how local `brew-agentic` licensing interacts with online BrewAssist
 
 ## Cross References
+
+Additional implementation references:
+
+- `brewdocs/console/brewassist-brew-agentic-page-registry-2026-04-21.md`
+- `brewdocs/console/brew-billing-metering-and-visibility-contracts-2026-04-21.md`
+
 
 - `brewdocs/project/BrewAssist_V1_Execution_Plan.md`
 - `brewdocs/reference/specifications/BrewAssist_Hybrid_Control_Plane_Spec.md`

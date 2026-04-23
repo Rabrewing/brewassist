@@ -8,6 +8,12 @@ Normalize the public landing, pricing, and billing implementation so it matches 
 
 ## Source Inputs
 
+Additional implementation references:
+
+- `brewdocs/console/brewassist-brew-agentic-page-registry-2026-04-21.md`
+- `brewdocs/console/brew-billing-metering-and-visibility-contracts-2026-04-21.md`
+
+
 - `brewdocs/BrewAssist Landing Page-Pricing-v1.md`
 - `brewdocs/mockups/landing-page.png`
 - `brewdocs/mockups/pricing-page.png`
@@ -105,6 +111,16 @@ Implementation still in progress and should be described carefully:
 ## Pricing Principles
 
 Pricing must align with product truth:
+
+The canonical Brew platform model is:
+
+1. platform fee
+2. optional usage-priced Brew intelligence
+3. managed API margin
+
+See `brewdocs/console/brew-platform-monetization-architecture-2026-04-21.md` for the shared BrewAssist + Brew Agentic monetization reference.
+
+
 
 - BrewAssist itself is paid software
 - hosted model usage may be metered separately

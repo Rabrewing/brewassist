@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 import { PublicAuthPanel } from './PublicAuthPanel';
 import { CookieConsentBar } from './CookieConsentBar';
-import { PublicLegalLinks } from './PublicLegalLinks';
+import { PublicSiteLayout } from './PublicSiteLayout';
 
 type BillingInterval = 'monthly' | 'yearly';
 
@@ -148,19 +148,7 @@ export function PublicPricingPage() {
   const plans = useMemo(() => PRICING_PLANS[interval], [interval]);
 
   return (
-    <div className="public-landing-shell public-site-shell">
-      <section className="public-site-nav">
-        <Link href="/" className="public-site-wordmark">
-          BrewAssist
-        </Link>
-        <div className="public-site-nav-links">
-          <Link href="/">Overview</Link>
-          <Link href="/pricing">Pricing</Link>
-          <Link href="/terms">Terms</Link>
-          <Link href="/privacy">Privacy</Link>
-        </div>
-      </section>
-
+    <PublicSiteLayout activePath="/pricing">
       <section className="public-site-panel public-site-panel--hero">
         <div className="public-site-copy">
           <div className="public-landing-kicker">Pricing And Billing</div>
@@ -278,17 +266,14 @@ export function PublicPricingPage() {
         </div>
         <div className="public-site-cta-row">
           <Link
-            href="/"
+            href="/start-free"
             className="public-landing-button public-landing-button--primary"
           >
-            Return To Landing
+            Start Free
           </Link>
-          <a
-            href="mailto:info@brewassist.app"
-            className="public-landing-button"
-          >
-            Contact Sales
-          </a>
+          <Link href="/console/billing" className="public-landing-button">
+            Open Billing Console
+          </Link>
         </div>
       </section>
 
@@ -300,21 +285,7 @@ export function PublicPricingPage() {
         />
       </section>
 
-      <section className="public-site-footer">
-        <div>
-          <div className="public-site-wordmark">BrewAssist</div>
-          <p className="public-site-support-copy">
-            Pricing for the control plane, not just model access.
-          </p>
-        </div>
-        <div className="public-site-inline-links">
-          <Link href="/">Overview</Link>
-          <Link href="/pricing">Pricing</Link>
-          <PublicLegalLinks />
-        </div>
-      </section>
-
       <CookieConsentBar />
-    </div>
+    </PublicSiteLayout>
   );
 }

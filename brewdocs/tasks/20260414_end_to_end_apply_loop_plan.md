@@ -8,6 +8,8 @@ Enable a complete "Sandbox -> Live Repo" code propagation loop. This is the "Hol
 
 ## Phase 1: Post-Onboarding "Checks & Balances"
 - [ ] **Implementation:** Update `BrewCockpitCenter.tsx` or create a new agent logic to "verify" the init state.
+- [ ] **Bugfix:** Persist `InitWizardModal` step progress across provider auth redirects so GitHub, GitLab, and Bitbucket authorization can resume at the expected next onboarding step instead of resetting the wizard.
+- [ ] **UX:** Make provider authorization a first-class onboarding transition inside the five-step wizard so "grant repo access" completion advances into the next step rather than feeling like a restart.
 - [ ] **Checks:**
     - [ ] `check-provider`: Verify valid token for selected provider.
     - [ ] `check-sandbox`: Verify directory exists in `sandbox/mirror`.
@@ -38,6 +40,12 @@ Enable a complete "Sandbox -> Live Repo" code propagation loop. This is the "Hol
 ## Phase 5: Report & Replay
 - [ ] **Implementation:** Record the successful push as a `run_event` in Supabase.
 - [ ] **Report:** Show a final "Success" message with the commit hash and a link to the PR/Commit on the provider site.
+
+## Follow-On UX Backlog: Conversation Surface
+- [ ] Replace the center-pane opposing chat bubbles with a left-aligned conversational stream that can render block-oriented output for prose, status data, structured logs, diffs, and code.
+- [ ] Preserve the existing BrewAssist color language while moving the message presentation closer to Brew Agentic / Codex / terminal-native assistant layouts.
+- [ ] Keep user intent visible in the stream, but stop treating the center pane like a consumer chat app with mirrored left/right message lanes.
+- [ ] Reuse `RichMarkdown` and existing workflow-stage metadata where possible so the redesign lands as a rendering upgrade instead of a parallel message system.
 
 ---
 *Created by: Gemini (RB's Assistant)*

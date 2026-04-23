@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { RepoProvider } from '@/lib/enterpriseContext';
+import { advanceInitWizardAfterProviderAuth } from '@/lib/init/initWizardStorage';
 
 export interface GitHubRepo {
   id: number;
@@ -85,6 +86,7 @@ export function RepoConnectionProvider({
           window.localStorage.setItem('gitlab_token', token);
           setRepoProviderState('gitlab');
           window.localStorage.setItem('repoProvider', 'gitlab');
+          advanceInitWizardAfterProviderAuth();
           window.history.replaceState(null, '', window.location.pathname + window.location.search);
         }
       } else if (hash.includes('bitbucket_token=')) {
@@ -95,6 +97,7 @@ export function RepoConnectionProvider({
           window.localStorage.setItem('bitbucket_token', token);
           setRepoProviderState('bitbucket');
           window.localStorage.setItem('repoProvider', 'bitbucket');
+          advanceInitWizardAfterProviderAuth();
           window.history.replaceState(null, '', window.location.pathname + window.location.search);
         }
       }
@@ -248,14 +251,17 @@ export function RepoConnectionProvider({
     setGithubToken: (token) => {
       setGithubTokenState(token);
       window.localStorage.setItem('github_token', token);
+      advanceInitWizardAfterProviderAuth();
     },
     setGitlabToken: (token) => {
       setGitlabTokenState(token);
       window.localStorage.setItem('gitlab_token', token);
+      advanceInitWizardAfterProviderAuth();
     },
     setBitbucketToken: (token) => {
       setBitbucketTokenState(token);
       window.localStorage.setItem('bitbucket_token', token);
+      advanceInitWizardAfterProviderAuth();
     },
     closeDeviceFlow: () => setShowDeviceFlow(false),
     triggerDeviceFlow: () => setShowDeviceFlow(true),
