@@ -93,3 +93,5 @@ This is the first proof that BrewAssist is no longer only presenting billing UI.
 - sync invoice history and portal status into console summaries
 - add explicit downgrade/cancel handling and plan-change transitions
 - add broader regression tests around webhook ordering and subscription updates
+- keep V1 invoice handling portal-first rather than rebuilding Stripe invoice
+  administration inside BrewAssist too early

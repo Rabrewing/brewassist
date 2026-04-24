@@ -106,6 +106,29 @@ Additional index migration now exists for Stripe subscription identity:
 - do not treat Stripe as the source of truth for entitlements
 - do not let Brew Agentic calculate authoritative customer billing locally
 
+## V1 Billing Surface Rule
+
+For V1, BrewAssist should stay `portal-first` for billing administration and
+`console-first` for billing visibility.
+
+That means:
+
+- BrewAssist console should show:
+  - active subscription truth
+  - current billing period
+  - billing lifecycle state
+  - recent invoice and payment history
+  - billing guidance and plan selection context
+- Stripe Billing Portal should remain the primary action surface for:
+  - payment method changes
+  - cancel / reactivate
+  - invoice handling
+  - sensitive billing-account operations
+
+Do not attempt to rebuild Stripe's full invoice-management UX inside BrewAssist
+before V1 is stable. BrewAssist should explain billing clearly, while Stripe
+executes billing administration.
+
 ## When Stripe Setup Is Required
 
 Stripe setup becomes mandatory before:

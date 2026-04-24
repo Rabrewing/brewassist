@@ -1119,6 +1119,49 @@ body {
   background: rgba(15, 59, 36, 0.32);
 }
 
+.console-status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.62);
+  color: rgba(226, 232, 240, 0.82);
+}
+
+.console-status-chip.is-good {
+  color: #62f1a5;
+  border-color: rgba(98, 241, 165, 0.22);
+  background: rgba(15, 59, 36, 0.32);
+}
+
+.console-status-chip.is-info {
+  color: #9cefe5;
+  border-color: rgba(0, 199, 183, 0.2);
+  background: rgba(10, 41, 54, 0.34);
+}
+
+.console-status-chip.is-warn {
+  color: #f8e7a3;
+  border-color: rgba(255, 215, 0, 0.2);
+  background: rgba(69, 52, 13, 0.34);
+}
+
+.console-status-chip.is-danger {
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.22);
+  background: rgba(69, 20, 20, 0.34);
+}
+
+.console-status-chip.is-neutral {
+  color: rgba(226, 232, 240, 0.82);
+}
+
 .console-subheader-copy h1,
 .console-subheader-copy p {
   margin: 0;

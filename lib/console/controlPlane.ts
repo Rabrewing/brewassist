@@ -44,6 +44,40 @@ export type BillingSummary = {
   intelligenceSpendUsd: number;
   creditsRemainingUsd: number;
   stripeReady: boolean;
+  subscription: {
+    externalSubscriptionId: string | null;
+    status: string;
+    billingInterval: 'monthly' | 'yearly' | 'unknown';
+    customerId: string | null;
+    currentPeriodStart: string | null;
+    currentPeriodEnd: string | null;
+    workspaceId: string | null;
+    cancelAtPeriodEnd: boolean;
+    cancelAt: string | null;
+  } | null;
+  customer: {
+    externalCustomerId: string | null;
+    billingEmail: string | null;
+    status: string;
+  } | null;
+  latestInvoice: {
+    invoiceId: string | null;
+    eventType: string;
+    eventLabel: string;
+    eventCategory: 'invoice' | 'payment' | 'checkout';
+    status: string;
+    amountUsd: number | null;
+    createdAt: string | null;
+  } | null;
+  invoiceHistory: Array<{
+    invoiceId: string | null;
+    eventType: string;
+    eventLabel: string;
+    eventCategory: 'invoice' | 'payment' | 'checkout';
+    status: string;
+    amountUsd: number | null;
+    createdAt: string | null;
+  }>;
 };
 
 export type CreditsSummary = {
@@ -97,6 +131,31 @@ type UsageRecordRow = {
 type ProviderKeyRow = {
   provider: string;
   status: string;
+};
+
+type BillingSubscriptionRow = {
+  external_subscription_id: string | null;
+  status: string;
+  plan_code: string;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  workspace_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+};
+
+type BillingCustomerRow = {
+  external_customer_id: string | null;
+  billing_email: string | null;
+  status: string;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+};
+
+type BillingEventLedgerRow = {
+  event_type: string;
+  payload: Record<string, any>;
+  created_at: string;
 };
 
 type BrewPlan = 'free' | 'starter' | 'pro' | 'team' | 'enterprise';
@@ -256,6 +315,189 @@ async function loadUsageRecords(client: SupabaseAdminClient, orgId: string) {
 
   if (error) throw error;
   return (data ?? []) as UsageRecordRow[];
+}
+
+async function loadBillingSubscription(
+  client: SupabaseAdminClient,
+  orgId: string
+) {
+  const { data, error } = await client
+    .from('billing_subscriptions')
+    .select(
+      'external_subscription_id, status, plan_code, current_period_start, current_period_end, workspace_id, metadata, created_at'
+    )
+    .eq('org_id', orgId)
+    .eq('provider', 'stripe')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data ?? null) as BillingSubscriptionRow | null;
+}
+
+async function loadBillingCustomer(
+  client: SupabaseAdminClient,
+  orgId: string
+) {
+  const { data, error } = await client
+    .from('billing_customers')
+    .select('external_customer_id, billing_email, status, metadata, created_at')
+    .eq('org_id', orgId)
+    .eq('provider', 'stripe')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data ?? null) as BillingCustomerRow | null;
+}
+
+async function loadRecentBillingEvents(
+  client: SupabaseAdminClient,
+  orgId: string
+) {
+  const { data, error } = await client
+    .from('billing_event_ledger')
+    .select('event_type, payload, created_at')
+    .eq('org_id', orgId)
+    .eq('provider', 'stripe')
+    .order('created_at', { ascending: false })
+    .limit(12);
+
+  if (error) throw error;
+  return (data ?? []) as BillingEventLedgerRow[];
+}
+
+function readBillingInterval(subscription: BillingSubscriptionRow | null) {
+  const interval = subscription?.metadata?.interval;
+  if (interval === 'monthly' || interval === 'yearly') {
+    return interval;
+  }
+  return 'unknown' as const;
+}
+
+function buildLatestInvoice(events: BillingEventLedgerRow[]) {
+  const invoiceEvent = events.find((event) => {
+    const type = event.event_type;
+    return (
+      type.startsWith('invoice.') ||
+      type === 'payment_intent.payment_failed' ||
+      type === 'payment_intent.succeeded' ||
+      type === 'checkout.session.completed'
+    );
+  });
+
+  if (!invoiceEvent) return null;
+
+  const payload = invoiceEvent.payload ?? {};
+  const invoiceId =
+    typeof payload.invoice === 'string'
+      ? payload.invoice
+      : typeof payload.id === 'string' && invoiceEvent.event_type.startsWith('invoice.')
+        ? payload.id
+        : null;
+  const amountRaw =
+    typeof payload.amount_paid === 'number'
+      ? payload.amount_paid
+      : typeof payload.amount_due === 'number'
+        ? payload.amount_due
+        : typeof payload.amount_total === 'number'
+          ? payload.amount_total
+          : null;
+  const status =
+    typeof payload.status === 'string'
+      ? payload.status
+      : invoiceEvent.event_type === 'payment_intent.payment_failed'
+        ? 'payment_failed'
+        : invoiceEvent.event_type === 'payment_intent.succeeded'
+          ? 'paid'
+          : 'recorded';
+  const { label, category } = describeBillingEvent(invoiceEvent.event_type);
+
+  return {
+    invoiceId,
+    eventType: invoiceEvent.event_type,
+    eventLabel: label,
+    eventCategory: category,
+    status,
+    amountUsd: typeof amountRaw === 'number' ? amountRaw / 100 : null,
+    createdAt: invoiceEvent.created_at ?? null,
+  };
+}
+
+function describeBillingEvent(eventType: string): {
+  label: string;
+  category: 'invoice' | 'payment' | 'checkout';
+} {
+  switch (eventType) {
+    case 'checkout.session.completed':
+      return { label: 'Checkout completed', category: 'checkout' };
+    case 'invoice.created':
+      return { label: 'Invoice created', category: 'invoice' };
+    case 'invoice.finalized':
+      return { label: 'Invoice finalized', category: 'invoice' };
+    case 'invoice.paid':
+      return { label: 'Invoice paid', category: 'invoice' };
+    case 'invoice.payment_failed':
+      return { label: 'Invoice payment failed', category: 'invoice' };
+    case 'payment_intent.succeeded':
+      return { label: 'Payment succeeded', category: 'payment' };
+    case 'payment_intent.payment_failed':
+      return { label: 'Payment failed', category: 'payment' };
+    default:
+      return { label: eventType.replaceAll('.', ' '), category: 'invoice' };
+  }
+}
+
+function buildInvoiceHistory(events: BillingEventLedgerRow[]) {
+  return events
+    .filter((event) => {
+      const type = event.event_type;
+      return (
+        type.startsWith('invoice.') ||
+        type === 'payment_intent.payment_failed' ||
+        type === 'payment_intent.succeeded' ||
+        type === 'checkout.session.completed'
+      );
+    })
+    .map((event) => {
+      const payload = event.payload ?? {};
+      const invoiceId =
+        typeof payload.invoice === 'string'
+          ? payload.invoice
+          : typeof payload.id === 'string' && event.event_type.startsWith('invoice.')
+            ? payload.id
+            : null;
+      const amountRaw =
+        typeof payload.amount_paid === 'number'
+          ? payload.amount_paid
+          : typeof payload.amount_due === 'number'
+            ? payload.amount_due
+            : typeof payload.amount_total === 'number'
+              ? payload.amount_total
+              : null;
+      const status =
+        typeof payload.status === 'string'
+          ? payload.status
+          : event.event_type === 'payment_intent.payment_failed'
+            ? 'payment_failed'
+            : event.event_type === 'payment_intent.succeeded'
+              ? 'paid'
+              : 'recorded';
+      const { label, category } = describeBillingEvent(event.event_type);
+
+      return {
+        invoiceId,
+        eventType: event.event_type,
+        eventLabel: label,
+        eventCategory: category,
+        status,
+        amountUsd: typeof amountRaw === 'number' ? amountRaw / 100 : null,
+        createdAt: event.created_at ?? null,
+      };
+    })
+    .slice(0, 6);
 }
 
 export async function resolveConsoleContext(
@@ -419,10 +661,19 @@ export async function buildBillingSummary(
       intelligenceSpendUsd: 0,
       creditsRemainingUsd: 0,
       stripeReady: false,
+      subscription: null,
+      customer: null,
+      latestInvoice: null,
+      invoiceHistory: [],
     };
   }
 
-  const usage = await loadUsageRecords(client, org.id);
+  const [usage, subscription, customer, recentEvents] = await Promise.all([
+    loadUsageRecords(client, org.id),
+    loadBillingSubscription(client, org.id),
+    loadBillingCustomer(client, org.id),
+    loadRecentBillingEvents(client, org.id),
+  ]);
   const managedSpendUsd = usage
     .filter((item) => item.metric_name === 'managed_spend_usd')
     .reduce((sum, item) => sum + Number(item.metric_value), 0);
@@ -433,17 +684,48 @@ export async function buildBillingSummary(
     .filter((item) => item.metric_name === 'credit_balance_usd')
     .reduce((_, item) => Number(item.metric_value), 0);
 
-  const plan = normalizePlan(org.plan);
+  const plan = normalizePlan(subscription?.plan_code ?? org.plan);
+  const currentPeriodStart = subscription?.current_period_start ?? bounds.start;
+  const currentPeriodEnd = subscription?.current_period_end ?? bounds.end;
 
   return {
     plan,
     platformFeeUsd: getPlatformFeeUsd(plan),
-    currentPeriodStart: bounds.start,
-    currentPeriodEnd: bounds.end,
+    currentPeriodStart,
+    currentPeriodEnd,
     managedSpendUsd,
     intelligenceSpendUsd,
     creditsRemainingUsd,
     stripeReady: false,
+    subscription: subscription
+      ? {
+          externalSubscriptionId: subscription.external_subscription_id,
+          status: subscription.status,
+          billingInterval: readBillingInterval(subscription),
+          customerId:
+            typeof subscription.metadata?.customerId === 'string'
+              ? subscription.metadata.customerId
+              : customer?.external_customer_id ?? null,
+          currentPeriodStart: subscription.current_period_start,
+          currentPeriodEnd: subscription.current_period_end,
+          workspaceId: subscription.workspace_id,
+          cancelAtPeriodEnd:
+            subscription.metadata?.cancelAtPeriodEnd === true,
+          cancelAt:
+            typeof subscription.metadata?.cancelAt === 'string'
+              ? subscription.metadata.cancelAt
+              : null,
+        }
+      : null,
+    customer: customer
+      ? {
+          externalCustomerId: customer.external_customer_id,
+          billingEmail: customer.billing_email,
+          status: customer.status,
+        }
+      : null,
+    latestInvoice: buildLatestInvoice(recentEvents),
+    invoiceHistory: buildInvoiceHistory(recentEvents),
   };
 }
 

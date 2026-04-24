@@ -197,5 +197,7 @@ Key components analyzed:
   define and implement hosted/local resume behavior so users can re-enter work by session ID and replay state instead of restarting context.
 - Provider and runtime modernization:
   plan hosted Codex/ChatGPT account connect, refresh current model defaults, verify HRM and multi-tier agent communication value, and audit tool-call support as first-class product behavior.
+- Control-plane fetch optimization:
+  reduce repeated `GET /api/account/session`, `workspaces`, `entitlements`, `billing`, `credits`, `providers`, `identity`, and `security` summary calls by consolidating read models where appropriate and tightening client-side revalidation behavior in the hosted console shell.
 
 This roadmap will transform BrewAssist into a truly enterprise-ready platform balancing customer usability with admin power tools.

@@ -1,6 +1,6 @@
 # AGENTS.md - BrewAssist
 
-Updated: 2026-04-24T11:44:01Z (First live Stripe checkout validated; execution phase organized)
+Updated: 2026-04-24T12:19:31Z (Billing lifecycle surfaces extended; fetch optimization queued)
 
 - Treat `/home/brewexec/brewassist` as the repo root.
 - Main UI entrypoint is `pages/index.tsx`; the primary assistant stream route is `pages/api/brewassist.ts`.
@@ -94,6 +94,13 @@ Updated: 2026-04-24T11:44:01Z (First live Stripe checkout validated; execution p
   - provider/model refresh
   - hosted Codex account-connect planning
   - tool-call, HRM, and multi-tier agent verification
+
+**2026-04-24T12:19:31Z: Billing Lifecycle And Console Read-Model Notes**
+
+- `/console/billing` now shows subscription truth, lifecycle state, billing period, customer linkage, invoice/payment timeline, and portal-first management guidance.
+- V1 billing direction is now explicit: console-first visibility, Stripe-portal-first administration.
+- Current hosted console data layer is still chatty in dev and shows repeated summary requests across account, workspace, entitlement, billing, provider, and security endpoints.
+- Fetch/revalidation optimization is now queued, but should not replace the current priority order unless the console starts materially blocking product work.
 
 ## Current Session - Console Merger, Enterprise Readiness, And Hosted Contracts
 

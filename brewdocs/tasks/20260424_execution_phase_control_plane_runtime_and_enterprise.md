@@ -93,6 +93,8 @@ Recommended gating:
 - add invoice and subscription detail surfaces
 - support plan changes, cancel, and downgrade paths
 - make billing and entitlement transitions explicit in console and hosted APIs
+- keep V1 billing `portal-first` for billing administration while BrewAssist
+  console remains the primary billing visibility and state surface
 
 ## Immediate Build Order
 
@@ -100,6 +102,7 @@ Recommended gating:
 
 - console shell/page cleanup
 - billing truth from subscriptions
+- control-plane summary fetch consolidation and cache/revalidation tuning
 - onboarding policy checkpoint design
 - admin/RBAC information architecture
 
@@ -120,6 +123,7 @@ Recommended gating:
 ## Todo Capture From This Session
 
 - console search placement may move beside the tab strip later if it gives the top frame better balance
+- console data layer is currently chatty in dev; reduce repeated summary calls, consider endpoint consolidation, and tighten cache/revalidation behavior once the current billing/admin/onboarding foundations are stable
 - onboarding should not jump straight to billing after auth; it should establish org, policy, workspace, and readiness first
 - add policy review and acknowledgement surfaces before first sensitive usage
 - add admin-only permissions console

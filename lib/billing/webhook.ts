@@ -24,6 +24,21 @@ function readPeriodUnix(value: unknown) {
   return new Date(value * 1000).toISOString();
 }
 
+function readSubscriptionMetadata(object: Record<string, any> | undefined) {
+  const base = { ...(object?.metadata ?? {}) } as Record<string, unknown>;
+
+  if (typeof object?.cancel_at_period_end === 'boolean') {
+    base.cancelAtPeriodEnd = object.cancel_at_period_end;
+  }
+
+  const cancelAt = readPeriodUnix(object?.cancel_at);
+  if (cancelAt) {
+    base.cancelAt = cancelAt;
+  }
+
+  return base;
+}
+
 function readSubscriptionItemPriceNickname(object: Record<string, any> | undefined) {
   const metadataPlanId = object?.metadata?.planId;
   if (typeof metadataPlanId === 'string' && metadataPlanId.trim()) {
@@ -130,7 +145,7 @@ export async function handleStripeWebhookEvent(
         status: String(object.status ?? 'unknown'),
         currentPeriodStart: readPeriodUnix(object.current_period_start),
         currentPeriodEnd: readPeriodUnix(object.current_period_end),
-        metadata: object.metadata ?? {},
+        metadata: readSubscriptionMetadata(object),
         actorId,
       });
 

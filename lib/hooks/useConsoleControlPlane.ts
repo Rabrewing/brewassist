@@ -61,6 +61,40 @@ type BillingResponse = {
     intelligenceSpendUsd: number;
     creditsRemainingUsd: number;
     stripeReady: boolean;
+    subscription?: {
+      externalSubscriptionId: string | null;
+      status: string;
+      billingInterval: 'monthly' | 'yearly' | 'unknown';
+      customerId: string | null;
+      currentPeriodStart: string | null;
+      currentPeriodEnd: string | null;
+      workspaceId: string | null;
+      cancelAtPeriodEnd: boolean;
+      cancelAt: string | null;
+    } | null;
+    customer?: {
+      externalCustomerId: string | null;
+      billingEmail: string | null;
+      status: string;
+    } | null;
+    latestInvoice?: {
+      invoiceId: string | null;
+      eventType: string;
+      eventLabel: string;
+      eventCategory: 'invoice' | 'payment' | 'checkout';
+      status: string;
+      amountUsd: number | null;
+      createdAt: string | null;
+    } | null;
+    invoiceHistory?: Array<{
+      invoiceId: string | null;
+      eventType: string;
+      eventLabel: string;
+      eventCategory: 'invoice' | 'payment' | 'checkout';
+      status: string;
+      amountUsd: number | null;
+      createdAt: string | null;
+    }>;
   };
   stripeStatus?: {
     ready: boolean;
