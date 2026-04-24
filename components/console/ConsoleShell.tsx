@@ -89,66 +89,72 @@ export function ConsoleShell({
       </Head>
       <EnterpriseTenantGate>
         <div className="console-shell">
-          <header className="console-header">
-            <div className="console-header-left">
-              <Link href="/console/overview" className="console-brand">
-                BrewAssist Console
-              </Link>
-              <EnterpriseWorkspaceSwitcher />
-            </div>
-            <div className="console-header-search">
-              <input
-                type="text"
-                value={searchPlaceholder}
-                readOnly
-                aria-label="Console search"
-                className="console-search-input"
-              />
-            </div>
-            <div className="console-header-right">
-              <span className="console-status-pill">Connected</span>
-              <BillingStatusBadge />
-              <span className="cockpit-mode-pill">
-                Signed in ·{' '}
-                {controlPlane.account?.email ??
-                  session.user.email ??
-                  'BrewAssist user'}
-              </span>
-              <button
-                type="button"
-                className="cockpit-signin-btn"
-                onClick={() => void signOut()}
-              >
-                Sign out
-              </button>
-            </div>
-          </header>
+          <div className="console-top-frame">
+            <header className="console-header">
+              <div className="console-header-left">
+                <Link href="/console/overview" className="console-brand">
+                  BrewAssist Console
+                </Link>
+                <EnterpriseWorkspaceSwitcher />
+              </div>
+              <div className="console-header-search">
+                <div className="console-search-input" aria-label="Console search">
+                  <span className="console-search-glyph" aria-hidden="true" />
+                  <span>{searchPlaceholder}</span>
+                  <span className="console-search-shortcut">Soon</span>
+                </div>
+              </div>
+              <div className="console-header-right">
+                <span className="console-status-pill">Connected</span>
+                <BillingStatusBadge />
+                <span className="cockpit-mode-pill">
+                  Signed in ·{' '}
+                  {controlPlane.account?.email ??
+                    session.user.email ??
+                    'BrewAssist user'}
+                </span>
+                <button
+                  type="button"
+                  className="cockpit-signin-btn"
+                  onClick={() => void signOut()}
+                >
+                  Sign out
+                </button>
+              </div>
+            </header>
 
-          <div className="console-subheader">
-            <div className="console-subheader-copy">
-              <h1>{title}</h1>
-              <p>{subtitle}</p>
+            <div className="console-subheader">
+              <div className="console-subheader-copy">
+                <h1>{title}</h1>
+                <p>{subtitle}</p>
+              </div>
+              <RepoProviderSelector />
             </div>
-            <RepoProviderSelector />
+
+            <nav className="console-tab-strip" aria-label="Console sections">
+              {CONSOLE_NAV.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={
+                    item.href === activePath
+                      ? 'console-tab-link is-active'
+                      : 'console-tab-link'
+                  }
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
           </div>
 
           <div className="console-body">
             <aside className="console-sidebar">
-              <nav className="console-sidebar-nav">
-                {CONSOLE_NAV.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={
-                      item.href === activePath
-                        ? 'console-sidebar-link is-active'
-                        : 'console-sidebar-link'
-                    }
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
+              <div className="console-sidebar-section">
+                <span className="console-card-label">Current Section</span>
+                <strong>{title}</strong>
+                <p>{subtitle}</p>
+              </div>
 
               <div className="console-sidebar-meta">
                 <div className="console-sidebar-plan">

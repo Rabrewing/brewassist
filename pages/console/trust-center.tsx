@@ -34,11 +34,20 @@ export default function ConsoleTrustCenterPage() {
           <div className="console-list">
             {[
               ...TRUST_ITEMS,
+              ...(controlPlane.securityReadiness?.trustChecklist ?? []).map(
+                (item) => `${item.status}: ${item.detail}`
+              ),
+              ...(controlPlane.identity?.capabilities ?? []).map(
+                (item) => `${item.label}: ${item.status}`
+              ),
+              ...(controlPlane.identity?.nextActions ?? []).map(
+                (item) => `Next: ${item}`
+              ),
               controlPlane.providerContract
                 ? `Runtime token path: ${controlPlane.providerContract.localRuntimeGets}`
                 : null,
-              controlPlane.billing
-                ? `Stripe ready: ${String(controlPlane.billing.stripeReady)}`
+              controlPlane.securityReadiness?.stripe
+                ? `Stripe mode: ${controlPlane.securityReadiness.stripe.mode}`
                 : null,
             ]
               .filter(Boolean)
@@ -49,12 +58,17 @@ export default function ConsoleTrustCenterPage() {
             ))}
           </div>
         </article>
-        <article className="console-card console-visual-card">
-          <img
-            src="/mockups/settings-trust-center.png"
-            alt="Trust center visual direction"
-            className="console-preview-image"
-          />
+        <article className="console-card">
+          <div className="console-card-heading">
+            <strong>Trust Snapshot</strong>
+            <span>Security, compliance, and audit posture</span>
+          </div>
+          <div className="console-list">
+            <div className="console-list-item">Row-level security · enabled</div>
+            <div className="console-list-item">Audit logs · present</div>
+            <div className="console-list-item">Identity admin · staged</div>
+            <div className="console-list-item">Billing transparency · visible</div>
+          </div>
         </article>
       </section>
     </ConsoleShell>

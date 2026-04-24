@@ -187,5 +187,15 @@ Key components analyzed:
   GitHub device-flow return and GitLab/Bitbucket OAuth callback return should resume onboarding at the next wizard step after repo authorization, not reset the user to the beginning of `InitWizardModal`.
 - Conversation surface redesign:
   BrewAssist should move toward the Brew Agentic / Codex / terminal-style block presentation in the center pane, with assistant and system output rendered in a single left-aligned stream that handles prose, structured data, and code more cleanly than the current split bubble chat.
+- Console shell correction:
+  keep the top console frame sticky, allow lower work areas to scroll independently, and continue refining the search/tab composition so the hosted console reads like a real control plane instead of a stretched page shell.
+- Onboarding and trust:
+  add explicit policy acknowledgement and trust/security checkpoints before execution-sensitive hosted usage; do not route every new user straight from auth to billing.
+- Admin and permissioning:
+  add a true admin section with role-based access controls for owner, admin, operator, reviewer, and viewer-style access.
+- Session continuity:
+  define and implement hosted/local resume behavior so users can re-enter work by session ID and replay state instead of restarting context.
+- Provider and runtime modernization:
+  plan hosted Codex/ChatGPT account connect, refresh current model defaults, verify HRM and multi-tier agent communication value, and audit tool-call support as first-class product behavior.
 
 This roadmap will transform BrewAssist into a truly enterprise-ready platform balancing customer usability with admin power tools.

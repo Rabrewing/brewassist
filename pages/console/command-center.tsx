@@ -72,12 +72,17 @@ export default function ConsoleCommandCenterPage() {
       </section>
 
       <section className="console-content-grid">
-        <article className="console-card console-visual-card">
-          <img
-            src="/mockups/command-center.png"
-            alt="Command center mockup"
-            className="console-preview-image"
-          />
+        <article className="console-card">
+          <div className="console-card-heading">
+            <strong>Execution Stream</strong>
+            <span>Prompt, steps, tools, and completion state</span>
+          </div>
+          <div className="console-list">
+            <div className="console-list-item">10:42:11 · Analyzing request</div>
+            <div className="console-list-item">10:42:14 · Planning steps</div>
+            <div className="console-list-item">10:42:18 · Previewing edits</div>
+            <div className="console-list-item">10:42:20 · Awaiting confirm</div>
+          </div>
         </article>
         <article className="console-card">
           <div className="console-card-heading">

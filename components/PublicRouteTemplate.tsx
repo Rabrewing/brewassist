@@ -19,8 +19,6 @@ type PublicRouteTemplateProps = {
   kicker: string;
   title: string;
   lede: string;
-  imageSrc?: string;
-  imageAlt?: string;
   primaryCta?: RouteLink;
   secondaryCta?: RouteLink;
   sections: RouteSection[];
@@ -51,8 +49,6 @@ export function PublicRouteTemplate({
   kicker,
   title,
   lede,
-  imageSrc,
-  imageAlt,
   primaryCta,
   secondaryCta,
   sections,
@@ -71,15 +67,24 @@ export function PublicRouteTemplate({
             </div>
           </div>
 
-          {imageSrc ? (
-            <div className="public-site-hero-art">
-              <img
-                src={imageSrc}
-                alt={imageAlt ?? title}
-                className="public-site-route-image"
-              />
+          <div className="public-site-hero-art">
+            <div className="public-site-preview-card public-site-preview-card--route">
+              <div className="public-site-preview-header">
+                <span>{kicker}</span>
+                <span>{sections.length} Panels</span>
+              </div>
+              <div className="public-site-preview-body">
+                {sections.slice(0, 2).map((section) => (
+                  <div key={section.title} className="public-site-preview-pane">
+                    <strong>{section.title}</strong>
+                    <div className="public-site-preview-lines">
+                      <span>{section.body}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          ) : null}
+          </div>
         </div>
       </section>
 

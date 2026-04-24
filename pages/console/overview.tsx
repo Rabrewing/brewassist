@@ -116,12 +116,20 @@ export default function ConsoleOverviewPage() {
             ))}
           </div>
         </article>
-        <article className="console-card console-visual-card">
-          <img
-            src="/mockups/overview.png"
-            alt="Console overview mockup"
-            className="console-preview-image"
-          />
+        <article className="console-card">
+          <div className="console-card-heading">
+            <strong>Weekly Trend</strong>
+            <span>Hosted summary preview</span>
+          </div>
+          <div className="console-chart-preview">
+            <span style={{ height: '18%' }} />
+            <span style={{ height: '34%' }} />
+            <span style={{ height: '62%' }} />
+            <span style={{ height: '48%' }} />
+            <span style={{ height: '76%' }} />
+            <span style={{ height: '58%' }} />
+            <span style={{ height: '88%' }} />
+          </div>
         </article>
       </section>
 

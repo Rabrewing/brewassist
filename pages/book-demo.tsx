@@ -13,7 +13,7 @@ export default function BookDemoPage() {
         kicker="Enterprise Demo"
         title="Book a BrewAssist walkthrough for hosted control-plane and local runtime alignment."
         lede="Demo requests should focus on repo/provider context, sandbox-first execution, replay, billing visibility, trust surfaces, and the Brew Agentic local companion."
-        primaryCta={{ href: 'mailto:info@brewassist.app', label: 'Email BrewAssist' }}
+        primaryCta={{ href: 'mailto:hello@brewassist.app', label: 'Email BrewAssist' }}
         secondaryCta={{ href: '/pricing', label: 'Review Pricing' }}
         sections={[
           {

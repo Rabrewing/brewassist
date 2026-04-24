@@ -1,6 +1,6 @@
 # AGENTS.md - BrewAssist
 
-Updated: 2026-04-23T12:40:54Z (console merger, enterprise readiness, and hosted control-plane scaffolding)
+Updated: 2026-04-24T11:44:01Z (First live Stripe checkout validated; execution phase organized)
 
 - Treat `/home/brewexec/brewassist` as the repo root.
 - Main UI entrypoint is `pages/index.tsx`; the primary assistant stream route is `pages/api/brewassist.ts`.
@@ -58,6 +58,43 @@ Updated: 2026-04-23T12:40:54Z (console merger, enterprise readiness, and hosted 
 - Collab agent and persisted replay now fully wired: `collab.message` events persist to `run_events`, surface in right-rail CollabPanel and replay center trace.
 - Remaining high-priority work: real provider repo connect (GitHub OAuth), sandbox binding lifecycle, production billing integration (Stripe), diff/confirm/apply completion, enterprise SSO hardening.
 
+## Current Session - First Live Stripe Checkout, Console Shell Correction, And Execution Phase
+
+**2026-04-24T11:44:01Z: First Live Stripe Sandbox Checkout**
+
+- First successful end-to-end hosted Stripe sandbox checkout now validated against Supabase-backed billing state.
+- Confirmed persisted Stripe objects:
+  - customer `cus_UOU60bk7NCX6OD`
+  - subscription `sub_1TPhVmKAwSkLaHLXYy8JL7re`
+- Confirmed Supabase persistence in:
+  - `billing_event_ledger`
+  - `billing_customers`
+  - `billing_subscriptions`
+- Real integration correction applied after first live run:
+  - org plan now reconciles from Stripe subscription state
+  - subscription billing periods no longer get nulled by later lower-detail webhook events
+
+**2026-04-24T11:44:01Z: Console Shell Correction**
+
+- Console shell now uses a sticky top frame with a separate lower scroll region.
+- Console section navigation now lives in a horizontally scrollable tab strip.
+- Search surface is still provisional and may move closer to the tab strip later if that composition breathes better.
+
+**2026-04-24T11:44:01Z: Next Execution Phase**
+
+- New-user hosted flow should be:
+  sign in -> org bootstrap -> policy/trust acknowledgement -> workspace/repo/provider readiness -> wizard -> console -> billing when capability or plan selection requires it
+- Do not force every newly authenticated user straight into billing; trust, org setup, and execution readiness come first.
+- Immediate next build tracks are now:
+  - onboarding/policy/trust gating
+  - admin and RBAC surfaces
+  - diff/confirm/apply completion
+  - session resume continuity
+  - DevOps 8 right-rail signal depth
+  - provider/model refresh
+  - hosted Codex account-connect planning
+  - tool-call, HRM, and multi-tier agent verification
+
 ## Current Session - Console Merger, Enterprise Readiness, And Hosted Contracts
 
 **2026-04-23T12:40:54Z: Shared Console + Public IA Scaffold**
@@ -73,6 +110,25 @@ Updated: 2026-04-23T12:40:54Z (console merger, enterprise readiness, and hosted 
 - Short-lived Brew runtime tokens are the intended link path for Brew Agentic hosted access; raw provider keys are not the runtime contract.
 - Stripe is required before production-ready subscriptions, credit top-ups, invoice history, billing portal access, or live managed charging can be considered complete.
 - Enterprise readiness now explicitly includes SAML/OIDC SSO, tenant isolation, auditability, Trust Center content, security documentation, and a credible SOC 2 path.
+- Shared pricing and billing truth should continue to reference `/home/brewexec/brew-agentic/brewdocs/specs/brew-managed-pricing-and-billing-policy-2026-04-20.md`, `/home/brewexec/brew-agentic/brewdocs/specs/brew-platform-monetization-architecture-2026-04-21.md`, and `/home/brewexec/brew-agentic/brewdocs/specs/brew-billing-metering-and-visibility-contracts-2026-04-21.md`.
+
+**2026-04-23T13:42:00Z: Enterprise Identity + Billing Readiness**
+
+- BrewAssist now carries explicit hosted readiness read models for enterprise identity and Stripe billing configuration.
+- Console billing and trust pages should show configured vs missing setup state instead of implying that live Stripe billing or enterprise SSO already exists.
+- Supabase migration scaffolds now reserve schema for org identity providers, domain verification, SCIM connectors, billing customers, subscriptions, and billing event ledger state.
+
+**2026-04-23T15:08:00Z: Live Stripe Server Path**
+
+- BrewAssist now has first live Stripe server routes for checkout, billing portal, and verified webhook ingestion under `pages/api/billing/checkout.ts`, `pages/api/billing/portal.ts`, and `pages/api/billing/webhook.ts`.
+- Stripe customer and subscription state now sync into Supabase-backed hosted billing tables; Stripe remains the billing rail, not the entitlement source of truth.
+- `/console/billing` now includes first operator actions for launching hosted checkout and billing portal once Stripe env and dashboard objects are configured.
+
+**2026-04-23T15:34:00Z: Tax Readiness**
+
+- Tax automation is explicitly deferred during Stripe sandbox and test-mode setup.
+- BrewAssist should not build its own sales tax / VAT / GST engine; use Stripe Tax or a comparable specialist service when production billing is prepared.
+- Production billing launch should include tax review and product tax-code verification before accepting real paid customer subscriptions.
 
 ## Current Session - GitHub OAuth, UI, & Sandbox Binding (COMPLETED)
 

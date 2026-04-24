@@ -13,7 +13,7 @@ export default function SupportPage() {
         kicker="Support"
         title="Support entry for product, billing, runtime-link, and onboarding questions."
         lede="The first console scaffold includes support as an IA destination, but public support still starts with docs, email, and guided onboarding help."
-        primaryCta={{ href: 'mailto:info@brewassist.app', label: 'Contact Support' }}
+        primaryCta={{ href: 'mailto:hello@brewassist.app', label: 'Contact Support' }}
         secondaryCta={{ href: '/docs', label: 'Open Docs' }}
         sections={[
           {

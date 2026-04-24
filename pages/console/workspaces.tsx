@@ -79,12 +79,16 @@ export default function ConsoleWorkspacesPage() {
             ))}
           </div>
         </article>
-        <article className="console-card console-visual-card">
-          <img
-            src="/mockups/workspaces.png"
-            alt="Workspaces mockup"
-            className="console-preview-image"
-          />
+        <article className="console-card">
+          <div className="console-card-heading">
+            <strong>Workspace Cards</strong>
+            <span>Environment, members, and billing mode overview</span>
+          </div>
+          <div className="console-action-grid">
+            <div className="console-action-card">Production · hybrid</div>
+            <div className="console-action-card">Staging · brew-managed</div>
+            <div className="console-action-card">Development · byok</div>
+          </div>
         </article>
       </section>
 

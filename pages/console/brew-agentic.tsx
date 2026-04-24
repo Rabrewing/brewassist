@@ -29,12 +29,17 @@ export default function ConsoleBrewAgenticPage() {
             ))}
           </div>
         </article>
-        <article className="console-card console-visual-card">
-          <img
-            src="/mockups/brew-agentic-console.png"
-            alt="Brew Agentic connected experience"
-            className="console-preview-image"
-          />
+        <article className="console-card">
+          <div className="console-card-heading">
+            <strong>Runtime Status</strong>
+            <span>Last-seen heartbeat and sync posture</span>
+          </div>
+          <div className="console-list">
+            <div className="console-list-item">Connected · local runtime online</div>
+            <div className="console-list-item">Commands synced · 12</div>
+            <div className="console-list-item">Events uploaded · 8</div>
+            <div className="console-list-item">Memory updates · healthy</div>
+          </div>
         </article>
       </section>
 

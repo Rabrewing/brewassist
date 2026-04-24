@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
+import { getStripeReadinessSummary } from '@/lib/billing/stripeReadiness';
 import { buildBillingSummary } from '@/lib/console/controlPlane';
 import { parseEnterpriseContext } from '@/lib/enterpriseContext';
 import { createSupabaseAdminClient, getAuthenticatedUser } from '@/lib/supabase/server';
@@ -21,13 +22,22 @@ export default async function handler(
     const client = createSupabaseAdminClient();
     const enterpriseContext = parseEnterpriseContext(req);
     const billing = await buildBillingSummary(client, user, enterpriseContext.orgId);
+    const stripe = getStripeReadinessSummary();
 
     return res.status(200).json({
-      billing,
+      billing: {
+        ...billing,
+        stripeReady: stripe.ready,
+      },
       stripeStatus: {
-        ready: false,
-        reason:
-          'Stripe checkout, portal, invoices, and webhook sync still need production wiring before managed billing can go live.',
+        ready: stripe.ready,
+        reason: stripe.reason,
+        mode: stripe.mode,
+        missing: stripe.missing,
+        checkoutReady: stripe.checkoutReady,
+        portalReady: stripe.portalReady,
+        webhookReady: stripe.webhookReady,
+        pricesReady: stripe.pricesReady,
       },
     });
   } catch (error: any) {

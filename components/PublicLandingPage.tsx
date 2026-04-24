@@ -63,6 +63,15 @@ const GOVERNANCE_POINTS = [
   'Replayable reports and event trails for review',
 ];
 
+const TRUSTED_LOGOS = [
+  'Microsoft',
+  'AWS',
+  'Google Cloud',
+  'NVIDIA',
+  'DigitalOcean',
+  'GitHub',
+];
+
 const FAQS = [
   {
     question: 'What does BrewAssist actually do today?',
@@ -92,6 +101,11 @@ export function PublicLandingPage() {
       <section className="public-site-panel public-site-panel--hero">
         <div className="public-site-hero-grid">
           <div className="public-site-copy">
+            <img
+              src="/landing/hero-section.png"
+              alt="BrewAssist hero logo"
+              className="public-site-hero-logo"
+            />
             <div className="public-landing-kicker">
               AI-Native DevOps Control Plane
             </div>
@@ -119,6 +133,13 @@ export function PublicLandingPage() {
                 Telemetry, reporting, and collab notes built into the run model.
               </div>
             </div>
+            <div className="public-site-trust-strip">
+              {TRUSTED_LOGOS.map((item) => (
+                <span key={item} className="public-site-trust-chip">
+                  {item}
+                </span>
+              ))}
+            </div>
             <div className="public-site-cta-row">
               <Link
                 href="/start-free"
@@ -139,11 +160,32 @@ export function PublicLandingPage() {
           </div>
 
           <div className="public-site-hero-art">
-            <img
-              src="/mockups/brewassist-landing.png"
-              alt="BrewAssist landing mockup"
-              className="public-site-route-image"
-            />
+            <div className="public-site-preview-card">
+              <div className="public-site-preview-header">
+                <span>BrewAssist</span>
+                <span>Control Plane</span>
+              </div>
+              <div className="public-site-preview-body">
+                <div className="public-site-preview-pane">
+                  <strong>Command Center</strong>
+                  <div className="public-site-preview-lines">
+                    <span>Analyze repo context</span>
+                    <span>Plan staged workflow</span>
+                    <span>Preview sandbox edits</span>
+                    <span>Report and replay</span>
+                  </div>
+                </div>
+                <div className="public-site-preview-pane">
+                  <strong>Workspace</strong>
+                  <div className="public-site-preview-list">
+                    <span>project</span>
+                    <span>repo</span>
+                    <span>sandbox</span>
+                    <span>provider</span>
+                  </div>
+                </div>
+              </div>
+            </div>
             <PublicAuthPanel
               title="Sign in or create your BrewAssist account"
               subtitle="Start with email magic link access, then continue into tenant setup and the cockpit."
@@ -156,7 +198,7 @@ export function PublicLandingPage() {
           <Link href="/brew-agentic">Brew Agentic</Link>
           <Link href="/security">Security</Link>
           <Link href="/pricing">Pricing</Link>
-          <a href="mailto:info@brewassist.app">Contact</a>
+          <a href="mailto:hello@brewassist.app">Contact</a>
         </div>
       </section>
 
@@ -226,6 +268,43 @@ export function PublicLandingPage() {
         </article>
       </section>
 
+      <section className="public-site-split-grid">
+        <article className="public-site-panel">
+          <div className="public-site-section-heading">
+            <div className="public-landing-kicker">
+              Enterprise Security And Compliance
+            </div>
+            <h2>Built to be reviewed, governed, and trusted.</h2>
+          </div>
+          <div className="public-site-list">
+            {[
+              'Row-level security and role-based access direction',
+              'Audit-friendly runs, replay, and event trails',
+              'Tenant-scoped identity, SSO readiness, and domain policy path',
+              'Provider and billing transparency for managed vs BYOK usage',
+            ].map((point) => (
+              <div key={point} className="public-site-list-item">
+                {point}
+              </div>
+            ))}
+          </div>
+        </article>
+        <article className="public-site-panel">
+          <div className="public-site-preview-card public-site-preview-card--trust">
+            <div className="public-site-preview-header">
+              <span>Trust Center</span>
+              <span>Secure</span>
+            </div>
+            <div className="public-site-preview-list">
+              <span>Row-level security</span>
+              <span>Audit trails</span>
+              <span>Identity readiness</span>
+              <span>Billing transparency</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
       <section className="public-site-panel public-site-panel--cta">
         <div>
           <div className="public-landing-kicker">Pricing And Billing</div>
@@ -249,7 +328,7 @@ export function PublicLandingPage() {
             Book Demo
           </Link>
           <a
-            href="mailto:info@brewassist.app"
+            href="mailto:hello@brewassist.app"
             className="public-landing-button"
           >
             Talk To Sales

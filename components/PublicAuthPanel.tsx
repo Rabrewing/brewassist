@@ -70,7 +70,7 @@ export function PublicAuthPanel({
         <span>
           Magic link works for both sign-in and first-time account creation.
         </span>
-        <a href="mailto:info@brewassist.app">Need enterprise onboarding?</a>
+        <a href="mailto:hello@brewassist.app">Need enterprise onboarding?</a>
       </div>
       {(status || error) && (
         <div className="public-landing-status">{status || error}</div>

@@ -13,7 +13,6 @@ export default function FeaturesPage() {
         kicker="Capabilities"
         title="Feature sets that map to real workflow and console surfaces."
         lede="Public messaging should line up with the shipped control-plane direction: command center workflows, provider context, sandbox-first review, replay, telemetry, collaboration, and trust."
-        imageSrc="/mockups/console.png"
         primaryCta={{ href: '/console/command-center', label: 'View Command Center' }}
         secondaryCta={{ href: '/brew-agentic', label: 'See Brew Agentic' }}
         sections={[

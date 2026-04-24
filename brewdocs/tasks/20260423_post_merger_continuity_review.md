@@ -1,7 +1,7 @@
 # BrewAssist Post-Merger Continuity Review
 
 **Date:** 2026-04-23  
-**Updated:** 2026-04-23 08:40 America/New_York  
+**Updated:** 2026-04-24 07:44 EDT  
 **Status:** Working reference
 
 ## What BrewAssist Already Had Before The Console Merger Pass
@@ -54,6 +54,15 @@
 - invoice sync
 - subscription sync
 - webhook verification and idempotent local state updates
+
+### Newly validated and newly exposed gaps
+
+- first live Stripe sandbox checkout is now working end-to-end
+- org plan reconciliation from Stripe subscription state needed correction after first live run
+- billing period fields need to survive webhook ordering differences
+- console shell needs sticky-frame plus lower-region scrolling instead of whole-page drift
+- onboarding should add policy/trust checkpoints before execution-sensitive usage rather than jumping users straight from auth to billing
+- enterprise admin and RBAC surfaces now need to become explicit instead of implied
 
 ### UX parity and alignment
 

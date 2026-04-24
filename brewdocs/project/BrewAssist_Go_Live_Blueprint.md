@@ -112,7 +112,7 @@ Define the architecture needed to take BrewAssist from a local DevOps cockpit to
    - Add an org/workspace gate after login so tenant scope is explicit before the cockpit loads.
    - Add cookie consent and legal pages (terms/privacy/cookies/accessibility) for the public entry flow.
    - Include AI usage terms and data-collection disclosure before sign-in.
-   - Surface a public support contact (info@brewassist.app) for legal/compliance questions.
+   - Surface a public support contact (hello@brewassist.app) for legal/compliance questions.
    - Allow self-serve email magic link and optional Google/GitHub login; use org-managed SSO/OIDC/SAML for enterprise tenants.
    - Enforce plan tiers:
 

@@ -72,11 +72,32 @@ export function PublicBrewAgenticPage() {
           </div>
 
           <div className="public-site-hero-art">
-            <img
-              src="/assests/agentic/hero-agentic.png"
-              alt="Brew Agentic hero"
-              className="public-site-route-image"
-            />
+            <div className="public-site-preview-card public-site-preview-card--agentic">
+              <div className="public-site-preview-header">
+                <span>Brew Agentic</span>
+                <span>Local Runtime</span>
+              </div>
+              <div className="public-site-preview-body">
+                <div className="public-site-preview-pane">
+                  <strong>Terminal</strong>
+                  <div className="public-site-preview-lines">
+                    <span>connect workspace</span>
+                    <span>inspect repo</span>
+                    <span>run staged workflow</span>
+                    <span>sync to console</span>
+                  </div>
+                </div>
+                <div className="public-site-preview-pane">
+                  <strong>State</strong>
+                  <div className="public-site-preview-list">
+                    <span>providers</span>
+                    <span>memory</span>
+                    <span>tools</span>
+                    <span>link status</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -94,11 +115,23 @@ export function PublicBrewAgenticPage() {
           </p>
         </article>
         <article className="public-site-panel">
-          <img
-            src="/assests/agentic/connection.png"
-            alt="Brew Agentic connection diagram"
-            className="public-site-section-image"
-          />
+          <div className="public-site-preview-card public-site-preview-card--connection">
+            <div className="public-site-preview-header">
+              <span>Local + Hosted</span>
+              <span>Linked</span>
+            </div>
+            <div className="public-site-bridge-flow">
+              <div className="public-site-bridge-node">
+                <strong>Local Repo</strong>
+                <span>tools + execution</span>
+              </div>
+              <div className="public-site-bridge-line" />
+              <div className="public-site-bridge-node">
+                <strong>BrewAssist Console</strong>
+                <span>account + billing + trust</span>
+              </div>
+            </div>
+          </div>
         </article>
       </section>
 
@@ -144,11 +177,26 @@ export function PublicBrewAgenticPage() {
           </div>
         </article>
         <article className="public-site-panel">
-          <img
-            src="/assests/agentic/byok.png"
-            alt="Brew Agentic BYOK flow"
-            className="public-site-section-image"
-          />
+          <div className="public-site-preview-card">
+            <div className="public-site-preview-header">
+              <span>BYOK + Managed</span>
+              <span>Clear Boundary</span>
+            </div>
+            <div className="public-site-pricing-mini-grid">
+              <div className="public-site-pricing-mini-card">
+                <strong>Your Keys</strong>
+                <span>vendor billed</span>
+              </div>
+              <div className="public-site-pricing-mini-card public-site-pricing-mini-card--featured">
+                <strong>Brew Platform</strong>
+                <span>orchestration</span>
+              </div>
+              <div className="public-site-pricing-mini-card">
+                <strong>Managed</strong>
+                <span>hosted access</span>
+              </div>
+            </div>
+          </div>
         </article>
       </section>
 
@@ -165,11 +213,18 @@ export function PublicBrewAgenticPage() {
           </p>
         </article>
         <article className="public-site-panel">
-          <img
-            src="/assests/agentic/ui-frame.png"
-            alt="Brew Agentic terminal frame"
-            className="public-site-section-image"
-          />
+          <div className="public-site-preview-card public-site-preview-card--terminal">
+            <div className="public-site-preview-header">
+              <span>Terminal Surface</span>
+              <span>Direct</span>
+            </div>
+            <div className="public-site-terminal">
+              <span>$ brew-agentic /account</span>
+              <span>workspace: acme-web-app</span>
+              <span>billing: linked</span>
+              <span>runtime: healthy</span>
+            </div>
+          </div>
         </article>
       </section>
 

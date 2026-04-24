@@ -38,7 +38,7 @@ export const PUBLIC_LEGAL_DOCUMENTS: Record<
         heading: 'Data Collection',
         paragraphs: [
           'BrewAssist may collect account identifiers, org/workspace membership, prompt and response metadata, run events, audit events, and preference settings to provide the service, support replay, and maintain safety.',
-          'Contact: info@brewassist.app',
+          'Contact: hello@brewassist.app',
         ],
       },
     ],
@@ -58,7 +58,7 @@ export const PUBLIC_LEGAL_DOCUMENTS: Record<
         paragraphs: [
           'We collect essential authentication data, preferences, org/workspace membership, prompt and response metadata, and operational audit events.',
           'We do not intend to use your private workspace data for advertising. Retention and export controls will be documented for enterprise tenants.',
-          'Contact: info@brewassist.app',
+          'Contact: hello@brewassist.app',
         ],
       },
     ],

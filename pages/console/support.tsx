@@ -49,12 +49,16 @@ export default function ConsoleSupportPage() {
             ))}
           </div>
         </article>
-        <article className="console-card console-visual-card">
-          <img
-            src="/mockups/support-center.png"
-            alt="Support center mockup"
-            className="console-preview-image"
-          />
+        <article className="console-card">
+          <div className="console-card-heading">
+            <strong>Support Lanes</strong>
+            <span>Docs, tickets, onboarding, and billing help</span>
+          </div>
+          <div className="console-action-grid">
+            <div className="console-action-card">Documentation</div>
+            <div className="console-action-card">Submit Ticket</div>
+            <div className="console-action-card">Community</div>
+          </div>
         </article>
       </section>
     </ConsoleShell>

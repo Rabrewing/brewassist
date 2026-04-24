@@ -13,7 +13,6 @@ export default function SecurityPage() {
         kicker="Security + Trust"
         title="Trust center direction for hosted account, workspace, and execution visibility."
         lede="Security messaging should stay close to the current implementation reality: Supabase auth, org and workspace scoping, RLS and RBAC direction, policy gates, replay trails, and conservative sandbox defaults."
-        imageSrc="/mockups/brewassist-landing.png"
         primaryCta={{ href: '/console/trust-center', label: 'Open Trust Center' }}
         secondaryCta={{ href: '/privacy', label: 'Review Privacy' }}
         sections={[

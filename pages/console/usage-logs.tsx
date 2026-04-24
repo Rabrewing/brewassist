@@ -46,12 +46,20 @@ export default function ConsoleUsageLogsPage() {
             ))}
           </div>
         </article>
-        <article className="console-card console-visual-card">
-          <img
-            src="/mockups/console.png"
-            alt="Usage and logs mockup"
-            className="console-preview-image"
-          />
+        <article className="console-card">
+          <div className="console-card-heading">
+            <strong>Usage Snapshot</strong>
+            <span>Tracked commands, spend, and provider mix</span>
+          </div>
+          <div className="console-chart-preview">
+            <span style={{ height: '52%' }} />
+            <span style={{ height: '74%' }} />
+            <span style={{ height: '44%' }} />
+            <span style={{ height: '68%' }} />
+            <span style={{ height: '60%' }} />
+            <span style={{ height: '82%' }} />
+            <span style={{ height: '57%' }} />
+          </div>
         </article>
       </section>
     </ConsoleShell>

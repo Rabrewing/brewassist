@@ -45,12 +45,17 @@ export default function ConsoleProvidersPage() {
             ))}
           </div>
         </article>
-        <article className="console-card console-visual-card">
-          <img
-            src="/mockups/providers.png"
-            alt="Provider and BYOK view"
-            className="console-preview-image"
-          />
+        <article className="console-card">
+          <div className="console-card-heading">
+            <strong>Provider Matrix</strong>
+            <span>Managed and BYOK posture by provider</span>
+          </div>
+          <div className="console-list">
+            <div className="console-list-item">OpenAI · managed · active</div>
+            <div className="console-list-item">Anthropic · managed · active</div>
+            <div className="console-list-item">Workspace BYOK · optional</div>
+            <div className="console-list-item">Raw vendor keys never exposed</div>
+          </div>
         </article>
       </section>
 

@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
+import { getStripeReadinessSummary } from '@/lib/billing/stripeReadiness';
 import { buildCreditsSummary } from '@/lib/console/controlPlane';
 import { parseEnterpriseContext } from '@/lib/enterpriseContext';
 import { createSupabaseAdminClient, getAuthenticatedUser } from '@/lib/supabase/server';
@@ -21,8 +22,14 @@ export default async function handler(
     const client = createSupabaseAdminClient();
     const enterpriseContext = parseEnterpriseContext(req);
     const credits = await buildCreditsSummary(client, user, enterpriseContext.orgId);
+    const stripe = getStripeReadinessSummary();
 
-    return res.status(200).json({ credits });
+    return res.status(200).json({
+      credits: {
+        ...credits,
+        stripeReady: stripe.ready,
+      },
+    });
   } catch (error: any) {
     console.error('[api/credits/summary]', error?.message ?? error);
     return res.status(500).json({ error: error?.message ?? 'Failed to load credits summary' });

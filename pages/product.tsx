@@ -13,8 +13,6 @@ export default function ProductPage() {
         kicker="Hosted Control Plane"
         title="BrewAssist is the browser control plane for governed DevOps work."
         lede="The hosted surface keeps workflow stages, workspace context, replay, policy gates, reporting, and team visibility in one place. It is not a detached chatbot and it is not a second product beside Brew Agentic."
-        imageSrc="/mockups/console.png"
-        imageAlt="BrewAssist console mockup"
         primaryCta={{ href: '/console/command-center', label: 'Open Command Center' }}
         secondaryCta={{ href: '/pricing', label: 'View Pricing' }}
         sections={[

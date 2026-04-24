@@ -65,6 +65,12 @@ type BillingResponse = {
   stripeStatus?: {
     ready: boolean;
     reason: string;
+    mode: 'unconfigured' | 'partial' | 'configured';
+    missing: string[];
+    checkoutReady: boolean;
+    portalReady: boolean;
+    webhookReady: boolean;
+    pricesReady: boolean;
   };
 };
 
@@ -96,6 +102,46 @@ type ProvidersResponse = {
   };
 };
 
+type IdentityResponse = {
+  identity?: {
+    authFoundation: 'supabase-session';
+    role: string;
+    modesOffered: string[];
+    ssoReady: boolean;
+    scimReady: boolean;
+    domainVerificationReady: boolean;
+    capabilities: Array<{
+      key: string;
+      label: string;
+      status: 'live' | 'planned' | 'missing';
+      detail: string;
+    }>;
+    nextActions: string[];
+  };
+};
+
+type SecurityResponse = {
+  readiness?: {
+    identity: IdentityResponse['identity'];
+    stripe: {
+      ready: boolean;
+      mode: 'unconfigured' | 'partial' | 'configured';
+      missing: string[];
+      configured: string[];
+      portalReady: boolean;
+      checkoutReady: boolean;
+      webhookReady: boolean;
+      pricesReady: boolean;
+      reason: string;
+    };
+    trustChecklist: Array<{
+      key: string;
+      status: 'live' | 'planned' | 'missing';
+      detail: string;
+    }>;
+  };
+};
+
 type ConsoleControlPlaneState = {
   account: AccountSessionResponse['account'] | null;
   organization: AccountSessionResponse['organization'] | null;
@@ -107,6 +153,8 @@ type ConsoleControlPlaneState = {
   credits: CreditsResponse['credits'] | null;
   managedProviders: NonNullable<ProvidersResponse['managed']>['providers'];
   providerContract: ProvidersResponse['contract'] | null;
+  identity: IdentityResponse['identity'] | null;
+  securityReadiness: SecurityResponse['readiness'] | null;
   loading: boolean;
   error: string | null;
 };
@@ -122,6 +170,8 @@ const DEFAULT_STATE: ConsoleControlPlaneState = {
   credits: null,
   managedProviders: [],
   providerContract: null,
+  identity: null,
+  securityReadiness: null,
   loading: true,
   error: null,
 };
@@ -168,6 +218,8 @@ export function useConsoleControlPlane() {
           fetch('/api/billing/summary', { headers }),
           fetch('/api/credits/summary', { headers }),
           fetch('/api/providers/managed-summary', { headers }),
+          fetch('/api/identity/sso/summary', { headers }),
+          fetch('/api/security/enterprise-readiness', { headers }),
         ]);
 
         const failed = responses.find((response) => !response.ok);
@@ -185,6 +237,8 @@ export function useConsoleControlPlane() {
           billingData,
           creditsData,
           providersData,
+          identityData,
+          securityData,
         ] = (await Promise.all(
           responses.map((response) => response.json())
         )) as [
@@ -194,6 +248,8 @@ export function useConsoleControlPlane() {
           BillingResponse,
           CreditsResponse,
           ProvidersResponse,
+          IdentityResponse,
+          SecurityResponse,
         ];
 
         if (!active) return;
@@ -209,6 +265,8 @@ export function useConsoleControlPlane() {
           credits: creditsData.credits ?? null,
           managedProviders: providersData.managed?.providers ?? [],
           providerContract: providersData.contract ?? null,
+          identity: identityData.identity ?? null,
+          securityReadiness: securityData.readiness ?? null,
           loading: false,
           error: null,
         });

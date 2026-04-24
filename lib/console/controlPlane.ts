@@ -99,6 +99,8 @@ type ProviderKeyRow = {
   status: string;
 };
 
+type BrewPlan = 'free' | 'starter' | 'pro' | 'team' | 'enterprise';
+
 function unwrapOrganization(value: MembershipRow['organizations']) {
   if (!value) return null;
   return Array.isArray(value) ? (value[0] ?? null) : value;
@@ -116,23 +118,50 @@ function monthBounds(date = new Date()) {
   };
 }
 
-function getPlatformFeeUsd(plan: string) {
-  switch (plan) {
-    case 'enterprise':
-      return 499;
+function normalizePlan(plan?: string | null): BrewPlan {
+  switch ((plan ?? '').trim().toLowerCase()) {
+    case 'starter':
+      return 'starter';
     case 'pro':
-      return 99;
+      return 'pro';
+    case 'team':
+      return 'team';
+    case 'enterprise':
+      return 'enterprise';
     default:
-      return 24;
+      return 'free';
   }
 }
 
-function getPlanDefaultModels(plan: string): Record<string, string[]> {
+function getPlatformFeeUsd(plan: BrewPlan) {
+  switch (plan) {
+    case 'starter':
+      return 19;
+    case 'pro':
+      return 49;
+    case 'team':
+      return 99;
+    case 'enterprise':
+      return 0;
+    default:
+      return 0;
+  }
+}
+
+function getPlanDefaultModels(plan: BrewPlan): Record<string, string[]> {
   if (plan === 'enterprise') {
     return {
       openai: ['gpt-5.4', 'gpt-5.4-mini'],
       anthropic: ['claude-3.5-sonnet'],
       gemini: ['gemini-2.5-pro', 'gemini-2.5-flash'],
+    };
+  }
+
+  if (plan === 'team') {
+    return {
+      openai: ['gpt-5.4-mini'],
+      anthropic: ['claude-3.5-sonnet'],
+      gemini: ['gemini-2.5-flash'],
     };
   }
 
@@ -144,12 +173,18 @@ function getPlanDefaultModels(plan: string): Record<string, string[]> {
     };
   }
 
+  if (plan === 'starter') {
+    return {
+      openai: ['gpt-5.4-mini'],
+    };
+  }
+
   return {
     openai: ['gpt-5.4-mini'],
   };
 }
 
-function getAuthSources(plan: string, providerKeys: ProviderKeyRow[]) {
+function getAuthSources(plan: BrewPlan, providerKeys: ProviderKeyRow[]) {
   const hasWorkspaceKeys = providerKeys.some((key) => key.status === 'active');
   const sources: Array<'byok' | 'brew-managed'> = [];
 
@@ -157,7 +192,7 @@ function getAuthSources(plan: string, providerKeys: ProviderKeyRow[]) {
     sources.push('byok');
   }
 
-  if (plan === 'pro' || plan === 'enterprise') {
+  if (plan === 'pro' || plan === 'team' || plan === 'enterprise') {
     sources.push('brew-managed');
   }
 
@@ -165,7 +200,7 @@ function getAuthSources(plan: string, providerKeys: ProviderKeyRow[]) {
 }
 
 function getBillingMode(
-  plan: string,
+  plan: BrewPlan,
   providerKeys: ProviderKeyRow[]
 ): 'byok' | 'brew-managed' | 'hybrid' {
   const authSources = getAuthSources(plan, providerKeys);
@@ -288,7 +323,7 @@ export async function buildAccountSessionSummary(
     accountId: user.id,
     email,
     displayName,
-    plan: org?.plan ?? 'free',
+    plan: normalizePlan(org?.plan),
     accountStanding: org ? 'active' : 'inactive',
     ownerMode: membership?.role_name === 'owner',
     orgId: org?.id ?? null,
@@ -312,7 +347,8 @@ export async function buildWorkspaceSummaries(
   if (!org || !membership) return [];
 
   const providerKeys = await loadProviderKeys(client, org.id);
-  const billingMode = getBillingMode(org.plan ?? 'free', providerKeys);
+  const plan = normalizePlan(org.plan);
+  const billingMode = getBillingMode(plan, providerKeys);
 
   return workspaces.map((item) => ({
     workspaceId: item.id,
@@ -344,8 +380,9 @@ export async function buildEntitlementSummary(
     };
   }
 
+  const plan = normalizePlan(org.plan);
   const providerKeys = await loadProviderKeys(client, org.id);
-  const planModels = getPlanDefaultModels(org.plan ?? 'free');
+  const planModels = getPlanDefaultModels(plan);
   const keyProviders = providerKeys
     .filter((item) => item.status === 'active')
     .map((item) => item.provider);
@@ -353,13 +390,13 @@ export async function buildEntitlementSummary(
 
   return {
     platformAccess: true,
-    authSources: getAuthSources(org.plan ?? 'free', providerKeys),
+    authSources: getAuthSources(plan, providerKeys),
     providers,
     models: planModels,
     intelligenceMeters: {
-      agentStep: org.plan !== 'free',
+      agentStep: plan !== 'free',
       executionChain: true,
-      memoryRetention: org.plan === 'pro' || org.plan === 'enterprise',
+      memoryRetention: plan === 'pro' || plan === 'team' || plan === 'enterprise',
     },
   };
 }
@@ -396,9 +433,11 @@ export async function buildBillingSummary(
     .filter((item) => item.metric_name === 'credit_balance_usd')
     .reduce((_, item) => Number(item.metric_value), 0);
 
+  const plan = normalizePlan(org.plan);
+
   return {
-    plan: org.plan ?? 'free',
-    platformFeeUsd: getPlatformFeeUsd(org.plan ?? 'free'),
+    plan,
+    platformFeeUsd: getPlatformFeeUsd(plan),
     currentPeriodStart: bounds.start,
     currentPeriodEnd: bounds.end,
     managedSpendUsd,
@@ -434,9 +473,10 @@ export async function buildManagedProviderSummary(
     return { providers: [] };
   }
 
+  const plan = normalizePlan(org.plan);
   const providerKeys = await loadProviderKeys(client, org.id);
-  const planModels = getPlanDefaultModels(org.plan ?? 'free');
-  const authSources = getAuthSources(org.plan ?? 'free', providerKeys);
+  const planModels = getPlanDefaultModels(plan);
+  const authSources = getAuthSources(plan, providerKeys);
   const keyProviders = providerKeys
     .filter((item) => item.status === 'active')
     .map((item) => item.provider);

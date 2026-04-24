@@ -8,6 +8,7 @@ import { CookieConsentBar } from './CookieConsentBar';
 import { PublicSiteLayout } from './PublicSiteLayout';
 
 type BillingInterval = 'monthly' | 'yearly';
+type PricingMode = 'managed' | 'byok';
 
 type PricingPlan = {
   name: string;
@@ -145,6 +146,7 @@ const PLAN_MATRIX = [
 
 export function PublicPricingPage() {
   const [interval, setInterval] = useState<BillingInterval>('yearly');
+  const [mode, setMode] = useState<PricingMode>('managed');
   const plans = useMemo(() => PRICING_PLANS[interval], [interval]);
 
   return (
@@ -159,26 +161,70 @@ export function PublicPricingPage() {
             Choose a BrewAssist plan for the control plane itself, then decide
             whether you want managed model usage or your own provider keys.
           </p>
+          <div className="public-site-pricing-note">
+            Platform fee applies in all plans. `BYOK` removes vendor charges,
+            not Brew platform charges.
+          </div>
         </div>
-        <div
-          className="public-site-toggle-row"
-          role="tablist"
-          aria-label="Billing interval"
-        >
-          <button
-            type="button"
-            className={`public-site-toggle ${interval === 'monthly' ? 'is-active' : ''}`}
-            onClick={() => setInterval('monthly')}
-          >
-            Monthly
-          </button>
-          <button
-            type="button"
-            className={`public-site-toggle ${interval === 'yearly' ? 'is-active' : ''}`}
-            onClick={() => setInterval('yearly')}
-          >
-            Yearly
-          </button>
+        <div className="public-site-pricing-hero-grid">
+          <div className="public-site-pricing-controls">
+            <div
+              className="public-site-toggle-row"
+              role="tablist"
+              aria-label="Billing interval"
+            >
+              <button
+                type="button"
+                className={`public-site-toggle ${interval === 'monthly' ? 'is-active' : ''}`}
+                onClick={() => setInterval('monthly')}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                className={`public-site-toggle ${interval === 'yearly' ? 'is-active' : ''}`}
+                onClick={() => setInterval('yearly')}
+              >
+                Annual
+              </button>
+            </div>
+            <div className="public-site-toggle-row" role="tablist" aria-label="Pricing mode">
+              <button
+                type="button"
+                className={`public-site-toggle ${mode === 'managed' ? 'is-active' : ''}`}
+                onClick={() => setMode('managed')}
+              >
+                Brew Managed
+              </button>
+              <button
+                type="button"
+                className={`public-site-toggle ${mode === 'byok' ? 'is-active' : ''}`}
+                onClick={() => setMode('byok')}
+              >
+                BYOK
+              </button>
+            </div>
+          </div>
+          <div className="public-site-preview-card public-site-preview-card--pricing">
+            <div className="public-site-preview-header">
+              <span>Pricing</span>
+              <span>{mode === 'managed' ? 'Brew Managed' : 'BYOK'}</span>
+            </div>
+            <div className="public-site-pricing-mini-grid">
+              <div className="public-site-pricing-mini-card">
+                <strong>Starter</strong>
+                <span>{interval === 'monthly' ? '$24' : '$19'}</span>
+              </div>
+              <div className="public-site-pricing-mini-card public-site-pricing-mini-card--featured">
+                <strong>Pro</strong>
+                <span>{interval === 'monthly' ? '$79' : '$63'}</span>
+              </div>
+              <div className="public-site-pricing-mini-card">
+                <strong>Enterprise</strong>
+                <span>Custom</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -207,6 +253,11 @@ export function PublicPricingPage() {
                 </div>
               ))}
             </div>
+            <div className="public-site-pricing-footnote">
+              {mode === 'managed'
+                ? 'Managed model access uses Brew-hosted billing and cost visibility.'
+                : 'Use your own provider billing while keeping BrewAssist orchestration, reporting, and governance.'}
+            </div>
             <div className="public-site-cta-row">
               <Link
                 href="/"
@@ -217,6 +268,54 @@ export function PublicPricingPage() {
             </div>
           </article>
         ))}
+      </section>
+
+      <section className="public-site-split-grid">
+        <article className="public-site-panel">
+          <div className="public-site-section-heading">
+            <div className="public-landing-kicker">Usage Visibility</div>
+            <h2>Billing only works when the cost story is visible.</h2>
+          </div>
+          <div className="public-site-list">
+            {[
+              'Provider and model visibility',
+              'Managed vs BYOK attribution',
+              'Workspace and org usage context',
+              'Run, replay, and audit trail support for finance and ops',
+            ].map((item) => (
+              <div key={item} className="public-site-list-item">
+                {item}
+              </div>
+            ))}
+          </div>
+          <div className="public-site-cta-row">
+            <Link href="/console/billing" className="public-landing-button">
+              Explore Dashboard
+            </Link>
+          </div>
+        </article>
+        <article className="public-site-panel">
+          <div className="public-site-preview-card">
+            <div className="public-site-preview-header">
+              <span>Billing Visibility</span>
+              <span>This Month</span>
+            </div>
+            <div className="public-site-preview-metrics">
+              <div>
+                <strong>Total Spend</strong>
+                <span>$1,284.75</span>
+              </div>
+              <div>
+                <strong>Requests</strong>
+                <span>42,615</span>
+              </div>
+              <div>
+                <strong>Avg Cost</strong>
+                <span>$13.07 / 1M</span>
+              </div>
+            </div>
+          </div>
+        </article>
       </section>
 
       <section className="public-site-split-grid">
@@ -277,12 +376,32 @@ export function PublicPricingPage() {
         </div>
       </section>
 
-      <section className="public-site-panel">
-        <PublicAuthPanel
-          compact
-          title="Start with a BrewAssist account"
-          subtitle="Use the same email magic-link flow for a new account or a returning sign-in before choosing a plan."
-        />
+      <section className="public-site-split-grid">
+        <article className="public-site-panel">
+          <div className="public-site-section-heading">
+            <div className="public-landing-kicker">Common Questions</div>
+            <h2>Pricing should stay clear under procurement review.</h2>
+          </div>
+          <div className="public-site-list">
+            {[
+              'Why do I still pay if I use my own API keys?',
+              'How does Brew-managed billing differ from BYOK?',
+              'Can I switch between managed and BYOK later?',
+              'What changes once enterprise SSO and contract billing are enabled?',
+            ].map((item) => (
+              <div key={item} className="public-site-list-item">
+                {item}
+              </div>
+            ))}
+          </div>
+        </article>
+        <article className="public-site-panel">
+          <PublicAuthPanel
+            compact
+            title="Start with a BrewAssist account"
+            subtitle="Use the same account flow before selecting a plan, managed usage path, or enterprise onboarding motion."
+          />
+        </article>
       </section>
 
       <CookieConsentBar />
