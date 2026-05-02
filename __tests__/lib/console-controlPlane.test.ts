@@ -2,6 +2,7 @@ import {
   buildBillingSummary,
   buildEntitlementSummary,
   buildManagedProviderSummary,
+  buildSessionRestoreSummary,
 } from '../../lib/console/controlPlane';
 
 function createClientStub(overrides?: {
@@ -9,12 +10,9 @@ function createClientStub(overrides?: {
   workspaces?: any[];
   providerKeys?: any[];
   usage?: any[];
+  sessions?: any[];
+  runs?: any[];
 }) {
-  const state = {
-    table: '',
-    filters: [] as Array<{ key: string; value: string }>,
-  };
-
   const memberships = overrides?.memberships ?? [
     {
       org_id: 'org-1',
@@ -38,34 +36,79 @@ function createClientStub(overrides?: {
     { metric_name: 'managed_spend_usd', metric_value: 18.42 },
     { metric_name: 'intelligence_spend_usd', metric_value: 7.15 },
     { metric_name: 'credit_balance_usd', metric_value: 46.18 },
+    {
+      metric_name: 'provider_call_openai_hosted_managed',
+      metric_value: 1,
+      created_at: '2026-04-29T00:00:00.000Z',
+      usage_lane: 'reviewer',
+    },
+    {
+      metric_name: 'provider_chars_openai_hosted_managed',
+      metric_value: 128,
+      created_at: '2026-04-29T00:00:00.000Z',
+      usage_lane: 'reviewer',
+    },
   ];
+  const sessions = overrides?.sessions ?? [
+    {
+      id: 'session-1',
+      workspace_id: 'ws-1',
+      current_stage: 'report',
+      last_seen_at: '2026-04-30T12:00:00.000Z',
+    },
+  ];
+  const runs = overrides?.runs ?? [
+    {
+      id: 'run-1',
+      session_id: 'session-1',
+      status: 'complete',
+      closeout_status: 'approved',
+      created_at: '2026-04-30T12:05:00.000Z',
+    },
+  ];
+
+  const buildResponse = (table: string) => {
+    let data: any[] = [];
+    if (table === 'memberships') data = memberships;
+    if (table === 'provider_keys') data = providerKeys;
+    if (table === 'usage_meter_records') data = usage;
+    if (table === 'workspaces') data = workspaces;
+    if (table === 'billing_event_ledger') data = [];
+    if (table === 'sessions') data = sessions;
+    if (table === 'runs') data = runs;
+    if (table === 'billing_subscriptions') data = [];
+    if (table === 'billing_customers') data = [];
+    return { data, error: null };
+  };
 
   return {
     from(table: string) {
-      state.table = table;
-      state.filters = [];
-      return this;
-    },
-    select() {
-      return this;
-    },
-    eq(key: string, value: string) {
-      state.filters.push({ key, value });
-      return this;
-    },
-    order() {
-      if (state.table === 'workspaces') {
-        return Promise.resolve({ data: workspaces, error: null });
-      }
-      return Promise.resolve({ data: [], error: null });
-    },
-    then(resolve: any) {
-      let data: any[] = [];
-      if (state.table === 'memberships') data = memberships;
-      if (state.table === 'provider_keys') data = providerKeys;
-      if (state.table === 'usage_meter_records') data = usage;
-
-      return Promise.resolve(resolve({ data, error: null }));
+      const chain: any = {
+        select() {
+          return chain;
+        },
+        eq() {
+          return chain;
+        },
+        in() {
+          return chain;
+        },
+        order() {
+          return chain;
+        },
+        limit() {
+          return chain;
+        },
+        maybeSingle() {
+          const response = buildResponse(table);
+          const row = Array.isArray(response.data) ? response.data[0] ?? null : response.data;
+          return Promise.resolve({ data: row, error: null });
+        },
+        then(resolve: any) {
+          return Promise.resolve(resolve(buildResponse(table)));
+        },
+      };
+      return chain;
     },
   } as any;
 }
@@ -85,7 +128,7 @@ describe('console control-plane builders', () => {
     expect(result.platformAccess).toBe(true);
     expect(result.authSources).toEqual(['byok', 'brew-managed']);
     expect(result.providers).toEqual(
-      expect.arrayContaining(['openai', 'anthropic', 'gemini'])
+      expect.arrayContaining(['openai', 'gemini', 'mistral'])
     );
   });
 
@@ -99,6 +142,15 @@ describe('console control-plane builders', () => {
     expect(result.intelligenceSpendUsd).toBe(7.15);
     expect(result.creditsRemainingUsd).toBe(46.18);
     expect(result.stripeReady).toBe(false);
+    expect(result.providerUsage.byLane).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          lane: 'reviewer',
+          callCount: 1,
+          charCount: 128,
+        }),
+      ])
+    );
   });
 
   it('builds managed provider summary with mixed auth modes', async () => {
@@ -110,7 +162,31 @@ describe('console control-plane builders', () => {
     expect(openai).toMatchObject({
       enabled: true,
       authModes: ['byok', 'brew-managed'],
-      source: 'workspace-keys',
+        source: 'workspace-keys',
+      });
+  });
+
+  it('builds a session restore summary with the latest run', async () => {
+    const client = createClientStub();
+
+    const result = await buildSessionRestoreSummary(
+      client,
+      mockUser,
+      'org-1',
+      'session-1'
+    );
+
+    expect(result).toMatchObject({
+      sessionId: 'session-1',
+      workspaceId: 'ws-1',
+      currentStage: 'report',
+      latestRunId: 'run-1',
+      latestRunStatus: 'complete',
+      latestCloseoutStatus: 'approved',
+      context: {
+        latestEventType: null,
+        stage: 'report',
+      },
     });
   });
 });

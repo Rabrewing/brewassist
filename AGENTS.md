@@ -1,6 +1,6 @@
 # AGENTS.md - BrewAssist
 
-Updated: 2026-04-24T12:19:31Z (Billing lifecycle surfaces extended; fetch optimization queued)
+Updated: 2026-05-02T00:00:00Z (Hosted resume rehydration and apply-trail hardening implemented)
 
 - Treat `/home/brewexec/brewassist` as the repo root.
 - Main UI entrypoint is `pages/index.tsx`; the primary assistant stream route is `pages/api/brewassist.ts`.
@@ -41,22 +41,32 @@ Updated: 2026-04-24T12:19:31Z (Billing lifecycle surfaces extended; fetch optimi
 - During the BrewAssist + Brew Agentic merger phase, keep `brewdocs/console/` aligned with the mirrored upstream specs and review `/home/brewexec/brew-agentic/brewdocs/specs/` when checking intent, provider, billing, console, runtime-link, or trust behavior.
 - When BrewAssist and Brew Agentic appear to diverge, do not silently invent a third interpretation; document the delta and normalize BrewAssist to the shared control-plane contract where feasible.
 - BrewAssist online must stay aligned to `Intent -> Plan -> Preview -> Confirm -> Execute -> Report -> Replay`; do not invent a second flow.
+- Execution, report, and replay summaries should stay native and detailed in both BrewAssist and Brew Agentic; do not collapse successful runs into terse tool logs when a human-readable product summary is expected.
 - `components/WorkspaceSidebarRight.tsx` is the real right-rail host for `Ops`/DevOps8, `Files`, `Sandbox`, and `Cognition`; do not reintroduce placeholder tabs.
 - `repoProvider` and `repoRoot` are part of the request context and must be forwarded through `/api/brewassist`, `/api/fs-tree`, and `/api/fs-read`.
 - Unsupported cross-repo access must fail closed until multi-repo routing is implemented.
 - The sandbox mirror is the writable surface; live repo writes are not the default path.
 - BrewAssist is not v1 until repo connect, sandbox bind, diff preview, confirm, report, and replay are all present in the online workflow.
+- Hosted resume is now part of the online workflow contract: `/resume` should restore the latest run metadata and the last meaningful command-center context before replay loads.
+- The console can ship under `brewassist.app/console/*` first, with `console.brewassist.app` as a later deployment split if we want the more professional enterprise domain shape.
+- `/console/sandbox` is now the dedicated larger sandbox workspace route; it should reflect the active repo mirror and repo-shadow state, not a static scaffold or a right-rail replacement.
+- The sandbox workspace should keep growing toward file preview, diff review, and validation from the live repo mirror, while the command center remains the narrative/control surface.
+- The sandbox workspace now includes live file preview and a sandbox diff/apply review block for remote repo shadows; keep that path tied to the active repo context and fail closed for local-only workspaces where apply is not available.
 - Supabase is the current enterprise data path: keep migrations under `supabase/migrations/`, preserve RLS/RBAC in SQL, and never commit live Supabase keys.
 - Online auth now uses Supabase session identity plus org membership lookup; API routes may receive the browser access token as a bearer header until server-side cookie exchange is fully hardened.
 - `brewmaster.rb@brewassist.app` is the current super-admin recovery account; keep bootstrap logic idempotent so repeated login/bootstrap attempts reuse the same org/workspace instead of failing on unique constraints.
 - Typed agent-fabric runtime, persisted replay, and right-rail collab surfaces are now partially implemented; remaining high-priority unfinished work is auth/tenant hardening, real provider repo connect, sandbox binding, diff/confirm/apply completion, landing/pricing/billing implementation, and production email/SSO hardening.
 - Public brewassist.app entry must include landing, auth gate, cookie consent, accessibility, terms/privacy, and AI/data-collection disclosures before the cockpit.
+- The shared agent contract is role-based, not swarm-based: planner, executor, reviewer, memory, and research are the stable product lanes; multiple workers may exist under the hood, but the visible contract should stay observable and replayable rather than vague multi-agent talk.
 - Landing and pricing implementation should now use `brewdocs/BrewAssist Landing Page-Pricing-v1.md` plus `brewdocs/mockups/landing-page.png` and `brewdocs/mockups/pricing-page.png`, but normalize copy to the real product state before building.
+- Public pricing must not market a free public tier; self-serve plans are `Starter`, `Pro`, and `Team`, Enterprise stays sales-led, and pricing CTA flow should preserve selected plan/interval into trial onboarding or hosted billing.
 - Do not market BrewAssist as generic AI fluff; public copy should reflect the actual control-plane workflow: provider/repo selection, sandbox-first execution, policy gating, reporting, replay, telemetry, and collaboration.
 - Auth blocker now FIXED: Applied migration `202604130003_fix_membership_rls_recursion.sql`, made browser client a singleton in `lib/supabase/browser.ts`, updated `EnterpriseTenantGate` to use shared client. Sign-in now works reliably.
 - Public landing and pricing now implemented with modal legal links, auth panel visible in hero, and billing status badge in cockpit header.
 - Collab agent and persisted replay now fully wired: `collab.message` events persist to `run_events`, surface in right-rail CollabPanel and replay center trace.
 - Remaining high-priority work: real provider repo connect (GitHub OAuth), sandbox binding lifecycle, production billing integration (Stripe), diff/confirm/apply completion, enterprise SSO hardening.
+- Support/help work should use the dedicated audited assist surface in `/console/support`; do not add silent impersonation or unaudited client-session access paths. Use the request/grant/join/leave/revoke audit trail for live assistance instead of hidden impersonation.
+- Support/help work should include a customer-facing approval portal for live assist grants; do not rely on out-of-band consent alone when the product can capture explicit approval inside BrewAssist. Build the support stack natively on Supabase + Resend unless volume later justifies an external helpdesk. Support cases are first-class records and should stay linked to approval tokens, audit events, and session-assist state.
 
 ## Current Session - First Live Stripe Checkout, Console Shell Correction, And Execution Phase
 
@@ -90,6 +100,7 @@ Updated: 2026-04-24T12:19:31Z (Billing lifecycle surfaces extended; fetch optimi
   - admin and RBAC surfaces
   - diff/confirm/apply completion
   - session resume continuity
+  - sandbox workspace expansion
   - DevOps 8 right-rail signal depth
   - provider/model refresh
   - hosted Codex account-connect planning
@@ -102,6 +113,112 @@ Updated: 2026-04-24T12:19:31Z (Billing lifecycle surfaces extended; fetch optimi
 - Current hosted console data layer is still chatty in dev and shows repeated summary requests across account, workspace, entitlement, billing, provider, and security endpoints.
 - Fetch/revalidation optimization is now queued, but should not replace the current priority order unless the console starts materially blocking product work.
 
+**2026-04-24T12:58:00Z: Hosted Policy And Trust Checkpoint Foundation**
+
+- BrewAssist now has a persisted hosted acceptance foundation for required onboarding documents via `supabase/migrations/202604240001_policy_acceptance_foundations.sql`.
+- Required hosted acceptance set is now versioned in `lib/compliance/requiredAcceptances.ts` and currently covers:
+  - Terms
+  - Privacy
+  - Acceptable Use
+  - AI workflow acknowledgement
+- Hosted acceptance state is served through `pages/api/compliance/acceptance.ts` and enforced in the real auth/org gate through `components/OnboardingTrustCheckpoint.tsx` mounted inside `EnterpriseTenantGate`.
+- New users should now be blocked from entering the hosted cockpit until the required acceptance set is recorded for their org/user pair.
+- This is a V1 foundation, not the finished compliance surface. Remaining follow-on work includes:
+  - enterprise admin visibility for acceptance state
+  - document version roll-forward handling
+  - non-blocking trust links for Security / Trust, Status, and Support inside the checkpoint
+  - optional stronger auth requirements by role or plan
+
+**2026-04-24T13:14:00Z: Collaboration Direction**
+
+- BrewAssist should not try to become a generic Slack, Zoom, or Teams replacement in V1.
+- The right-rail `Collab` surface should remain workflow-native and execution-linked:
+  - run notes
+  - approval threads
+  - replay annotations
+  - file/diff discussion
+  - handoff summaries
+  - incident/blocker context
+- Real-time communication should be integrated, not rebuilt:
+  - Slack first for notifications and threaded team communication
+  - Microsoft Teams later for enterprise buyers
+  - Zoom / Meet / Teams for video and screensharing
+- If BrewAssist launches external meetings from the right rail, treat them as handoff/meeting launch points, not a native media stack.
+- Do not spend V1 cycles building custom video, screenshare, or generic chat rooms before diff/confirm/apply, RBAC, and runtime truth are complete.
+
+**2026-04-24T13:33:00Z: First Admin / RBAC Surface**
+
+- `/console/settings` now includes a first org-admin RBAC surface via `components/console/ConsoleAdminSettings.tsx`.
+- Org-admin RBAC config is now served by `pages/api/admin/rbac/config.ts` and built from `lib/enterprise/adminRbac.ts`.
+- Current live scope:
+  - read current memberships
+  - read live role catalog from Supabase
+  - owner/admin role management for supported live roles
+  - explicit guardrail that only owners can assign owner
+- Current live role set remains:
+  - owner
+  - admin
+  - operator
+  - collaborator
+  - customer
+- Reviewer and viewer remain planned role lanes and should not be implied as fully live until roles, permissions, and policies are expanded consistently across hosted APIs and UI gates.
+
+**2026-04-24T14:02:00Z: Capability Gating And Session Continuity**
+
+- Live role permissions are now resolved from the org role catalog through `lib/enterprise/rbac.ts`.
+- `account.session` now exposes the actor role plus resolved capabilities for:
+  - org management
+  - billing management
+  - membership management
+  - repo management
+  - policy management
+  - approval / execution
+  - comment
+  - derived provider / identity management flags
+- Billing checkout and billing portal now enforce billing-management capability on the server, not just in UI copy.
+- Enterprise identity admin now enforces derived identity-management capability instead of ad hoc role-name checks.
+- `/console/billing` and `/console/providers` now show read-only states when the actor lacks the relevant capability.
+- Hosted continuity now has a first real read surface via `/api/sessions/summary` and the `/console/overview` recent-sessions card, backed by persisted `sessions` and `runs`.
+
+**2026-04-24T14:18:00Z: Resume Handoff**
+
+- `/console/overview` recent sessions now expose explicit `Resume` actions into the hosted cockpit.
+- `BrewCockpitCenter` now accepts `resumeSessionId` / `resumeRunId` query params, pivots into replay, and clears the URL after hydration.
+- `replay-history` now supports session-scoped filtering via `sessionId`, so a resume action can restore the correct session lane instead of reopening the newest org-wide run.
+- This is still replay-centric continuity, not the final `--resume brewassist <session-id>` contract. Next continuity step should map resumed session context back into active command-center/workflow state rather than only replay trace inspection.
+
+**2026-04-24T14:31:00Z: Command-Center Rehydration**
+
+- Hosted `Resume` now does more than open replay.
+- `BrewCockpitCenter` now reconstructs a useful workbench state from persisted workflow events:
+  - restored workflow stage
+  - restored system notice
+  - restored user prompt when present from `intent.captured`
+  - restored assistant-side summary from the latest meaningful event/collab handoff
+- If a resumed session has a run trace, the trace is still attached for later replay inspection.
+- If a resumed session has no latest run yet, BrewAssist now restores a stage-aware shell instead of failing silently.
+- This remains summary-based rehydration because the full assistant transcript is not yet persisted as a first-class replay artifact.
+
+**2026-04-26T15:08:59Z: Session Policy Implementation**
+
+- Hosted returning-user policy is now implemented in the browser auth layer with a 7-day warm session window and 12-hour idle freshness.
+- Session freshness is persisted per user in local storage and is re-evaluated on activity and auth state changes.
+- Expired warm sessions now sign out instead of remaining implicitly trusted.
+- The console header now shows a visible session freshness badge so operators can see when a warm session is near expiry.
+- Step-up auth remains a V1 policy concept for sensitive actions; current implementation treats fresh sign-in and active session renewal as the practical guardrail.
+
+**2026-04-26T15:08:59Z: Magic-Link Redirect Fix**
+
+- BrewAssist magic-link auth now uses a canonical `/auth/callback` landing page instead of relying on the current browser origin.
+- Production and preview deployments must set `NEXT_PUBLIC_BREWASSIST_HOST` to the canonical app host so email links do not target a stale deployment URL.
+- Supabase auth redirect allowlists should include `/auth/callback` and any intentional onboarding targets such as `/start-free`.
+
+**2026-05-02T00:00:00Z: Hosted Resume Rehydration And Apply Trail**
+
+- Hosted resume now has a server-side restore lookup at `/api/sessions/restore` so the cockpit can pull the latest session metadata before replay hydration.
+- The restore response should include compact command-center context derived from the latest run events, not just session/run ids.
+- Sandbox apply now records a commit-safe change list and persists a structured apply trail so replay and the sandbox page stay aligned on the same outcome.
+
 ## Current Session - Console Merger, Enterprise Readiness, And Hosted Contracts
 
 **2026-04-23T12:40:54Z: Shared Console + Public IA Scaffold**
@@ -109,7 +226,7 @@ Updated: 2026-04-24T12:19:31Z (Billing lifecycle surfaces extended; fetch optimi
 - Public route registry scaffold now exists inside BrewAssist for `/product`, `/brew-agentic`, `/features`, `/pricing`, `/security`, `/docs`, `/start-free`, `/login`, `/book-demo`, `/ai-transparency`, `/support`, `/status`, and `/console/*`.
 - The first hosted console shell now lives under `/console/*` in-repo as a scaffold while `console.brewassist.app` remains the canonical target shape.
 - Console pages now consume the first Supabase-backed control-plane summary endpoints for account, workspace, entitlement, billing, credits, and managed-provider state.
-- Current mockups under `public/mockups/` and the Brew Agentic images under `public/assests/agentic/` are active implementation inputs.
+- Current mockups under `public/mockups/` and the Brew Agentic images under `public/assets/agentic/` are active implementation inputs.
 
 **2026-04-23T12:40:54Z: Managed Provider + Enterprise Trust Direction**
 

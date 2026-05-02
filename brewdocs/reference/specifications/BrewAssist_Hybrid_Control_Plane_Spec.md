@@ -1,6 +1,6 @@
 # BrewAssist Hybrid Control Plane Spec
 
-Updated: 2026-04-13
+Updated: 2026-05-02
 
 ## Goal
 
@@ -31,6 +31,7 @@ Make BrewAssist online the shared control plane for both the browser app and `br
 - Collaboration notes now persist as `collab.message` events and surface in replay and the right rail.
 - Current online behavior still relies on central UI/API orchestration in places where dedicated typed agents should own more stage transitions and side effects.
 - BrewAssist is not v1 until provider/repo binding, sandbox execution, diff/confirm/apply, and human collaboration flows fully operate through the shared contract.
+- Hosted resume is part of the shared contract: `/resume` should restore the latest run metadata plus the last meaningful command-center context before replay inspection finishes.
 
 ## Shared Event Envelope
 
@@ -86,10 +87,11 @@ Stage payloads should stay narrow and typed:
 
 1. User selects a provider: GitHub, GitLab, Bitbucket, or local.
 2. User authenticates with that provider using OAuth, app install, token, or enterprise SSO.
-   - **Note on "Local":** When "Local" is selected in the online web UI, BrewAssist will surface a toast/prompt instructing the user to install the `BrewAgentic` local TUI. The online web app cannot read local drives for security. Once `BrewAgentic` is running locally, the online control plane can orchestrate it.
+   - **Note on "Local":** When "Local" is selected in the online web UI, BrewAssist should surface a larger local-runtime handoff that explains the Brew Agentic install/connect path and the dedicated sandbox execution boundary. The online web app cannot read local drives for security, but it can orchestrate the local runtime once Brew Agentic is connected.
 3. User selects a repo or workspace scope.
 4. BrewAssist binds that repo to a sandbox mirror.
 5. BrewAssist uses the mirror for reads, previews, and writes.
+   - The main pane should narrate the review and approval flow while the sandbox handles the actual writable execution surface.
 6. Unsupported cross-repo access fails closed.
 7. Supabase sessions and org membership govern enterprise access before production rollout.
 8. Browser-originated bearer tokens may be forwarded to protected Next API routes until server-side cookie exchange is fully hardened.
@@ -102,6 +104,7 @@ Onboarding is a required v1 surface for both new users and enterprise rollouts.
 - provider connection, repo selection, and sandbox binding should be guided
 - org creation, workspace setup, and role assignment should be explicit for enterprise tenants
 - diff review, confirm gates, and replay should be introduced during onboarding
+- resume and session recovery should be introduced during onboarding so returning users can reopen the last workflow without copy/paste or a dead-end landing page
 - research and toolbelt permissions should be explained before first use
 - onboarding must leave the user with a working Intent -> Plan -> Preview -> Confirm -> Execute -> Report -> Replay loop
 - power users should be able to invoke a slash-command palette from the center composer
@@ -123,10 +126,19 @@ Onboarding is a required v1 surface for both new users and enterprise rollouts.
   - expose the left rail as grouped, policy-aware MCP/action surfaces with a compact helper card
   - keep the right rail compact so the center pane stays dominant
   - **Help Tab:** Must explain the "Public Repository Requirement" (BrewAssist V1 requires repos to be public to support full Sandbox bindings and AI code-reading functions).
-- **Local TUI**
+- **Local TUI / Sandbox Runtime**
   - execute approved plans
   - run offline when needed
   - expose operator keybinds and terminal-first telemetry
+  - shadow the repo/workspace in an isolated execution surface
+  - remain distinct from the main control-plane conversation
+
+## Sandbox Shape
+
+- V1 sandbox should be a larger workspace than the right rail, such as a dedicated panel, drawer, or modal execution surface.
+- V1 sandbox should shadow the repo and keep writes isolated from the live repo until approval.
+- V2 can add dedicated sandbox domain, separate DB, and customer-isolated runtime tiers if enterprise isolation needs demand it.
+- The model/provider registry stays in the control plane and is consumed by the sandbox rather than duplicated there.
 
 ## Safety Rules
 

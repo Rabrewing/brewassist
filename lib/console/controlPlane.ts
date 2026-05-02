@@ -1,4 +1,8 @@
 import type { User } from '@supabase/supabase-js';
+import {
+  resolveOrgRoleCapabilities,
+  type OrgRolePermissions,
+} from '@/lib/enterprise/rbac';
 
 type SupabaseAdminClient = ReturnType<
   typeof import('@/lib/supabase/server').createSupabaseAdminClient
@@ -11,6 +15,11 @@ export type AccountSessionSummary = {
   plan: string;
   accountStanding: 'active' | 'inactive';
   ownerMode: boolean;
+  role: string;
+  capabilities: OrgRolePermissions & {
+    canManageIdentity: boolean;
+    canManageProviders: boolean;
+  };
   orgId: string | null;
   workspaceId: string | null;
 };
@@ -43,6 +52,7 @@ export type BillingSummary = {
   managedSpendUsd: number;
   intelligenceSpendUsd: number;
   creditsRemainingUsd: number;
+  providerUsage: ProviderUsageSummary;
   stripeReady: boolean;
   subscription: {
     externalSubscriptionId: string | null;
@@ -87,6 +97,26 @@ export type CreditsSummary = {
   stripeReady: boolean;
 };
 
+export type ProviderUsageSummary = {
+  totalCalls: number;
+  totalChars: number;
+  byProvider: Array<{
+    provider: string;
+    source: 'env' | 'hosted';
+    authMode: 'managed' | 'byok';
+    lane: 'executor' | 'planner' | 'reviewer' | 'memory' | 'research';
+    callCount: number;
+    charCount: number;
+    lastSeenAt: string | null;
+  }>;
+  byLane: Array<{
+    lane: 'executor' | 'planner' | 'reviewer' | 'memory' | 'research';
+    callCount: number;
+    charCount: number;
+    lastSeenAt: string | null;
+  }>;
+};
+
 export type ManagedProviderSummary = {
   providers: Array<{
     id: string;
@@ -95,6 +125,48 @@ export type ManagedProviderSummary = {
     models: string[];
     source: 'workspace-keys' | 'plan-default';
   }>;
+  usage: ProviderUsageSummary;
+};
+
+export type SessionContinuitySummary = {
+  sessions: Array<{
+    sessionId: string;
+    workspaceId: string | null;
+    currentStage: string;
+    lastSeenAt: string;
+    latestRunId: string | null;
+    latestRunStatus: string | null;
+    latestCloseoutStatus: string | null;
+    latestRunCreatedAt: string | null;
+  }>;
+};
+
+export type SessionRestoreSummary = {
+  sessionId: string;
+  workspaceId: string | null;
+  currentStage: string;
+  lastSeenAt: string;
+  latestRunId: string | null;
+  latestRunStatus: string | null;
+  latestCloseoutStatus: string | null;
+  latestRunCreatedAt: string | null;
+  context: SessionRestoreContext | null;
+};
+
+export type SessionRestoreContext = {
+  latestEventType: string | null;
+  stage: string;
+  summary: string;
+  assistantSummary: string;
+  confirmDecision: 'apply' | 'always_apply' | 'reject_comment' | null;
+  confirmFiles: string[];
+  applySuccess: boolean | null;
+  applyCommitHash: string | null;
+  applyBranch: string | null;
+  applyFiles: string[];
+  brewpmVerdict: 'approved' | 'changes_requested' | 'rejected' | null;
+  brewpmSummary: string | null;
+  brewpmCorrections: string[];
 };
 
 type MembershipRow = {
@@ -126,6 +198,8 @@ type WorkspaceRow = {
 type UsageRecordRow = {
   metric_name: string;
   metric_value: number;
+  created_at: string;
+  usage_lane?: string | null;
 };
 
 type ProviderKeyRow = {
@@ -153,6 +227,28 @@ type BillingCustomerRow = {
 };
 
 type BillingEventLedgerRow = {
+  event_type: string;
+  payload: Record<string, any>;
+  created_at: string;
+};
+
+type SessionRow = {
+  id: string;
+  workspace_id: string | null;
+  current_stage: string;
+  last_seen_at: string;
+};
+
+type RunRow = {
+  id: string;
+  session_id: string;
+  status: string;
+  closeout_status: string | null;
+  created_at: string;
+};
+
+type RunEventRow = {
+  run_id: string;
   event_type: string;
   payload: Record<string, any>;
   created_at: string;
@@ -210,36 +306,39 @@ function getPlatformFeeUsd(plan: BrewPlan) {
 function getPlanDefaultModels(plan: BrewPlan): Record<string, string[]> {
   if (plan === 'enterprise') {
     return {
-      openai: ['gpt-5.4', 'gpt-5.4-mini'],
-      anthropic: ['claude-3.5-sonnet'],
-      gemini: ['gemini-2.5-pro', 'gemini-2.5-flash'],
+      openai: ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-pro', 'gpt-5-mini'],
+      gemini: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'],
+      mistral: ['mistral-large-latest', 'mistral-small-latest'],
+      nims: ['nemotron-3-8b-instruct', 'llama-3.1-8b-instruct'],
     };
   }
 
   if (plan === 'team') {
     return {
-      openai: ['gpt-5.4-mini'],
-      anthropic: ['claude-3.5-sonnet'],
-      gemini: ['gemini-2.5-flash'],
+      openai: ['gpt-5.4-mini', 'gpt-5.4-pro', 'gpt-5-mini'],
+      gemini: ['gemini-2.5-flash', 'gemini-2.5-flash-lite'],
+      mistral: ['mistral-small-latest'],
     };
   }
 
   if (plan === 'pro') {
     return {
-      openai: ['gpt-5.4-mini'],
-      anthropic: ['claude-3.5-sonnet'],
-      gemini: ['gemini-2.5-flash'],
+      openai: ['gpt-5.4-mini', 'gpt-5.4-pro', 'gpt-5-mini'],
+      gemini: ['gemini-2.5-flash', 'gemini-2.5-flash-lite'],
+      mistral: ['mistral-small-latest'],
     };
   }
 
   if (plan === 'starter') {
     return {
       openai: ['gpt-5.4-mini'],
+      gemini: ['gemini-2.5-flash'],
     };
   }
 
   return {
     openai: ['gpt-5.4-mini'],
+    gemini: ['gemini-2.5-flash'],
   };
 }
 
@@ -310,11 +409,119 @@ async function loadProviderKeys(client: SupabaseAdminClient, orgId: string) {
 async function loadUsageRecords(client: SupabaseAdminClient, orgId: string) {
   const { data, error } = await client
     .from('usage_meter_records')
-    .select('metric_name, metric_value')
+    .select('metric_name, metric_value, created_at, usage_lane')
     .eq('org_id', orgId);
 
   if (error) throw error;
   return (data ?? []) as UsageRecordRow[];
+}
+
+function buildProviderUsageSummary(usage: UsageRecordRow[]) {
+  const pattern =
+    /^provider_(call|chars)_([a-z0-9-]+)_(env|hosted)_(managed|byok)$/i;
+  const normalizeLane = (value?: string | null) => {
+    const lane = (value ?? '').trim().toLowerCase();
+    if (
+      lane === 'executor' ||
+      lane === 'planner' ||
+      lane === 'reviewer' ||
+      lane === 'memory' ||
+      lane === 'research'
+    ) {
+      return lane;
+    }
+    return 'executor';
+  };
+  const byProvider = new Map<
+    string,
+    {
+      provider: string;
+      source: 'env' | 'hosted';
+      authMode: 'managed' | 'byok';
+      lane: 'executor' | 'planner' | 'reviewer' | 'memory' | 'research';
+      callCount: number;
+      charCount: number;
+      lastSeenAt: string | null;
+    }
+  >();
+  const byLane = new Map<
+    string,
+    {
+      lane: 'executor' | 'planner' | 'reviewer' | 'memory' | 'research';
+      callCount: number;
+      charCount: number;
+      lastSeenAt: string | null;
+    }
+  >();
+
+  let totalCalls = 0;
+  let totalChars = 0;
+
+  for (const item of usage) {
+    const match = item.metric_name.match(pattern);
+    if (!match) continue;
+
+    const [, metricKind, provider, source, authMode] = match;
+    const lane = normalizeLane(item.usage_lane);
+    const key = `${provider}:${source}:${authMode}:${lane}`;
+    const current = byProvider.get(key) ?? {
+      provider,
+      source: source.toLowerCase() as 'env' | 'hosted',
+      authMode: authMode.toLowerCase() as 'managed' | 'byok',
+      lane,
+      callCount: 0,
+      charCount: 0,
+      lastSeenAt: null,
+    };
+    const laneCurrent = byLane.get(lane) ?? {
+      lane,
+      callCount: 0,
+      charCount: 0,
+      lastSeenAt: null,
+    };
+
+    if (metricKind.toLowerCase() === 'call') {
+      current.callCount += Number(item.metric_value ?? 0);
+      totalCalls += Number(item.metric_value ?? 0);
+      laneCurrent.callCount += Number(item.metric_value ?? 0);
+    }
+
+    if (metricKind.toLowerCase() === 'chars') {
+      current.charCount += Number(item.metric_value ?? 0);
+      totalChars += Number(item.metric_value ?? 0);
+      laneCurrent.charCount += Number(item.metric_value ?? 0);
+    }
+
+    if (
+      !current.lastSeenAt ||
+      new Date(item.created_at).getTime() > new Date(current.lastSeenAt).getTime()
+    ) {
+      current.lastSeenAt = item.created_at;
+    }
+    if (
+      !laneCurrent.lastSeenAt ||
+      new Date(item.created_at).getTime() > new Date(laneCurrent.lastSeenAt).getTime()
+    ) {
+      laneCurrent.lastSeenAt = item.created_at;
+    }
+
+    byProvider.set(key, current);
+    byLane.set(lane, laneCurrent);
+  }
+
+  return {
+    totalCalls,
+    totalChars,
+    byProvider: Array.from(byProvider.values()).sort((a, b) =>
+      a.provider.localeCompare(b.provider) ||
+      a.source.localeCompare(b.source) ||
+      a.authMode.localeCompare(b.authMode) ||
+      a.lane.localeCompare(b.lane)
+    ),
+    byLane: Array.from(byLane.values()).sort((a, b) =>
+      a.lane.localeCompare(b.lane)
+    ),
+  };
 }
 
 async function loadBillingSubscription(
@@ -367,6 +574,222 @@ async function loadRecentBillingEvents(
 
   if (error) throw error;
   return (data ?? []) as BillingEventLedgerRow[];
+}
+
+async function loadRecentSessions(
+  client: SupabaseAdminClient,
+  orgId: string,
+  userId: string,
+  workspaceId?: string
+) {
+  let query = client
+    .from('sessions')
+    .select('id, workspace_id, current_stage, last_seen_at')
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+    .order('last_seen_at', { ascending: false })
+    .limit(6);
+
+  if (workspaceId) {
+    query = query.eq('workspace_id', workspaceId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as SessionRow[];
+}
+
+async function loadRunsForSessions(
+  client: SupabaseAdminClient,
+  orgId: string,
+  sessionIds: string[]
+) {
+  if (sessionIds.length === 0) return [] as RunRow[];
+
+  const { data, error } = await client
+    .from('runs')
+    .select('id, session_id, status, closeout_status, created_at')
+    .eq('org_id', orgId)
+    .in('session_id', sessionIds)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as RunRow[];
+}
+
+async function loadSessionById(
+  client: SupabaseAdminClient,
+  orgId: string,
+  userId: string,
+  sessionId: string,
+  workspaceId?: string
+) {
+  let query = client
+    .from('sessions')
+    .select('id, workspace_id, current_stage, last_seen_at')
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+    .eq('id', sessionId);
+
+  if (workspaceId) {
+    query = query.eq('workspace_id', workspaceId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as SessionRow | null;
+}
+
+async function loadLatestRunForSession(
+  client: SupabaseAdminClient,
+  orgId: string,
+  sessionId: string,
+  workspaceId?: string
+) {
+  let query = client
+    .from('runs')
+    .select('id, session_id, status, closeout_status, created_at')
+    .eq('org_id', orgId)
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (workspaceId) {
+    query = query.eq('workspace_id', workspaceId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as RunRow | null;
+}
+
+async function loadRunEvents(
+  client: SupabaseAdminClient,
+  orgId: string,
+  runId: string
+) {
+  const { data, error } = await client
+    .from('run_events')
+    .select('run_id, event_type, payload, created_at')
+    .eq('org_id', orgId)
+    .eq('run_id', runId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as RunEventRow[];
+}
+
+function deriveSessionRestoreContext(
+  session: SessionRow,
+  latestRun: RunRow | null,
+  events: RunEventRow[]
+): SessionRestoreContext {
+  const latestEvent = events[events.length - 1] ?? null;
+  const latestConfirm = [...events]
+    .reverse()
+    .find((event) => event.event_type === 'confirm.requested');
+  const latestApply = [...events]
+    .reverse()
+    .find((event) => event.event_type === 'apply.completed');
+  const latestCollab = [...events]
+    .reverse()
+    .find((event) => event.event_type === 'collab.message');
+  const latestReport = [...events]
+    .reverse()
+    .find((event) => event.event_type === 'report.emitted');
+  const latestPreview = [...events]
+    .reverse()
+    .find((event) => event.event_type === 'preview.ready');
+  const latestExecute = [...events]
+    .reverse()
+    .find((event) => event.event_type === 'execute.completed');
+  const confirmPayload = (latestConfirm?.payload?.payload ?? {}) as {
+    decision?: 'apply' | 'always_apply' | 'reject_comment';
+    files?: string[];
+    comment?: string;
+  };
+  const applyPayload = (latestApply?.payload?.payload ?? {}) as {
+    success?: boolean;
+    commitHash?: string | null;
+    branch?: string | null;
+    changedFiles?: string[];
+    error?: string | null;
+    output?: string | null;
+  };
+  const reportPayload = (latestReport?.payload?.payload ?? {}) as {
+    summary?: string;
+    status?: string;
+  };
+  const previewPayload = (latestPreview?.payload?.payload ?? {}) as {
+    diffFiles?: number;
+    hasChanges?: boolean;
+  };
+  const executePayload = (latestExecute?.payload?.payload ?? {}) as {
+    responseText?: string;
+    status?: string;
+  };
+  const collabMessage = (latestCollab?.payload?.payload ?? {}) as {
+    message?: string;
+  };
+
+  const assistantSummary =
+    collabMessage.message ??
+    applyPayload.output ??
+    reportPayload.summary ??
+    executePayload.responseText ??
+    (latestEvent?.event_type === 'confirm.requested'
+      ? 'The session is waiting on confirmation.'
+      : latestEvent?.event_type === 'apply.completed'
+        ? applyPayload.success
+          ? 'The sandbox apply completed and the session is ready to continue.'
+          : 'The sandbox apply failed and needs attention.'
+        : latestEvent?.event_type === 'preview.ready'
+          ? 'A preview is ready for review.'
+          : latestEvent?.event_type === 'execute.completed'
+            ? 'Execution completed and the report is ready.'
+            : latestEvent?.event_type === 'report.emitted'
+              ? 'A report was emitted for the session.'
+              : 'Session restored from persisted workflow events.');
+
+  const summary =
+    latestEvent?.event_type === 'confirm.requested'
+      ? `Awaiting confirmation for ${confirmPayload.files?.length ?? 0} file${(confirmPayload.files?.length ?? 0) === 1 ? '' : 's'}.`
+      : latestEvent?.event_type === 'apply.completed'
+        ? applyPayload.success
+          ? `Apply completed on ${applyPayload.branch ?? 'the active branch'}.`
+          : `Apply failed${applyPayload.error ? `: ${applyPayload.error}` : ''}.`
+        : latestEvent?.event_type === 'preview.ready'
+          ? `Preview ready for ${previewPayload.diffFiles ?? 0} file${(previewPayload.diffFiles ?? 0) === 1 ? '' : 's'}.`
+          : latestEvent?.event_type === 'execute.completed'
+            ? `Execution completed with status ${executePayload.status ?? session.current_stage}.`
+            : latestEvent?.event_type === 'report.emitted'
+              ? `Report emitted for ${session.id.slice(0, 8)}.`
+              : assistantSummary;
+
+  return {
+    latestEventType: latestEvent?.event_type ?? null,
+    stage: session.current_stage,
+    summary,
+    assistantSummary,
+    confirmDecision: confirmPayload.decision ?? null,
+    confirmFiles: Array.isArray(confirmPayload.files)
+      ? confirmPayload.files.filter((file): file is string => typeof file === 'string')
+      : [],
+    applySuccess:
+      typeof applyPayload.success === 'boolean' ? applyPayload.success : null,
+    applyCommitHash:
+      typeof applyPayload.commitHash === 'string'
+        ? applyPayload.commitHash
+        : null,
+    applyBranch:
+      typeof applyPayload.branch === 'string' ? applyPayload.branch : null,
+    applyFiles: Array.isArray(applyPayload.changedFiles)
+      ? applyPayload.changedFiles.filter((file): file is string => typeof file === 'string')
+      : [],
+    brewpmVerdict: null,
+    brewpmSummary: latestRun?.closeout_status ?? null,
+    brewpmCorrections: [],
+  };
 }
 
 function readBillingInterval(subscription: BillingSubscriptionRow | null) {
@@ -560,6 +983,28 @@ export async function buildAccountSessionSummary(
     user.user_metadata?.name ??
     email.split('@')[0] ??
     'BrewAssist User';
+  const capabilities =
+    org && membership
+      ? await resolveOrgRoleCapabilities({
+          client,
+          orgId: org.id,
+          userId: user.id,
+        })
+      : {
+          roleName: 'customer',
+          permissions: {
+            manage_org: false,
+            manage_billing: false,
+            manage_memberships: false,
+            manage_repos: false,
+            manage_policies: false,
+            approve_runs: false,
+            execute_runs: false,
+            comment: false,
+          },
+          canManageIdentity: false,
+          canManageProviders: false,
+        };
 
   return {
     accountId: user.id,
@@ -568,6 +1013,12 @@ export async function buildAccountSessionSummary(
     plan: normalizePlan(org?.plan),
     accountStanding: org ? 'active' : 'inactive',
     ownerMode: membership?.role_name === 'owner',
+    role: capabilities.roleName,
+    capabilities: {
+      ...capabilities.permissions,
+      canManageIdentity: capabilities.canManageIdentity,
+      canManageProviders: capabilities.canManageProviders,
+    },
     orgId: org?.id ?? null,
     workspaceId: workspace?.id ?? null,
   };
@@ -660,6 +1111,12 @@ export async function buildBillingSummary(
       managedSpendUsd: 0,
       intelligenceSpendUsd: 0,
       creditsRemainingUsd: 0,
+      providerUsage: {
+        totalCalls: 0,
+        totalChars: 0,
+        byProvider: [],
+        byLane: [],
+      },
       stripeReady: false,
       subscription: null,
       customer: null,
@@ -696,6 +1153,7 @@ export async function buildBillingSummary(
     managedSpendUsd,
     intelligenceSpendUsd,
     creditsRemainingUsd,
+    providerUsage: buildProviderUsageSummary(usage),
     stripeReady: false,
     subscription: subscription
       ? {
@@ -752,7 +1210,15 @@ export async function buildManagedProviderSummary(
   const { org } = await resolveConsoleContext(client, user, requestedOrgId);
 
   if (!org) {
-    return { providers: [] };
+    return {
+      providers: [],
+      usage: {
+        totalCalls: 0,
+        totalChars: 0,
+        byProvider: [],
+        byLane: [],
+      },
+    };
   }
 
   const plan = normalizePlan(org.plan);
@@ -763,6 +1229,7 @@ export async function buildManagedProviderSummary(
     .filter((item) => item.status === 'active')
     .map((item) => item.provider);
   const providerIds = [...new Set([...Object.keys(planModels), ...keyProviders])];
+  const usage = await loadUsageRecords(client, org.id);
 
   return {
     providers: providerIds.map((providerId) => ({
@@ -779,5 +1246,111 @@ export async function buildManagedProviderSummary(
         ? 'workspace-keys'
         : 'plan-default',
     })),
+    usage: buildProviderUsageSummary(usage),
+  };
+}
+
+export async function buildSessionContinuitySummary(
+  client: SupabaseAdminClient,
+  user: User,
+  requestedOrgId?: string,
+  requestedWorkspaceId?: string
+): Promise<SessionContinuitySummary> {
+  const { org, workspace } = await resolveConsoleContext(
+    client,
+    user,
+    requestedOrgId,
+    requestedWorkspaceId
+  );
+
+  if (!org) {
+    return { sessions: [] };
+  }
+
+  const sessions = await loadRecentSessions(
+    client,
+    org.id,
+    user.id,
+    workspace?.id ?? requestedWorkspaceId
+  );
+  const runs = await loadRunsForSessions(
+    client,
+    org.id,
+    sessions.map((item) => item.id)
+  );
+  const latestRunsBySession = new Map<string, RunRow>();
+
+  runs.forEach((run) => {
+    if (!latestRunsBySession.has(run.session_id)) {
+      latestRunsBySession.set(run.session_id, run);
+    }
+  });
+
+  return {
+    sessions: sessions.map((session) => {
+      const latestRun = latestRunsBySession.get(session.id) ?? null;
+
+      return {
+        sessionId: session.id,
+        workspaceId: session.workspace_id,
+        currentStage: session.current_stage,
+        lastSeenAt: session.last_seen_at,
+        latestRunId: latestRun?.id ?? null,
+        latestRunStatus: latestRun?.status ?? null,
+        latestCloseoutStatus: latestRun?.closeout_status ?? null,
+        latestRunCreatedAt: latestRun?.created_at ?? null,
+      };
+    }),
+  };
+}
+
+export async function buildSessionRestoreSummary(
+  client: SupabaseAdminClient,
+  user: User,
+  requestedOrgId: string,
+  sessionId: string,
+  requestedWorkspaceId?: string
+): Promise<SessionRestoreSummary | null> {
+  const { org, workspace } = await resolveConsoleContext(
+    client,
+    user,
+    requestedOrgId,
+    requestedWorkspaceId
+  );
+
+  if (!org) return null;
+
+  const session = await loadSessionById(
+    client,
+    org.id,
+    user.id,
+    sessionId,
+    workspace?.id ?? requestedWorkspaceId
+  );
+
+  if (!session) return null;
+
+  const latestRun = await loadLatestRunForSession(
+    client,
+    org.id,
+    session.id,
+    session.workspace_id ?? workspace?.id ?? requestedWorkspaceId
+  );
+  const events = latestRun
+    ? await loadRunEvents(client, org.id, latestRun.id)
+    : [];
+
+  return {
+    sessionId: session.id,
+    workspaceId: session.workspace_id,
+    currentStage: session.current_stage,
+    lastSeenAt: session.last_seen_at,
+    latestRunId: latestRun?.id ?? null,
+    latestRunStatus: latestRun?.status ?? null,
+    latestCloseoutStatus: latestRun?.closeout_status ?? null,
+    latestRunCreatedAt: latestRun?.created_at ?? null,
+    context: latestRun
+      ? deriveSessionRestoreContext(session, latestRun, events)
+      : null,
   };
 }
